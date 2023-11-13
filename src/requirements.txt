@@ -1,0 +1,24 @@
+# In a Python 3.11 environment
+sentence-transformers
+evaluate
+datasets==2.10
+textstat
+tqdm
+sacremoses
+rake_nltk
+rouge_score
+statistics
+scipy
+wandb
+scikit-learn
+accelerate
+python2latex
+git+https://github.com/google-research/bleurt.git
+
+# Install a modified version of the LENS codebase by fixing PyPi broken build
+# with sentence-transformers (torch version), sentencepiece and Pandas
+# pip install git+https://github.com/davebulaval/LENS
+
+# Install a modified version of the QuestEval codebase by fixing PyPi broken build
+# with SpaCy
+# pip install git+https://github.com/davebulaval/QuestEval
