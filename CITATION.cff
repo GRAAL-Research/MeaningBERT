@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+preferred-citation:
+  type: article
+  message: "If you use MeaningBERT, please cite it as below."
+  authors:
+  - family-names: "Beauchemin"
+    given-names: "David"
+  - family-names: "Saggion"
+    given-names: "Horacio"
+  - family-names: "Khoury"
+    given-names: "Richard"
+  title: "MeaningBERT: assessing meaning preservation between sentences"
+  journal: "Frontiers in Artificial Intelligence"
+  volume: "6"
+  doi: "10.3389/frai.2023.1223924"
+  url: "https://www.frontiersin.org/articles/10.3389/frai.2023.1223924"
+  year: 2023
