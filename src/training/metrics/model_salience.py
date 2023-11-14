@@ -2,7 +2,7 @@ import nltk
 import torch
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 
-import utils_masking
+from utils_masking import NonStopMasker
 
 
 def unfold(sent_toks, make_tensor=True):
@@ -27,7 +27,7 @@ class CoverageModel:
         if self.tokenizer.eos_token_id is None:
             self.eos_token_id = 0
 
-        self.masking_model = utils_masking.NonStopMasker()
+        self.masking_model = NonStopMasker()
         self.masking_model.register_tokenizer(self.tokenizer)
 
         self.vocab_size = self.tokenizer.vocab_size
