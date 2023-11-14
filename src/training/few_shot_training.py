@@ -69,7 +69,7 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 
 def tokenize_function(example):
-    return tokenizer(example["original"], example["simplification"], truncation=True)
+    return tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
 
 
 tokenized_csmd_dataset = csmd_dataset.map(tokenize_function, batched=True)
