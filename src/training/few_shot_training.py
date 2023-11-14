@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os.path
 
 import wandb
 from datasets import load_dataset
@@ -133,3 +134,5 @@ compute_other_metrics_performance(
     logger=wandb,
     device=device,
 )
+
+trainer.save_model(f"test_trainer{seed}")
