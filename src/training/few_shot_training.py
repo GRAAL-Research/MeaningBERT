@@ -98,7 +98,7 @@ trainer = Trainer(
     model,
     training_args,
     train_dataset=tokenized_csmd_dataset["train"],
-    eval_dataset=tokenized_csmd_dataset["val"],
+    eval_dataset=tokenized_csmd_dataset["dev"],
     data_collator=data_collator,
     tokenizer=tokenizer,
     compute_metrics=compute_metrics,
