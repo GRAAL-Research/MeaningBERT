@@ -2,7 +2,7 @@ import nltk
 import torch
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 
-from utils_masking import NonStopMasker
+from .utils_masking import NonStopMasker
 
 
 def unfold(sent_toks, make_tensor=True):
