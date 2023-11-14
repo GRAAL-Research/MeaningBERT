@@ -13,7 +13,7 @@ from transformers import (
 )
 
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
-from src.training.evaluate import compute_other_metrics_performance
+from evaluate_metrics import compute_other_metrics_performance
 from tools import (
     bool_parse,
 )

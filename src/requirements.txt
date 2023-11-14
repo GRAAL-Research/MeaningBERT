@@ -13,6 +13,9 @@ wandb
 scikit-learn
 accelerate
 python2latex
+poutyne
+torchmetrics
+torch>=1.6.0,<2
 git+https://github.com/google-research/bleurt.git
 
 # Install a modified version of the LENS codebase by fixing PyPi broken build
