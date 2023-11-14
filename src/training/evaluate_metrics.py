@@ -68,9 +68,7 @@ if not os.path.exists(coverage_model_ckpt):
         "https://github.com/GRAAL-Research/MeaningBERT/releases/download/dependencies_model_release/"
         "coverage_roberta.bin"
     )
-    filehandle, _ = urllib.request.urlretrieve(url)
-    with ZipFile(filehandle, "r") as zip_file:
-        zip_file.extractall(".", members=None, pwd=None)
+    filehandle, _ = urllib.request.urlretrieve(url, filename=coverage_model_ckpt)
 
 coverage_kis = CoverageModel(model_file=coverage_model_ckpt)
 
