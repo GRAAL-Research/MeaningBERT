@@ -59,7 +59,7 @@ if not os.path.exists(lens_model_ckpt):
     url = "https://github.com/GRAAL-Research/MeaningBERT/releases/download/dependencies_model_release/LENS.zip"
     filehandle, _ = urllib.request.urlretrieve(url)
     with ZipFile(filehandle, "r") as zip_file:
-        zip_file.extractall(lens_model_ckpt, members=None, pwd=None)
+        zip_file.extractall(".", members=None, pwd=None)
 lens = LENS(lens_model_ckpt, rescale=True)
 
 coverage_model_ckpt = os.path.join("coverage_roberta.bin")
@@ -70,7 +70,7 @@ if not os.path.exists(coverage_model_ckpt):
     )
     filehandle, _ = urllib.request.urlretrieve(url)
     with ZipFile(filehandle, "r") as zip_file:
-        zip_file.extractall(coverage_model_ckpt, members=None, pwd=None)
+        zip_file.extractall(".", members=None, pwd=None)
 
 coverage_kis = CoverageModel(model_file=coverage_model_ckpt)
 
