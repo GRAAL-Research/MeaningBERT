@@ -30,8 +30,11 @@ sentence-transformers (torch version), sentencepiece and Pandas. To install a wo
 #### Install QuestEVal
 
 To install QuestEval, one needs to install a modified version of the QuestEval codebase that fixes PyPi broken build
-with
-SpaCy. To install a working LENS version, use `pip install git+https://github.com/davebulaval/QuestEval`.
+with SpaCy. To install a working LENS version, use `pip install git+https://github.com/davebulaval/QuestEval`.
+
+#### Install BLEURT
+
+To install a working BLEURT version, use `pip install git+https://github.com/google-research/bleurt`.
 
 ## Execution
 

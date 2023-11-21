@@ -1,7 +1,7 @@
 # In a Python 3.11 environment
 sentence-transformers
 evaluate
-datasets==2.10
+datasets
 textstat
 tqdm
 sacremoses
@@ -16,12 +16,14 @@ python2latex
 poutyne
 torchmetrics
 torch>=1.6.0,<2
-git+https://github.com/google-research/bleurt.git
 
 # Install a modified version of the LENS codebase by fixing PyPi broken build
-# with sentence-transformers (torch version), sentencepiece and Pandas
+# with sentence-transformers (torch version), sentencepiece and Pandas.
 # pip install git+https://github.com/davebulaval/LENS
 
 # Install a modified version of the QuestEval codebase by fixing PyPi broken build
-# with SpaCy
+# with SpaCy.
 # pip install git+https://github.com/davebulaval/QuestEval
+
+# Install BLEURT
+# pip install git+https://github.com/google-research/bleurt

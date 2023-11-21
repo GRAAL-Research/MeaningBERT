@@ -12,7 +12,6 @@ from transformers import (
     Trainer,
 )
 
-from evaluate_metrics import compute_other_metrics_performance
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
 from tools import (
     bool_parse,
@@ -124,6 +123,12 @@ trainer.evaluate(
     eval_dataset=tokenize_holdout_unrelated_dataset["test"],
     metric_key_prefix="test/unrelated_sentences",
 )
+
+# Local import and model delete to reduce memory usage on GPU
+del model
+del trainer
+
+from evaluate_metrics import compute_other_metrics_performance
 
 print("----------Test Set Evaluation start of Other Metrics----------")
 compute_other_metrics_performance(
