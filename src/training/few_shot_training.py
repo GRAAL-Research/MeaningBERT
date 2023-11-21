@@ -23,7 +23,7 @@ log.propagate = False
 log.setLevel(logging.ERROR)
 
 device = "cuda:0"
-num_epoch = 500
+num_epoch = 250
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -83,7 +83,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=16,
     per_device_eval_batch_size=64,
     num_train_epochs=num_epoch,
-    save_total_limit=int(num_epoch / 2) + 1,
+    save_total_limit=num_epoch,
     save_strategy="epoch",
     load_best_model_at_end=True,  # By default, use the eval loss to retrieve the best model.
     seed=seed,
