@@ -1,6 +1,5 @@
 import argparse
 import logging
-import os.path
 
 import wandb
 from datasets import load_dataset
@@ -13,8 +12,8 @@ from transformers import (
     Trainer,
 )
 
-from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
 from evaluate_metrics import compute_other_metrics_performance
+from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
 from tools import (
     bool_parse,
 )
