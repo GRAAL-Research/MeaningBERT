@@ -1,2 +1,5 @@
 [core]
     autostage = true
+    remote = s3remote
+['remote "s3remote"']
+    url = s3://meaningbert
