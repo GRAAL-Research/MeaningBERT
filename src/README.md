@@ -6,7 +6,8 @@ our [article](https://www.frontiersin.org/articles/10.3389/frai.2023.1223924/ful
 ## To Reproduce our Article Results
 
 The `src` directory is public to make our results more reproducible. One can reproduce our results by
-using the codebase. It was coded in Python 3.11.
+using the codebase. It was coded in Python 3.11. To reproduce the results, you can
+use `python few_shot_training.py --data_augmentation=True`.
 
 Note that this codebase is different from the one used for our article. In our article, we create ten different
 train/dev/test splits using a different seed each time, and we also create, on run-time, data augmentation generation
