@@ -1,14 +1,3 @@
----
-title: MeaningBERT
-emoji: 🦀
-colorFrom: purple
-colorTo: indigo
-sdk: gradio
-sdk_version: 4.2.0
-app_file: app.py
-pinned: false
----
-
 <div align="center">
 
 [![pr welcome](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)
