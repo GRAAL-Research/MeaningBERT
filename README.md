@@ -59,7 +59,7 @@ Our second test evaluates meaning preservation between a source sentence and an 
 language model.3 The idea is to verify that the metric finds a meaning preservation rating of 0 when given a completely
 irrelevant sentence mainly composed of irrelevant words (also known as word soup). Since this test's expected rating is
 0, we check that the metric rating is lower or equal to a threshold value X∈[5, 1].
-Again, to account for computer floating-point inaccuracy, we round the ratings to the nearest integer and do not use a
+Again, to account for computer floating-point inaccuracy, we round the ratings to the nearest integer and do not use
 a threshold value of 0%.
 
 ## Use MeaningBERT
