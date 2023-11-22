@@ -26,12 +26,15 @@ a `requirements.txt` file.
 
 To install LENS, one needs to install a modified version of the LENS codebase that fixes PyPi's broken build between
 sentence-transformers (torch version), sentencepiece and Pandas. To install a working LENS version, use
-`pip install git+https://github.com/davebulaval/LENS`.
+`pip install git+https://github.com/davebulaval/LENS`. You also need to download the weights of the coverage model.
+Weights are available [here](https://github.com/GRAAL-Research/MeaningBERT/releases/tag/dependencies_model_release).
 
 #### Install QuestEVal
 
 To install QuestEval, one needs to install a modified version of the QuestEval codebase that fixes PyPi broken build
-with SpaCy. To install a working LENS version, use `pip install git+https://github.com/davebulaval/QuestEval`.
+with SpaCy. To install a working LENS version, use `pip install git+https://github.com/davebulaval/QuestEval`. You also
+need to download the weights of the coverage model. Weights are available
+[here](https://github.com/GRAAL-Research/MeaningBERT/releases/tag/dependencies_model_release).
 
 #### Install BLEURT
 
