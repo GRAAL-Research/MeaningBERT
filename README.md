@@ -66,7 +66,30 @@ model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningB
 
 or you can use MeaningBERT as a metric for evaluation (no retrain) using the following with HuggingFace
 
+## Code Examples
 
+```python
+import torch
+
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+tokenizer = AutoTokenizer.from_pretrained("davebulaval/MeaningBERT")
+scorer = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT")
+scorer.eval()
+
+documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "He wants to eat."]
+simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
+                   "Whatever, whenever, this is a sentence."]
+
+# We tokenize the text as a pair and return Pytorch Tensors
+tokenize_text = tokenizer(documents, simplifications, truncation=True, padding=True, return_tensors="pt")
+
+with torch.no_grad():
+    # We process the text
+    scores = scorer(**tokenize_text)
+
+print(scores.logits.tolist())
+```
 
 
 ------------------
