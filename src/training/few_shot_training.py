@@ -21,7 +21,6 @@ log = logging.getLogger("pytorch_lightning")
 log.propagate = False
 log.setLevel(logging.ERROR)
 
-device = "cuda:0"
 num_epoch = 250
 
 parser = argparse.ArgumentParser()
@@ -124,19 +123,4 @@ trainer.evaluate(
     metric_key_prefix="test/unrelated_sentences",
 )
 
-# Local import and model delete to reduce memory usage on GPU
-del model
-del trainer
-
-from evaluate_metrics import compute_other_metrics_performance
-
-print("----------Test Set Evaluation start of Other Metrics----------")
-compute_other_metrics_performance(
-    test_set=tokenized_csmd_dataset["test"],
-    holdout_identical_set=tokenize_holdout_identical_dataset["test"],
-    holdout_unrelated_set=tokenize_holdout_unrelated_dataset["test"],
-    logger=wandb,
-    device=device,
-)
-
-trainer.save_model(f"test_trainer{seed}")
+trainer.save_model(f"meaningbert_best_model")

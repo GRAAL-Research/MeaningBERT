@@ -2,13 +2,12 @@
 evaluate
 datasets
 tqdm
-# sacremoses
-# rake_nltk
 scipy
 wandb
 scikit-learn
 accelerate
 poutyne
 torchmetrics
+transformers
 
 # pip install torch==1.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
