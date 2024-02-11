@@ -28,7 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--seed",
     type=int,
-    default=42,
+    default=45,
     help="The seed to use for training.",
 )
 
@@ -42,7 +42,7 @@ parser.add_argument(
 parser.add_argument(
     "--data_augmentation",
     type=bool_parse,
-    default=False,
+    default=True,
     help="Either or not to do data augmentation.",
 )
 
@@ -76,7 +76,7 @@ tokenize_holdout_unrelated_dataset = holdout_unrelated_dataset.map(tokenize_func
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
 training_args = TrainingArguments(
-    output_dir="test_trainer",
+    output_dir="meaning_bert_train",
     logging_strategy="epoch",
     evaluation_strategy="epoch",
     per_device_train_batch_size=16,
@@ -86,7 +86,7 @@ training_args = TrainingArguments(
     save_strategy="epoch",
     load_best_model_at_end=True,  # By default, use the eval loss to retrieve the best model.
     seed=seed,
-    metric_for_best_model="loss",
+    metric_for_best_model="eval_loss",
 )
 
 # num_labels to 1 to create a regression head
