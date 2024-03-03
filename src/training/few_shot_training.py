@@ -86,6 +86,7 @@ training_args = TrainingArguments(
     load_best_model_at_end=True,  # By default, use the eval loss to retrieve the best model.
     seed=seed,
     metric_for_best_model="eval_loss",
+    learning_rate=5e-5,
 )
 
 # num_labels to 1 to create a regression head
