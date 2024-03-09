@@ -21,7 +21,7 @@ log = logging.getLogger("pytorch_lightning")
 log.propagate = False
 log.setLevel(logging.ERROR)
 
-num_epoch = 250
+num_epoch = 500
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -124,4 +124,4 @@ trainer.evaluate(
     metric_key_prefix="test/unrelated_sentences",
 )
 
-trainer.save_model(f"meaningbert_best_model")
+trainer.save_model(f"meaningbert_best_model_{seed}")
