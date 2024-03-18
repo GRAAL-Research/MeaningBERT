@@ -16,11 +16,11 @@ Its goal is to assess meaning preservation between two sentences that correlate 
 checks. For more details, refer to our publicly available article.
 
 > This public version of our model uses the best model trained (where in our article, we present the performance results
-> of an average of 10 models) for a more extended period (1,000 epochs instead of 250). We have observed later that the
-> model can further reduce dev loss and increase performance.
+> of an average of 10 models) for a more extended period (500 epochs instead of 250). We have observed later that the
+> model can further reduce dev loss and increase performance. Also, we have changed the data augmentation technique use
+> in the article for a more robust one.
 
 - [HuggingFace Model Card](https://huggingface.co/davebulaval/MeaningBERT)
-- [HuggingFace Metric Card]()
 
 ## Sanity Check
 
