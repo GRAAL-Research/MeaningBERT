@@ -18,16 +18,17 @@ checks. For more details, refer to our publicly available article.
 > This public version of our model uses the best model trained (where in our article, we present the performance results
 > of an average of 10 models) for a more extended period (500 epochs instead of 250). We have observed later that the
 > model can further reduce dev loss and increase performance. Also, we have changed the data augmentation technique used
-> in the article for a more robust one, that also includes the commutative property of the meaning function. Namely, Meaning(Sent_a, Sent_b) = Meaning(Sent_b, Sent_a).
+> in the article for a more robust one, that also includes the commutative property of the meaning function. Namely, 
+> Meaning(Sent_a, Sent_b) = Meaning(Sent_b, Sent_a).
 
 - [HuggingFace Model Card](https://huggingface.co/davebulaval/MeaningBERT)
+- [HuggingFace Metric Card](https://huggingface.co/spaces/davebulaval/meaningbert)
 
 ## Sanity Check
 
 Correlation to human judgment is one way to evaluate the quality of a meaning preservation metric.
 However, it is inherently subjective, since it uses human judgment as a gold standard, and expensive since it requires
-a large dataset
-annotated by several humans. As an alternative, we designed two automated tests: evaluating meaning preservation between
+a large dataset annotated by several humans. As an alternative, we designed two automated tests: evaluating meaning preservation between
 identical sentences (which should be 100% preserving) and between unrelated sentences (which should be 0% preserving).
 In these tests, the meaning preservation target value is not subjective and does not require human annotation to
 be measured. They represent a trivial and minimal threshold a good automatic meaning preservation metric should be able to
@@ -66,8 +67,6 @@ model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningB
 
 or you can use MeaningBERT as a metric for evaluation (no retrain) using the following with HuggingFace
 
-## Code Examples
-
 ```python
 import torch
 
@@ -89,6 +88,19 @@ with torch.no_grad():
     scores = scorer(**tokenize_text)
 
 print(scores.logits.tolist())
+```
+or using our HuggingFace Metric module
+
+```python
+import evaluate
+
+documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "He wants to eat."]
+simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
+                   "Whatever, whenever, this is a sentence."]
+
+meaning_bert = evaluate.load("davebulaval/meaningbert")
+
+print(meaning_bert.compute(documents=documents, simplifications=simplifications))
 ```
 
 
