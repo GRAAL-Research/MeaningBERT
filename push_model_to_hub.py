@@ -8,7 +8,7 @@ secrets = dotenv_values(".env")
 
 huggingface_hub.login(token=secrets["huggingface_token"])
 
-model_path = os.path.join(".", "datastore", "V2")
+model_path = os.path.join(".", "datastore", "V3")
 model = AutoModelForSequenceClassification.from_pretrained(model_path)
 
 model.push_to_hub("davebulaval/MeaningBERT")
