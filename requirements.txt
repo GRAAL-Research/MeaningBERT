@@ -3,4 +3,4 @@
 pytorch
 tensorflow[and-cuda]
 keras
-dotenv
+python-dotenv
