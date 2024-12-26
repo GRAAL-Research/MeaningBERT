@@ -100,7 +100,7 @@ simplifications = ["He wanted to make them pay.", "This sandwich looks delicious
 
 meaning_bert = evaluate.load("davebulaval/meaningbert")
 
-print(meaning_bert.compute(documents=documents, simplifications=simplifications))
+print(meaning_bert.compute(references=documents, predictions=simplifications))
 ```
 
 
