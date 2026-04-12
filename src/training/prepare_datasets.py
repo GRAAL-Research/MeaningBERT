@@ -1,21 +1,26 @@
 """Pre-generate all dataset variants to disk for fast training.
 
-Run once before sweeps:
+Run once before sweeps::
+
     python prepare_datasets.py --output_dir ./data
 
-This creates:
+This creates::
+
     data/
         folds/
-            fold_0/                         - seed 42 split
-                meaning/                    - base (no augmentation)
-                meaning_with_swap/          - swap augmentation
-                meaning_with_back_translation/ - swap + back-translation
-            fold_1/                         - seed 43 split
+            fold_0/                             - seed 42, stratified split
+                meaning/                        - base (no augmentation)
+                meaning_with_swap/              - swap augmentation (skip identical)
+                meaning_with_back_translation/  - swap + back-translation
+            fold_1/                             - seed 43, stratified split
                 ...
-            ...
-        meaning_holdout_identical/
-        meaning_holdout_unrelated/
+
+Corpus: base (1355) + identical (359, score=100) + unrelated (359, score=0) = 2073 examples.
+Each fold is stratified on source type (original/identical/unrelated).
+Swap skips identical pairs. Back-translation done once on GPU, reused across folds.
 """
+from __future__ import annotations
+
 import argparse
 import os
 
@@ -25,49 +30,84 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from transformers import MarianMTModel, MarianTokenizer
 
-
-FOLD_SEEDS = [42, 43, 44, 45, 46, 47, 48, 49, 50, 51]
+FOLD_SEEDS: list[int] = [42, 43, 44, 45, 46, 47, 48, 49, 50, 51]
 
 
 def get_device() -> torch.device:
+    """Return CUDA device if available, else CPU."""
     if torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
 
 
+@torch.inference_mode()
+def _translate_batch(
+    batch: list[str],
+    tokenizer: MarianTokenizer,
+    model: MarianMTModel,
+    device: torch.device,
+) -> list[str]:
+    """Translate a single batch of texts."""
+    inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
+    tokens = model.generate(**inputs, max_length=512)
+    return tokenizer.batch_decode(tokens, skip_special_tokens=True)
+
+
 def back_translate_batch(
     texts: list[str],
-    en_fr: tuple,
-    fr_en: tuple,
+    en_fr: tuple[MarianTokenizer, MarianMTModel],
+    fr_en: tuple[MarianTokenizer, MarianMTModel],
     device: torch.device,
     batch_size: int = 32,
 ) -> list[str]:
-    """Back-translate a list of English texts via French (EN -> FR -> EN)."""
+    """Back-translate a list of English texts via French (EN -> FR -> EN).
+
+    Args:
+        texts: English sentences to paraphrase.
+        en_fr: (tokenizer, model) for EN->FR.
+        fr_en: (tokenizer, model) for FR->EN.
+        device: Torch device for inference.
+        batch_size: Number of sentences per batch.
+
+    Returns:
+        Back-translated English sentences.
+    """
     en_fr_tokenizer, en_fr_model = en_fr
     fr_en_tokenizer, fr_en_model = fr_en
 
-    results = []
+    results: list[str] = []
     num_batches = (len(texts) + batch_size - 1) // batch_size
     for i in tqdm(range(0, len(texts), batch_size), total=num_batches, desc="    Back-translating"):
         batch = texts[i : i + batch_size]
-
-        # EN -> FR
-        inputs = en_fr_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-        fr_tokens = en_fr_model.generate(**inputs, max_length=512)
-        fr_texts = en_fr_tokenizer.batch_decode(fr_tokens, skip_special_tokens=True)
-
-        # FR -> EN
-        inputs = fr_en_tokenizer(fr_texts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-        en_tokens = fr_en_model.generate(**inputs, max_length=512)
-        en_texts = fr_en_tokenizer.batch_decode(en_tokens, skip_special_tokens=True)
-
+        fr_texts = _translate_batch(batch, en_fr_tokenizer, en_fr_model, device)
+        en_texts = _translate_batch(fr_texts, fr_en_tokenizer, fr_en_model, device)
         results.extend(en_texts)
 
     return results
 
 
-def back_translate_dataset(dataset: Dataset, en_fr, fr_en, device, batch_size: int = 32) -> Dataset:
-    """Add back-translated pairs to a dataset. Tags new pairs with source='back_translated'."""
+def back_translate_dataset(
+    dataset: Dataset,
+    en_fr: tuple[MarianTokenizer, MarianMTModel],
+    fr_en: tuple[MarianTokenizer, MarianMTModel],
+    device: torch.device,
+    batch_size: int = 32,
+) -> Dataset:
+    """Add back-translated pairs to a dataset.
+
+    For each example (A, B, label), creates two new pairs:
+    (bt_A, B, label) and (A, bt_B, label). Tags new pairs with source='back_translated'.
+
+    Args:
+        dataset: HF Dataset with columns 'original', 'simplification', 'label'.
+        en_fr: (tokenizer, model) for EN->FR.
+        fr_en: (tokenizer, model) for FR->EN.
+        device: Torch device for inference.
+        batch_size: Number of sentences per batch.
+
+    Returns:
+        Concatenated dataset: original rows + back-translated rows.
+    """
     originals = list(dataset["original"])
     simplifications = list(dataset["simplification"])
     labels = list(dataset["label"])
@@ -85,7 +125,7 @@ def back_translate_dataset(dataset: Dataset, en_fr, fr_en, device, batch_size: i
         "source": ["back_translated"] * (len(originals) * 2),
     })
 
-    # Tag original rows
+    # Ensure original rows are tagged
     if "source" not in dataset.column_names:
         dataset = dataset.add_column("source", ["original"] * len(dataset))
 
@@ -93,21 +133,30 @@ def back_translate_dataset(dataset: Dataset, en_fr, fr_en, device, batch_size: i
 
 
 def apply_commutative_swap(dataset: Dataset) -> Dataset:
-    """Apply commutative property: Meaning(a,b) = Meaning(b,a).
+    """Apply commutative property: Meaning(a, b) = Meaning(b, a).
 
     Skips identical pairs (swapping identical sentences is a no-op).
+
+    Args:
+        dataset: HF Dataset with columns 'original', 'simplification', 'label'
+                 and optionally 'source'.
+
+    Returns:
+        Concatenated dataset: original rows + swapped rows.
     """
     originals = list(dataset["original"])
     simplifications = list(dataset["simplification"])
     labels = list(dataset["label"])
     sources = list(dataset["source"]) if "source" in dataset.column_names else ["original"] * len(originals)
 
-    # Tag original rows if not already tagged
+    # Ensure source column exists
     if "source" not in dataset.column_names:
         dataset = dataset.add_column("source", sources)
 
     # Only swap non-identical pairs
-    swap_orig, swap_simp, swap_labels = [], [], []
+    swap_orig: list[str] = []
+    swap_simp: list[str] = []
+    swap_labels: list[float] = []
     for orig, simp, label, src in zip(originals, simplifications, labels, sources):
         if src == "identical":
             continue
@@ -132,7 +181,18 @@ def create_fold_splits(
     dev_ratio: float = 0.1,
     test_ratio: float = 0.3,
 ) -> DatasetDict:
-    """Split a dataset into train/dev/test with stratification on source type."""
+    """Split a dataset into train/dev/test with stratification.
+
+    Args:
+        full_dataset: Complete dataset to split.
+        seed: Random seed for reproducibility.
+        stratify_column: Column name to stratify on.
+        dev_ratio: Proportion of data for dev set (relative to total).
+        test_ratio: Proportion of data for test set.
+
+    Returns:
+        DatasetDict with 'train', 'dev', 'test' splits.
+    """
     indices = list(range(len(full_dataset)))
     strata = full_dataset[stratify_column]
 
@@ -152,35 +212,17 @@ def create_fold_splits(
     })
 
 
-def main():
+def main() -> None:
+    """Pre-generate all CSMD dataset variants (base, swap, back-translation) across k folds."""
     parser = argparse.ArgumentParser(description="Pre-generate all CSMD dataset variants to disk.")
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="./data",
-        help="Root directory for all dataset variants.",
-    )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=32,
-        help="Batch size for back-translation.",
-    )
-    parser.add_argument(
-        "--skip_back_translation",
-        action="store_true",
-        help="Skip back-translation (only prepare base + swap + holdouts).",
-    )
-    parser.add_argument(
-        "--num_folds",
-        type=int,
-        default=10,
-        help="Number of k-fold splits to generate.",
-    )
+    parser.add_argument("--output_dir", type=str, default="./data", help="Root directory for all dataset variants.")
+    parser.add_argument("--batch_size", type=int, default=128, help="Batch size for back-translation.")
+    parser.add_argument("--skip_back_translation", action="store_true", help="Skip back-translation.")
+    parser.add_argument("--num_folds", type=int, default=10, help="Number of k-fold splits to generate.")
     args = parser.parse_args()
 
-    output_dir = args.output_dir
-    num_folds = args.num_folds
+    output_dir: str = args.output_dir
+    num_folds: int = args.num_folds
     os.makedirs(output_dir, exist_ok=True)
 
     device = get_device()
@@ -203,13 +245,13 @@ def main():
     print(f"    original: {len(meaning_pool)}, identical: {len(holdout_identical)}, unrelated: {len(holdout_unrelated)}")
 
     # Back-translate the full corpus once (before splitting into folds)
-    bt_full_dataset = None
+    bt_full_dataset: Dataset | None = None
     if not args.skip_back_translation:
         print("\n=== Loading translation models ===")
         en_fr_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
-        en_fr_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr").to(device)
+        en_fr_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr", torch_dtype=torch.bfloat16).to(device)
         fr_en_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-        fr_en_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en").to(device)
+        fr_en_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en", torch_dtype=torch.bfloat16).to(device)
         en_fr = (en_fr_tokenizer, en_fr_model)
         fr_en = (fr_en_tokenizer, fr_en_model)
 
@@ -246,10 +288,9 @@ def main():
         swap_path = os.path.join(fold_dir, "meaning_with_swap")
         swap_splits.save_to_disk(swap_path)
 
-        # 3. Back-translation - stratified split of the pre-computed bt corpus
+        # 3. Back-translation - stratified split of the pre-computed bt corpus, then swap on train
         if bt_full_dataset is not None:
             bt_splits = create_fold_splits(bt_full_dataset, seed, stratify_column="source")
-            # Apply swap on bt train too
             bt_swap_splits = DatasetDict({
                 "train": apply_commutative_swap(bt_splits["train"]),
                 "dev": bt_splits["dev"],
@@ -259,7 +300,7 @@ def main():
             bt_swap_splits.save_to_disk(bt_path)
 
         # Stats
-        source_counts = {}
+        source_counts: dict[str, int] = {}
         for src in base_splits["train"]["source"]:
             source_counts[src] = source_counts.get(src, 0) + 1
         print(f"  Fold {fold_idx} (seed={seed}): "
