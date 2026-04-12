@@ -5,24 +5,41 @@ Run once before sweeps:
 
 This creates:
     data/
-        meaning/                        - base dataset (853 train)
-        meaning_with_swap/              - swap augmentation (4267 train)
-        meaning_with_back_translation/  - swap + back-translation (~12801 train)
+        folds/
+            fold_0/                         - seed 42 split
+                meaning/                    - base (no augmentation)
+                meaning_with_swap/          - swap augmentation
+                meaning_with_back_translation/ - swap + back-translation
+            fold_1/                         - seed 43 split
+                ...
+            ...
         meaning_holdout_identical/
         meaning_holdout_unrelated/
 """
 import argparse
 import os
 
+import torch
 from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from transformers import MarianMTModel, MarianTokenizer
+
+
+FOLD_SEEDS = [42, 43, 44, 45, 46, 47, 48, 49, 50, 51]
+
+
+def get_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
 
 
 def back_translate_batch(
     texts: list[str],
     en_fr: tuple,
     fr_en: tuple,
+    device: torch.device,
     batch_size: int = 32,
 ) -> list[str]:
     """Back-translate a list of English texts via French (EN -> FR -> EN)."""
@@ -35,12 +52,12 @@ def back_translate_batch(
         batch = texts[i : i + batch_size]
 
         # EN -> FR
-        inputs = en_fr_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        inputs = en_fr_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
         fr_tokens = en_fr_model.generate(**inputs, max_length=512)
         fr_texts = en_fr_tokenizer.batch_decode(fr_tokens, skip_special_tokens=True)
 
         # FR -> EN
-        inputs = fr_en_tokenizer(fr_texts, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        inputs = fr_en_tokenizer(fr_texts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
         en_tokens = fr_en_model.generate(**inputs, max_length=512)
         en_texts = fr_en_tokenizer.batch_decode(en_tokens, skip_special_tokens=True)
 
@@ -49,25 +66,90 @@ def back_translate_batch(
     return results
 
 
-def create_back_translated_split(dataset, en_fr, fr_en, batch_size: int = 32) -> Dataset:
-    """Add back-translated pairs to a dataset split."""
+def back_translate_dataset(dataset: Dataset, en_fr, fr_en, device, batch_size: int = 32) -> Dataset:
+    """Add back-translated pairs to a dataset. Tags new pairs with source='back_translated'."""
     originals = list(dataset["original"])
     simplifications = list(dataset["simplification"])
     labels = list(dataset["label"])
 
     print(f"  Back-translating {len(originals)} originals...")
-    bt_originals = back_translate_batch(originals, en_fr, fr_en, batch_size)
+    bt_originals = back_translate_batch(originals, en_fr, fr_en, device, batch_size)
 
     print(f"  Back-translating {len(simplifications)} simplifications...")
-    bt_simplifications = back_translate_batch(simplifications, en_fr, fr_en, batch_size)
+    bt_simplifications = back_translate_batch(simplifications, en_fr, fr_en, device, batch_size)
 
     augmented = Dataset.from_dict({
         "original": bt_originals + originals,
         "simplification": simplifications + bt_simplifications,
         "label": labels + labels,
+        "source": ["back_translated"] * (len(originals) * 2),
     })
 
+    # Tag original rows
+    if "source" not in dataset.column_names:
+        dataset = dataset.add_column("source", ["original"] * len(dataset))
+
     return concatenate_datasets([dataset, augmented])
+
+
+def apply_commutative_swap(dataset: Dataset) -> Dataset:
+    """Apply commutative property: Meaning(a,b) = Meaning(b,a).
+
+    Skips identical pairs (swapping identical sentences is a no-op).
+    """
+    originals = list(dataset["original"])
+    simplifications = list(dataset["simplification"])
+    labels = list(dataset["label"])
+    sources = list(dataset["source"]) if "source" in dataset.column_names else ["original"] * len(originals)
+
+    # Tag original rows if not already tagged
+    if "source" not in dataset.column_names:
+        dataset = dataset.add_column("source", sources)
+
+    # Only swap non-identical pairs
+    swap_orig, swap_simp, swap_labels = [], [], []
+    for orig, simp, label, src in zip(originals, simplifications, labels, sources):
+        if src == "identical":
+            continue
+        swap_orig.append(simp)
+        swap_simp.append(orig)
+        swap_labels.append(label)
+
+    swapped = Dataset.from_dict({
+        "original": swap_orig,
+        "simplification": swap_simp,
+        "label": swap_labels,
+        "source": ["swapped"] * len(swap_orig),
+    })
+
+    return concatenate_datasets([dataset, swapped])
+
+
+def create_fold_splits(
+    full_dataset: Dataset,
+    seed: int,
+    stratify_column: str = "source",
+    dev_ratio: float = 0.1,
+    test_ratio: float = 0.3,
+) -> DatasetDict:
+    """Split a dataset into train/dev/test with stratification on source type."""
+    indices = list(range(len(full_dataset)))
+    strata = full_dataset[stratify_column]
+
+    train_dev_idx, test_idx = train_test_split(
+        indices, test_size=test_ratio, random_state=seed, stratify=strata,
+    )
+    relative_dev_ratio = dev_ratio / (1 - test_ratio)
+    train_dev_strata = [strata[i] for i in train_dev_idx]
+    train_idx, dev_idx = train_test_split(
+        train_dev_idx, test_size=relative_dev_ratio, random_state=seed, stratify=train_dev_strata,
+    )
+
+    return DatasetDict({
+        "train": full_dataset.select(train_idx),
+        "dev": full_dataset.select(dev_idx),
+        "test": full_dataset.select(test_idx),
+    })
 
 
 def main():
@@ -89,66 +171,110 @@ def main():
         action="store_true",
         help="Skip back-translation (only prepare base + swap + holdouts).",
     )
+    parser.add_argument(
+        "--num_folds",
+        type=int,
+        default=10,
+        help="Number of k-fold splits to generate.",
+    )
     args = parser.parse_args()
 
     output_dir = args.output_dir
+    num_folds = args.num_folds
     os.makedirs(output_dir, exist_ok=True)
 
-    # 1. Base dataset (no augmentation)
-    print("=== Downloading base dataset ===")
-    meaning = load_dataset("davebulaval/CSMD", "meaning")
-    meaning_path = os.path.join(output_dir, "meaning")
-    meaning.save_to_disk(meaning_path)
-    print(f"  Saved to {meaning_path} (train={len(meaning['train'])})")
+    device = get_device()
+    print(f"Using device: {device}")
 
-    # 2. Swap augmentation (commutative property)
-    print("\n=== Downloading swap-augmented dataset ===")
-    meaning_swap = load_dataset("davebulaval/CSMD", "meaning_with_data_augmentation")
-    meaning_swap_path = os.path.join(output_dir, "meaning_with_swap")
-    meaning_swap.save_to_disk(meaning_swap_path)
-    print(f"  Saved to {meaning_swap_path} (train={len(meaning_swap['train'])})")
+    # Load and merge all data sources into one corpus with source tags
+    print("=== Downloading datasets ===")
+    meaning_raw = load_dataset("davebulaval/CSMD", "meaning")
+    meaning_pool = concatenate_datasets([meaning_raw["train"], meaning_raw["dev"], meaning_raw["test"]])
+    meaning_pool = meaning_pool.add_column("source", ["original"] * len(meaning_pool))
 
-    # 3. Back-translation on top of swap
+    holdout_identical = load_dataset("davebulaval/CSMD", "meaning_holdout_identical")["test"]
+    holdout_identical = holdout_identical.add_column("source", ["identical"] * len(holdout_identical))
+
+    holdout_unrelated = load_dataset("davebulaval/CSMD", "meaning_holdout_unrelated")["test"]
+    holdout_unrelated = holdout_unrelated.add_column("source", ["unrelated"] * len(holdout_unrelated))
+
+    full_dataset = concatenate_datasets([meaning_pool, holdout_identical, holdout_unrelated])
+    print(f"  Full corpus: {len(full_dataset)} examples")
+    print(f"    original: {len(meaning_pool)}, identical: {len(holdout_identical)}, unrelated: {len(holdout_unrelated)}")
+
+    # Back-translate the full corpus once (before splitting into folds)
+    bt_full_dataset = None
     if not args.skip_back_translation:
         print("\n=== Loading translation models ===")
         en_fr_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
-        en_fr_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
+        en_fr_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr").to(device)
         fr_en_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-        fr_en_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        fr_en_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en").to(device)
         en_fr = (en_fr_tokenizer, en_fr_model)
         fr_en = (fr_en_tokenizer, fr_en_model)
 
-        print("\n=== Generating back-translated dataset ===")
-        bt_train = create_back_translated_split(meaning_swap["train"], en_fr, fr_en, args.batch_size)
-        meaning_bt = DatasetDict({
-            "train": bt_train,
-            "dev": meaning_swap["dev"],
-            "test": meaning_swap["test"],
-        })
-        meaning_bt_path = os.path.join(output_dir, "meaning_with_back_translation")
-        meaning_bt.save_to_disk(meaning_bt_path)
-        print(f"  Saved to {meaning_bt_path} (train={len(bt_train)})")
+        print("\n=== Back-translating full corpus (done once, reused across folds) ===")
+        bt_full_dataset = back_translate_dataset(full_dataset, en_fr, fr_en, device, args.batch_size)
+        print(f"  Back-translated corpus: {len(bt_full_dataset)} examples")
+
+        # Free GPU memory
+        del en_fr_model, fr_en_model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
     else:
         print("\n=== Skipping back-translation ===")
 
-    # 4. Holdout datasets
-    print("\n=== Downloading holdout datasets ===")
-    holdout_identical = load_dataset("davebulaval/CSMD", "meaning_holdout_identical")
-    holdout_identical_path = os.path.join(output_dir, "meaning_holdout_identical")
-    holdout_identical.save_to_disk(holdout_identical_path)
-    print(f"  Saved to {holdout_identical_path} (test={len(holdout_identical['test'])})")
+    # Generate k-fold splits (stratified on source type)
+    print(f"\n=== Generating {num_folds} stratified folds ===")
+    fold_seeds = FOLD_SEEDS[:num_folds]
 
-    holdout_unrelated = load_dataset("davebulaval/CSMD", "meaning_holdout_unrelated")
-    holdout_unrelated_path = os.path.join(output_dir, "meaning_holdout_unrelated")
-    holdout_unrelated.save_to_disk(holdout_unrelated_path)
-    print(f"  Saved to {holdout_unrelated_path} (test={len(holdout_unrelated['test'])})")
+    for fold_idx, seed in enumerate(tqdm(fold_seeds, desc="Generating folds")):
+        fold_dir = os.path.join(output_dir, "folds", f"fold_{fold_idx}")
+        os.makedirs(fold_dir, exist_ok=True)
+
+        # 1. Base (no augmentation) - stratified split
+        base_splits = create_fold_splits(full_dataset, seed, stratify_column="source")
+        base_path = os.path.join(fold_dir, "meaning")
+        base_splits.save_to_disk(base_path)
+
+        # 2. Swap (commutative property) - applied only on train
+        swap_splits = DatasetDict({
+            "train": apply_commutative_swap(base_splits["train"]),
+            "dev": base_splits["dev"],
+            "test": base_splits["test"],
+        })
+        swap_path = os.path.join(fold_dir, "meaning_with_swap")
+        swap_splits.save_to_disk(swap_path)
+
+        # 3. Back-translation - stratified split of the pre-computed bt corpus
+        if bt_full_dataset is not None:
+            bt_splits = create_fold_splits(bt_full_dataset, seed, stratify_column="source")
+            # Apply swap on bt train too
+            bt_swap_splits = DatasetDict({
+                "train": apply_commutative_swap(bt_splits["train"]),
+                "dev": bt_splits["dev"],
+                "test": bt_splits["test"],
+            })
+            bt_path = os.path.join(fold_dir, "meaning_with_back_translation")
+            bt_swap_splits.save_to_disk(bt_path)
+
+        # Stats
+        source_counts = {}
+        for src in base_splits["train"]["source"]:
+            source_counts[src] = source_counts.get(src, 0) + 1
+        print(f"  Fold {fold_idx} (seed={seed}): "
+              f"train={len(base_splits['train'])} {source_counts}, "
+              f"dev={len(base_splits['dev'])}, "
+              f"test={len(base_splits['test'])}")
 
     print("\n=== Done ===")
     print(f"All datasets saved to {output_dir}/")
-    for name in sorted(os.listdir(output_dir)):
-        full = os.path.join(output_dir, name)
-        if os.path.isdir(full):
-            print(f"  {name}/")
+    print(f"Structure:")
+    print(f"  folds/ ({num_folds} folds)")
+    for fold_idx in range(num_folds):
+        fold_dir = os.path.join(output_dir, "folds", f"fold_{fold_idx}")
+        variants = [d for d in sorted(os.listdir(fold_dir)) if os.path.isdir(os.path.join(fold_dir, d))]
+        print(f"    fold_{fold_idx}/ -> {', '.join(variants)}")
 
 
 if __name__ == "__main__":

@@ -1,13 +1,15 @@
 #!/bin/bash
-# GPU 0 - 5 models x 10 seeds = 50 runs
+# GPU 0 - 5 models x 10 folds x 2 augmentations = 100 runs
 # Reads pre-generated datasets from ./data (run prepare_datasets.py first)
 export CUDA_VISIBLE_DEVICES=0
 export WANDB_PROJECT="meaningbert-checkpoint-sweep"
 
+FOLDS=(0 1 2 3 4 5 6 7 8 9)
 SEEDS=(42 43 44 45 46 47 48 49 50 51)
-COMMON="--data_dir=./data --data_augmentation=swap --gradient_accumulation_steps=2 --early_stopping_patience=50"
+AUGMENTATIONS=("swap" "back_translation")
+COMMON="--data_dir=./data --gradient_accumulation_steps=2 --early_stopping_patience=50"
 
-TOTAL=50
+TOTAL=100
 RUN=0
 
 declare -A MODELS
@@ -21,11 +23,16 @@ MODELS=(
 
 for checkpoint in "${!MODELS[@]}"; do
     read -r lr freeze <<< "${MODELS[$checkpoint]}"
-    for seed in "${SEEDS[@]}"; do
-        RUN=$((RUN + 1))
-        echo "=== [GPU 0] [${RUN}/${TOTAL}] ${checkpoint} seed=${seed} lr=${lr} ==="
-        python few_shot_training.py --seed="${seed}" --checkpoint="${checkpoint}" \
-            --learning_rate="${lr}" --freeze_layers="${freeze}" ${COMMON}
+    for aug in "${AUGMENTATIONS[@]}"; do
+        for i in "${!FOLDS[@]}"; do
+            fold=${FOLDS[$i]}
+            seed=${SEEDS[$i]}
+            RUN=$((RUN + 1))
+            echo "=== [GPU 0] [${RUN}/${TOTAL}] ${checkpoint} fold=${fold} aug=${aug} ==="
+            python few_shot_training.py --seed="${seed}" --fold="${fold}" \
+                --checkpoint="${checkpoint}" --learning_rate="${lr}" \
+                --freeze_layers="${freeze}" --data_augmentation="${aug}" ${COMMON}
+        done
     done
 done
 echo "=== [GPU 0] Done: ${TOTAL}/${TOTAL} runs ==="

@@ -3,7 +3,7 @@ import logging
 import os
 
 import wandb
-from datasets import load_dataset, load_from_disk
+from datasets import DatasetDict, load_dataset, load_from_disk
 from poutyne import set_seeds
 from transformers import (
     AutoModelForSequenceClassification,
@@ -108,6 +108,14 @@ def create_parser():
     )
 
     parser.add_argument(
+        "--fold",
+        type=int,
+        default=None,
+        help="Fold index for k-fold cross-validation (0-9). "
+             "Requires --data_dir. Loads from data_dir/folds/fold_N/.",
+    )
+
+    parser.add_argument(
         "--data_augmentation",
         type=str,
         default="swap",
@@ -167,6 +175,7 @@ def main():
     seed = args.seed
     root = args.root
     data_dir = args.data_dir
+    fold = args.fold
     data_augmentation = args.data_augmentation
     checkpoint = args.checkpoint
     lr = args.learning_rate if args.learning_rate is not None else get_default_lr(checkpoint)
@@ -177,7 +186,7 @@ def main():
 
     set_seeds(seed=seed)
 
-    # Map augmentation variant to directory/HF config names
+    # Map augmentation variant to directory names
     AUGMENTATION_DIR_MAP = {
         "none": "meaning",
         "swap": "meaning_with_swap",
@@ -189,12 +198,34 @@ def main():
     }
 
     if data_dir is not None:
-        # Load from pre-generated local datasets
-        dataset_path = os.path.join(data_dir, AUGMENTATION_DIR_MAP[data_augmentation])
+        # Build path: data_dir/folds/fold_N/<augmentation> or data_dir/<augmentation>
+        if fold is not None:
+            base_path = os.path.join(data_dir, "folds", f"fold_{fold}")
+        else:
+            base_path = data_dir
+        dataset_path = os.path.join(base_path, AUGMENTATION_DIR_MAP[data_augmentation])
         print(f"Loading dataset from disk: {dataset_path}")
         csmd_dataset = load_from_disk(dataset_path)
-        holdout_identical_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_identical"))
-        holdout_unrelated_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_unrelated"))
+
+        if fold is not None:
+            # With k-fold: identical and unrelated are in the fold splits (stratified).
+            # Extract them from the test set by source tag for holdout evaluation.
+            test_set = csmd_dataset["test"]
+            if "source" in test_set.column_names:
+                identical_mask = [s == "identical" for s in test_set["source"]]
+                unrelated_mask = [s == "unrelated" for s in test_set["source"]]
+                holdout_identical_dataset = DatasetDict({
+                    "test": test_set.select([i for i, m in enumerate(identical_mask) if m])
+                })
+                holdout_unrelated_dataset = DatasetDict({
+                    "test": test_set.select([i for i, m in enumerate(unrelated_mask) if m])
+                })
+            else:
+                holdout_identical_dataset = None
+                holdout_unrelated_dataset = None
+        else:
+            holdout_identical_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_identical"))
+            holdout_unrelated_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_unrelated"))
     else:
         # Fallback: download from HuggingFace Hub (no back_translation available)
         if data_augmentation == "back_translation":
@@ -216,13 +247,12 @@ def main():
         return tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
 
     tokenized_csmd_dataset = csmd_dataset.map(tokenize_function, batched=True)
-    tokenize_holdout_identical_dataset = holdout_identical_dataset.map(tokenize_function, batched=True)
-    tokenize_holdout_unrelated_dataset = holdout_unrelated_dataset.map(tokenize_function, batched=True)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     checkpoint_short_name = checkpoint.replace("/", "_")
     effective_batch = batch_size * grad_accum
-    run_name = f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}_freeze{num_freeze}_aug{data_augmentation}"
+    fold_str = f"_fold{fold}" if fold is not None else ""
+    run_name = f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}_freeze{num_freeze}_aug{data_augmentation}{fold_str}"
 
     training_args = TrainingArguments(
         output_dir=f"meaning_bert_train_{checkpoint_short_name}",
@@ -273,6 +303,7 @@ def main():
 
     wandb.run.config.update({
         "data_augmentation": data_augmentation,
+        "fold": fold,
         "checkpoint": checkpoint,
         "freeze_layers": num_freeze,
         "effective_batch_size": effective_batch,
@@ -283,18 +314,25 @@ def main():
     print("----------Test Set Evaluation start----------")
     test_results = trainer.evaluate(eval_dataset=tokenized_csmd_dataset["test"], metric_key_prefix="test")
 
-    # We change the computed metrics for the holdout splits
-    trainer.compute_metrics = eval_compute_metrics_identical
-    identical_results = trainer.evaluate(
-        eval_dataset=tokenize_holdout_identical_dataset["test"],
-        metric_key_prefix="test/identical_sentences",
-    )
+    # Evaluate holdout splits (identical / unrelated sentences)
+    identical_results = {}
+    unrelated_results = {}
 
-    trainer.compute_metrics = eval_compute_metrics_unrelated
-    unrelated_results = trainer.evaluate(
-        eval_dataset=tokenize_holdout_unrelated_dataset["test"],
-        metric_key_prefix="test/unrelated_sentences",
-    )
+    if holdout_identical_dataset is not None and len(holdout_identical_dataset["test"]) > 0:
+        tokenize_holdout_identical_dataset = holdout_identical_dataset.map(tokenize_function, batched=True)
+        trainer.compute_metrics = eval_compute_metrics_identical
+        identical_results = trainer.evaluate(
+            eval_dataset=tokenize_holdout_identical_dataset["test"],
+            metric_key_prefix="test/identical_sentences",
+        )
+
+    if holdout_unrelated_dataset is not None and len(holdout_unrelated_dataset["test"]) > 0:
+        tokenize_holdout_unrelated_dataset = holdout_unrelated_dataset.map(tokenize_function, batched=True)
+        trainer.compute_metrics = eval_compute_metrics_unrelated
+        unrelated_results = trainer.evaluate(
+            eval_dataset=tokenize_holdout_unrelated_dataset["test"],
+            metric_key_prefix="test/unrelated_sentences",
+        )
 
     # Save best model locally
     best_model_dir = f"meaningbert_best_model_{checkpoint_short_name}_{seed}"
