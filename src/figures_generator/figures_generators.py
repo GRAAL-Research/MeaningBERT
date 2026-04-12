@@ -235,16 +235,16 @@ def get_table_112(few_shot_data: List, saving_dir: str, count_equals=False):
         col = 4
         headers = [
             "Metrics",
-            "\% greater than 95\%",
-            "\% greater than 99\%",
-            "\% equal to 100\%",
+            r"\% greater than 95\%",
+            r"\% greater than 99\%",
+            r"\% equal to 100\%",
         ]
     else:
         col = 3
         headers = [
             "Metrics",
-            "\% greater than 95\%",
-            "\% greater than 99\%",
+            r"\% greater than 95\%",
+            r"\% greater than 99\%",
         ]
     row = 22
 
@@ -396,16 +396,16 @@ def get_table_1131(few_shot_data: List, saving_dir: str, count_equals=False):
         col = 4
         headers = [
             "Metrics",
-            "\% greater than 5\%",
-            "\% greater than 1\%",
-            "\% equal to 0\%",
+            r"\% greater than 5\%",
+            r"\% greater than 1\%",
+            r"\% equal to 0\%",
         ]
     else:
         col = 3
         headers = [
             "Metrics",
-            "\% greater than 5\%",
-            "\% greater than 1\%",
+            r"\% greater than 5\%",
+            r"\% greater than 1\%",
         ]
     row = 22
 

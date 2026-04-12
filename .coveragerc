@@ -1,0 +1,21 @@
+# .coveragerc to control coverage.py
+[run]
+omit = ./venv/*,*tests*,*__init__.py,*version.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+
+    def __repr__
+    if self\.debug
+
+    raise AssertionError
+    raise NotImplementedError
+    raise ValueError
+    raise TypeError
+    pass
+
+    if __name__ == .__main__.:
+omit = ./venv/*,*tests*,*__init__.py,*version.py
+
+ignore_errors = True

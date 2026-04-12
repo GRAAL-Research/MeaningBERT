@@ -1,6 +1,8 @@
 [tool.black]
-target-version = ['py38', 'py39', 'py310', 'py311']
-
+target-version = ['py310', 'py311', 'py312', 'py313']
 line-length = 120
 skip-string-normalization = true
 extend-exclude = "/(slides)/"
+
+[build-system]
+requires = ["setuptools", "wheel"]

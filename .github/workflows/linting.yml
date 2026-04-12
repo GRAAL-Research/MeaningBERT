@@ -1,9 +1,9 @@
-name: Formatting
+name: Linting
 
 on: [ push, pull_request ]
 
 jobs:
-  formatting:
+  linting:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,7 +17,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          pip install -Ur styling_requirements.txt
-      - name: Formatting
+          pip install -e .[all]
+      - name: PyLint
         run: |
-          black --diff --check .
+          pylint src/

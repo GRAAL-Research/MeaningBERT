@@ -8,7 +8,7 @@ import torch
 from evaluate import load
 from lens import LENS
 from questeval.questeval_metric import QuestEval
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import root_mean_squared_error
 from textstat import textstat
 from tqdm import tqdm
 
@@ -244,7 +244,7 @@ def compute_other_metrics_on_test_set(test_set, logger, device: str = "cuda:0"):
         r_squared = r2_metric.compute(predictions=metric_score, references=ratings)
         logger.log({f"test/{metric_name}_R2": r_squared})
 
-        rmse_score = mean_squared_error(metric_score, ratings, squared=False)
+        rmse_score = root_mean_squared_error(metric_score, ratings)
         logger.log({f"test/{metric_name}_rmse": rmse_score})
 
         logger.log({f"test/{metric_name}_mean": mean(metric_score)})
@@ -402,7 +402,7 @@ def compute_other_metrics_on_holdout_identical_set(holdout_identical_set, logger
         logger.log({f"test/same_sentence_{metric_name}_ratio_99": ratio_99})
         logger.log({f"test/same_sentence_{metric_name}_ratio_95": ratio_95})
 
-        rmse_score = mean_squared_error(metric_score, ratings, squared=False)
+        rmse_score = root_mean_squared_error(metric_score, ratings)
         logger.log({f"test/same_sentence_{metric_name}_rmse": rmse_score})
 
         logger.log({f"test/same_sentence_{metric_name}_mean": mean(metric_score)})
@@ -561,7 +561,7 @@ def compute_other_metrics_on_holdout_unrelated_set(holdout_unrelated_set, logger
         logger.log({f"test/irrelevant_sentence_{metric_name}_ratio_1": ratio_1})
         logger.log({f"test/irrelevant_sentence_{metric_name}_ratio_5": ratio_5})
 
-        rmse_score = mean_squared_error(metric_score, ratings, squared=False)
+        rmse_score = root_mean_squared_error(metric_score, ratings)
         logger.log({f"test/irrelevant_sentence{metric_name}_rmse": rmse_score})
 
         logger.log({f"test/irrelevant_sentence{metric_name}_mean": mean(metric_score)})

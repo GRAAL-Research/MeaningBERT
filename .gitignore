@@ -1,7 +1,42 @@
-.idea/*
+# IDE
+.idea/
+.vscode/
 
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.Python
 
-meaningbert
-
+# Virtual environments
 .env
+.venv/
+venv/
+ENV/
+
+# Testing
+htmlcov/
+.tox/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Model artifacts
+meaningbert
+*.ckpt
+mlruns/
+
+# DVC
+/datastore/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+docs/_build/

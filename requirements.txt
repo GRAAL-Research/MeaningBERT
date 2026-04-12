@@ -1,6 +1,17 @@
-# Python 3.11
-
-pytorch
-tensorflow[and-cuda]
-keras
+torch>=1.6.0,<2
+transformers
+datasets
+evaluate
+sentence-transformers
+poutyne
+scikit-learn
+numpy
+scipy
+tqdm
+wandb
+accelerate
+textstat
+sacremoses
+rake_nltk
+rouge_score
 python-dotenv
