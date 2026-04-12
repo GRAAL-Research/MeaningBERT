@@ -93,11 +93,14 @@ def back_translate_dataset(
     fr_en: tuple[MarianTokenizer, MarianMTModel],
     device: torch.device,
     batch_size: int = 32,
+    exclude_fingerprints: set[str] | None = None,
 ) -> Dataset:
     """Add back-translated pairs to a dataset.
 
     For each example (A, B, label), creates two new pairs:
     (bt_A, B, label) and (A, bt_B, label). Tags new pairs with source='back_translated'.
+    Pairs whose (original, simplification) fingerprint appears in *exclude_fingerprints*
+    are dropped to prevent data leakage into dev/test.
 
     Args:
         dataset: HF Dataset with columns 'original', 'simplification', 'label'.
@@ -105,9 +108,10 @@ def back_translate_dataset(
         fr_en: (tokenizer, model) for FR->EN.
         device: Torch device for inference.
         batch_size: Number of sentences per batch.
+        exclude_fingerprints: Set of "original|||simplification" strings to exclude.
 
     Returns:
-        Concatenated dataset: original rows + back-translated rows.
+        Concatenated dataset: original rows + back-translated rows (deduplicated).
     """
     originals = list(dataset["original"])
     simplifications = list(dataset["simplification"])
@@ -119,11 +123,31 @@ def back_translate_dataset(
     print(f"  Back-translating {len(simplifications)} simplifications...")
     bt_simplifications = back_translate_batch(simplifications, en_fr, fr_en, device, batch_size)
 
+    # Build augmented pairs: (bt_orig, simp) and (orig, bt_simp)
+    aug_orig = bt_originals + originals
+    aug_simp = simplifications + bt_simplifications
+    aug_labels = labels + labels
+
+    # Filter out pairs that collide with dev/test fingerprints
+    if exclude_fingerprints:
+        keep_orig, keep_simp, keep_labels = [], [], []
+        n_dropped = 0
+        for o, s, l in zip(aug_orig, aug_simp, aug_labels):
+            if f"{o}|||{s}" in exclude_fingerprints:
+                n_dropped += 1
+            else:
+                keep_orig.append(o)
+                keep_simp.append(s)
+                keep_labels.append(l)
+        if n_dropped > 0:
+            print(f"  Dropped {n_dropped} bt pairs colliding with dev/test")
+        aug_orig, aug_simp, aug_labels = keep_orig, keep_simp, keep_labels
+
     augmented = Dataset.from_dict({
-        "original": bt_originals + originals,
-        "simplification": simplifications + bt_simplifications,
-        "label": labels + labels,
-        "source": ["back_translated"] * (len(originals) * 2),
+        "original": aug_orig,
+        "simplification": aug_simp,
+        "label": aug_labels,
+        "source": ["back_translated"] * len(aug_orig),
     })
 
     # Ensure original rows are tagged
@@ -297,8 +321,17 @@ def main() -> None:
 
         # 3. Back-translation on TRAIN ONLY, then swap. Dev/test stay clean.
         if en_fr is not None and fr_en is not None:
+            # Build fingerprints of dev+test to exclude colliding bt pairs
+            dev_test_fps: set[str] = set()
+            for split in ["dev", "test"]:
+                for o, s in zip(base_splits[split]["original"], base_splits[split]["simplification"]):
+                    dev_test_fps.add(f"{o}|||{s}")
+
             print(f"\n  Back-translating fold {fold_idx} train ({len(base_splits['train'])} examples)...")
-            bt_train = back_translate_dataset(base_splits["train"], en_fr, fr_en, device, args.batch_size)
+            bt_train = back_translate_dataset(
+                base_splits["train"], en_fr, fr_en, device, args.batch_size,
+                exclude_fingerprints=dev_test_fps,
+            )
             bt_train_swapped = apply_commutative_swap(bt_train)
             bt_splits = DatasetDict({
                 "train": bt_train_swapped,
