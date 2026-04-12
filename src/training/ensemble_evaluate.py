@@ -10,7 +10,7 @@ import argparse
 import os
 
 import numpy as np
-from datasets import DatasetDict, load_dataset, load_from_disk
+from datasets import Dataset, load_dataset, load_from_disk
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score
 from transformers import (
@@ -40,7 +40,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_predictions(model_dir: str, dataset: DatasetDict, data_collator: DataCollatorWithPadding) -> np.ndarray:
+def get_predictions(model_dir: str, dataset: Dataset, data_collator: DataCollatorWithPadding) -> np.ndarray:
     """Load a model and return its predictions on *dataset*.
 
     Args:

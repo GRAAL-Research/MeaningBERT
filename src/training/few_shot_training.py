@@ -137,8 +137,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Gradient accumulation steps (effective batch = batch_size * accumulation).",
     )
     parser.add_argument(
-        "--bf16", action="store_true", default=True,
-        help="Use bfloat16 mixed precision (recommended for RTX Ada GPUs).",
+        "--bf16", action=argparse.BooleanOptionalAction, default=True,
+        help="Use bfloat16 mixed precision (recommended for RTX Ada GPUs). Use --no-bf16 to disable.",
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
