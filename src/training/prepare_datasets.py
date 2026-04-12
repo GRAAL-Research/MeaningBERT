@@ -15,9 +15,10 @@ This creates::
             fold_1/                             - seed 43, stratified split
                 ...
 
-Corpus: base (1355) + identical (359, score=100) + unrelated (359, score=0) = 2073 examples.
+Corpus: base (1355) + identical (359, score=100) + unrelated (359, score=0), deduplicated.
 Each fold is stratified on source type (original/identical/unrelated).
-Swap skips identical pairs. Back-translation done once on GPU, reused across folds.
+Swap skips identical pairs. Back-translation applied on train split only per fold
+to prevent data leakage (slower but correct).
 """
 from __future__ import annotations
 
@@ -241,11 +242,26 @@ def main() -> None:
     holdout_unrelated = holdout_unrelated.add_column("source", ["unrelated"] * len(holdout_unrelated))
 
     full_dataset = concatenate_datasets([meaning_pool, holdout_identical, holdout_unrelated])
-    print(f"  Full corpus: {len(full_dataset)} examples")
+
+    # Deduplicate on (original, simplification) to prevent cross-split leakage
+    seen: set[str] = set()
+    unique_indices: list[int] = []
+    for i, (o, s) in enumerate(zip(full_dataset["original"], full_dataset["simplification"])):
+        key = f"{o}|||{s}"
+        if key not in seen:
+            seen.add(key)
+            unique_indices.append(i)
+    n_dupes = len(full_dataset) - len(unique_indices)
+    if n_dupes > 0:
+        print(f"  Removed {n_dupes} duplicate (original, simplification) pairs")
+    full_dataset = full_dataset.select(unique_indices)
+
+    print(f"  Full corpus: {len(full_dataset)} examples (after dedup)")
     print(f"    original: {len(meaning_pool)}, identical: {len(holdout_identical)}, unrelated: {len(holdout_unrelated)}")
 
-    # Back-translate the full corpus once (before splitting into folds)
-    bt_full_dataset: Dataset | None = None
+    # Load translation models once (reused across folds)
+    en_fr = None
+    fr_en = None
     if not args.skip_back_translation:
         print("\n=== Loading translation models ===")
         en_fr_tokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
@@ -254,15 +270,6 @@ def main() -> None:
         fr_en_model = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en", torch_dtype=torch.bfloat16).to(device)
         en_fr = (en_fr_tokenizer, en_fr_model)
         fr_en = (fr_en_tokenizer, fr_en_model)
-
-        print("\n=== Back-translating full corpus (done once, reused across folds) ===")
-        bt_full_dataset = back_translate_dataset(full_dataset, en_fr, fr_en, device, args.batch_size)
-        print(f"  Back-translated corpus: {len(bt_full_dataset)} examples")
-
-        # Free GPU memory
-        del en_fr_model, fr_en_model
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
     else:
         print("\n=== Skipping back-translation ===")
 
@@ -288,16 +295,18 @@ def main() -> None:
         swap_path = os.path.join(fold_dir, "meaning_with_swap")
         swap_splits.save_to_disk(swap_path)
 
-        # 3. Back-translation - stratified split of the pre-computed bt corpus, then swap on train
-        if bt_full_dataset is not None:
-            bt_splits = create_fold_splits(bt_full_dataset, seed, stratify_column="source")
-            bt_swap_splits = DatasetDict({
-                "train": apply_commutative_swap(bt_splits["train"]),
-                "dev": bt_splits["dev"],
-                "test": bt_splits["test"],
+        # 3. Back-translation on TRAIN ONLY, then swap. Dev/test stay clean.
+        if en_fr is not None and fr_en is not None:
+            print(f"\n  Back-translating fold {fold_idx} train ({len(base_splits['train'])} examples)...")
+            bt_train = back_translate_dataset(base_splits["train"], en_fr, fr_en, device, args.batch_size)
+            bt_train_swapped = apply_commutative_swap(bt_train)
+            bt_splits = DatasetDict({
+                "train": bt_train_swapped,
+                "dev": base_splits["dev"],
+                "test": base_splits["test"],
             })
             bt_path = os.path.join(fold_dir, "meaning_with_back_translation")
-            bt_swap_splits.save_to_disk(bt_path)
+            bt_splits.save_to_disk(bt_path)
 
         # Stats
         source_counts: dict[str, int] = {}
@@ -307,6 +316,12 @@ def main() -> None:
               f"train={len(base_splits['train'])} {source_counts}, "
               f"dev={len(base_splits['dev'])}, "
               f"test={len(base_splits['test'])}")
+
+    # Free GPU memory
+    if en_fr is not None:
+        del en_fr, fr_en
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     print("\n=== Done ===")
     print(f"All datasets saved to {output_dir}/")
