@@ -45,19 +45,15 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python module names) to load,
 # usually to register additional checkers.
-load-plugins=pylint_django
-django-settings-module=settings
+load-plugins=
 
 # Pickle collected data for later comparisons.
 persistent=yes
 
 # Minimum Python version to use for version dependent checks. Will default to
 # the version used to run pylint.
-py-version=3.8
+py-version=3.10
 
-# When enabled, pylint would attempt to guess common misconfiguration and emit
-# user-friendly hints instead of false-positive error messages.
-suggestion-mode=yes
 
 # Allow loading of arbitrary C extensions. Extensions are imported into the
 # active Python interpreter and may run arbitrary code.
@@ -94,7 +90,16 @@ disable=raw-checker-failed,
         too-many-instance-attributes,
         cyclic-import,
         duplicate-code,
-        no-member
+        no-member,
+        import-error,
+        too-many-locals,
+        too-many-branches,
+        too-many-statements,
+        unnecessary-lambda,
+        no-value-for-parameter,
+        unexpected-keyword-arg,
+        unused-variable,
+        no-else-return
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

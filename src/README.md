@@ -18,9 +18,8 @@ highly long since we generated many data augmentation examples as per our articl
 
 ### Installation
 
-You can first install most of the code dependencies with the `src/requirements.txt` file using `pip` (
-e.g. `pip install -Ur src/requirements.txt`). However, some dependencies are difficult to install, as is using
-a `requirements.txt` file.
+You can install most of the code dependencies using `pip install -e ".[training]"` from the project root.
+However, some dependencies are difficult to install using a standard setup.
 
 #### Install LENS
 

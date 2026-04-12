@@ -1,7 +1,13 @@
 <div align="center">
 
+[![Formatting](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/formatting.yml/badge.svg?branch=main)](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/formatting.yml)
+[![Linting](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/linting.yml/badge.svg?branch=main)](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/linting.yml)
+[![Tests](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/GRAAL-Research/MeaningBERT/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/GRAAL-Research/MeaningBERT/branch/main/graph/badge.svg)](https://codecov.io/gh/GRAAL-Research/MeaningBERT)
+
 [![pr welcome](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)](https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 [![Dataset Download](https://img.shields.io/badge/Download%20Dataset-blue?style=for-the-badge&logo=download)](https://github.com/GRAAL-Research/csmd)
 
@@ -134,7 +140,7 @@ for more details on this matter.
 ## License
 
 MeaningBERT is MIT licensed, as found in
-the [LICENSE file](https://github.com/GRAAL-Research/risc/blob/main/LICENSE).
+the [LICENSE file](https://github.com/GRAAL-Research/MeaningBERT/blob/main/LICENSE).
 
 ------------------
 

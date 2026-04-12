@@ -1,4 +1,4 @@
-# Contributing to Deeparse
+# Contributing to MeaningBERT
 
 We love your input! We want to make contributing to this project as easy and transparent as possible, whether it's:
 
@@ -23,7 +23,7 @@ Pull requests are the best way to propose changes to the codebase. We actively w
 5. Make sure your code lints.
 6. Submit that pull request!
 
-## Any contributions you make will be under the LGPLv3 Software License
+## Any contributions you make will be under the MIT Software License
 
 In short, when you submit code changes, your submissions are understood to be under the
 same [MIT License](https://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the
@@ -68,17 +68,64 @@ When creating your enhancement request, please:
 
 * Include code examples to demonstrate how the enhancement would be used.
 
+## Prerequisites
+
+To develop locally, you need to install the project dependencies. We use three requirements files:
+
+- [styling_requirements.txt](https://github.com/GRAAL-Research/MeaningBERT/blob/main/styling_requirements.txt) for
+  formatting and linting tools.
+- [tests/requirements.txt](https://github.com/GRAAL-Research/MeaningBERT/blob/main/tests/requirements.txt) for testing
+  dependencies.
+
+You can install everything at once using the `all` extras:
+
+```shell
+pip install -e .[all]
+```
+
+## Pre-commit Hooks
+
+We use [pre-commit](https://pre-commit.com/) to enforce code quality checks before each commit. After installing the
+dependencies, set up the hooks:
+
+```shell
+pre-commit install
+```
+
+This will automatically run formatting (Black), linting (PyLint), and various other checks on every commit. You can
+also run the hooks manually on all files:
+
+```shell
+pre-commit run --all-files
+```
+
 ## Use a Consistent Coding Style
 
 All of the code is formatted using [black](https://black.readthedocs.io) with the
 associated [config file](https://github.com/GRAAL-Research/MeaningBERT/blob/main/pyproject.toml). In order to format the
 code of your submission, simply run
-> See the [styling requirements](https://github.com/GRAAL-Research/MeaningBERT/blob/main/styling_requirements.txt) for the
-> proper black version to use.
 
-``` shell
+```shell
 black .
 ```
+
+Linting is done using [pylint](https://pylint.pycqa.org/) with the
+associated [config file](https://github.com/GRAAL-Research/MeaningBERT/blob/main/.pylintrc):
+
+```shell
+pylint src/
+```
+
+## Running Tests
+
+We use [pytest](https://docs.pytest.org/) for testing. To run the test suite:
+
+```shell
+pytest
+```
+
+This will automatically generate HTML and XML coverage reports as configured in
+[pytest.ini](https://github.com/GRAAL-Research/MeaningBERT/blob/main/pytest.ini).
 
 ## License
 
