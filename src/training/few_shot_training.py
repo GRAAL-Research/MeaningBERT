@@ -229,7 +229,7 @@ def main() -> None:
         run_name=run_name,
         report_to="wandb",
         logging_strategy="epoch",
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size * 2,
         gradient_accumulation_steps=grad_accum,
