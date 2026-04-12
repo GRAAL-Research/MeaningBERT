@@ -15,6 +15,7 @@ import argparse
 import os
 
 from datasets import Dataset, DatasetDict, concatenate_datasets, load_dataset
+from tqdm import tqdm
 from transformers import MarianMTModel, MarianTokenizer
 
 
@@ -29,7 +30,8 @@ def back_translate_batch(
     fr_en_tokenizer, fr_en_model = fr_en
 
     results = []
-    for i in range(0, len(texts), batch_size):
+    num_batches = (len(texts) + batch_size - 1) // batch_size
+    for i in tqdm(range(0, len(texts), batch_size), total=num_batches, desc="    Back-translating"):
         batch = texts[i : i + batch_size]
 
         # EN -> FR
@@ -43,8 +45,6 @@ def back_translate_batch(
         en_texts = fr_en_tokenizer.batch_decode(en_tokens, skip_special_tokens=True)
 
         results.extend(en_texts)
-        if (i // batch_size) % 10 == 0:
-            print(f"    Batch {i // batch_size + 1}/{(len(texts) + batch_size - 1) // batch_size}")
 
     return results
 

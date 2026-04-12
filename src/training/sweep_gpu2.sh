@@ -8,26 +8,24 @@ export WANDB_PROJECT="meaningbert-checkpoint-sweep"
 SEEDS=(42 43 44 45 46 47 48 49 50 51)
 COMMON="--data_dir=./data --data_augmentation=swap --gradient_accumulation_steps=2 --early_stopping_patience=50"
 
-# deberta-v2-xlarge (900M, encoder, freeze 12 layers)
-for seed in "${SEEDS[@]}"; do
-    echo "=== [GPU 2] deberta-v2-xlarge seed=${seed} ==="
-    python few_shot_training.py --seed="${seed}" --checkpoint="microsoft/deberta-v2-xlarge" --learning_rate=1e-5 --freeze_layers=12 ${COMMON}
-done
+TOTAL=40
+RUN=0
 
-# Qwen2.5-1.5B (1.5B, decoder, freeze 8 layers)
-for seed in "${SEEDS[@]}"; do
-    echo "=== [GPU 2] Qwen2.5-1.5B seed=${seed} ==="
-    python few_shot_training.py --seed="${seed}" --checkpoint="Qwen/Qwen2.5-1.5B" --learning_rate=1e-5 --freeze_layers=8 ${COMMON}
-done
+declare -A MODELS
+MODELS=(
+    ["microsoft/deberta-v2-xlarge"]="1e-5 12"
+    ["Qwen/Qwen2.5-1.5B"]="1e-5 8"
+    ["google/gemma-2-2b"]="1e-5 10"
+    ["microsoft/phi-2"]="1e-5 10"
+)
 
-# gemma-2-2b (2.6B, decoder, freeze 10 layers)
-for seed in "${SEEDS[@]}"; do
-    echo "=== [GPU 2] gemma-2-2b seed=${seed} ==="
-    python few_shot_training.py --seed="${seed}" --checkpoint="google/gemma-2-2b" --learning_rate=1e-5 --freeze_layers=10 ${COMMON}
+for checkpoint in "${!MODELS[@]}"; do
+    read -r lr freeze <<< "${MODELS[$checkpoint]}"
+    for seed in "${SEEDS[@]}"; do
+        RUN=$((RUN + 1))
+        echo "=== [GPU 2] [${RUN}/${TOTAL}] ${checkpoint} seed=${seed} lr=${lr} ==="
+        python few_shot_training.py --seed="${seed}" --checkpoint="${checkpoint}" \
+            --learning_rate="${lr}" --freeze_layers="${freeze}" ${COMMON}
+    done
 done
-
-# phi-2 (2.7B, decoder, freeze 10 layers)
-for seed in "${SEEDS[@]}"; do
-    echo "=== [GPU 2] phi-2 seed=${seed} ==="
-    python few_shot_training.py --seed="${seed}" --checkpoint="microsoft/phi-2" --learning_rate=1e-5 --freeze_layers=10 ${COMMON}
-done
+echo "=== [GPU 2] Done: ${TOTAL}/${TOTAL} runs ==="
