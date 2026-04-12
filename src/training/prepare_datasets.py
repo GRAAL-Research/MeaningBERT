@@ -51,9 +51,9 @@ def back_translate_batch(
 
 def create_back_translated_split(dataset, en_fr, fr_en, batch_size: int = 32) -> Dataset:
     """Add back-translated pairs to a dataset split."""
-    originals = dataset["original"]
-    simplifications = dataset["simplification"]
-    labels = dataset["label"]
+    originals = list(dataset["original"])
+    simplifications = list(dataset["simplification"])
+    labels = list(dataset["label"])
 
     print(f"  Back-translating {len(originals)} originals...")
     bt_originals = back_translate_batch(originals, en_fr, fr_en, batch_size)
