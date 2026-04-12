@@ -327,12 +327,30 @@ def main() -> None:
                 for o, s in zip(base_splits[split]["original"], base_splits[split]["simplification"]):
                     dev_test_fps.add(f"{o}|||{s}")
 
+            # Also add reversed fingerprints for swap dedup
+            for o, s in zip(base_splits["dev"]["original"], base_splits["dev"]["simplification"]):
+                dev_test_fps.add(f"{s}|||{o}")
+            for o, s in zip(base_splits["test"]["original"], base_splits["test"]["simplification"]):
+                dev_test_fps.add(f"{s}|||{o}")
+
             print(f"\n  Back-translating fold {fold_idx} train ({len(base_splits['train'])} examples)...")
             bt_train = back_translate_dataset(
                 base_splits["train"], en_fr, fr_en, device, args.batch_size,
                 exclude_fingerprints=dev_test_fps,
             )
             bt_train_swapped = apply_commutative_swap(bt_train)
+
+            # Final dedup of swapped bt pairs against dev/test
+            keep_indices = [
+                i for i, (o, s) in enumerate(
+                    zip(bt_train_swapped["original"], bt_train_swapped["simplification"])
+                )
+                if f"{o}|||{s}" not in dev_test_fps
+            ]
+            if len(keep_indices) < len(bt_train_swapped):
+                n_dropped = len(bt_train_swapped) - len(keep_indices)
+                print(f"  Dropped {n_dropped} swapped pairs colliding with dev/test")
+                bt_train_swapped = bt_train_swapped.select(keep_indices)
             bt_splits = DatasetDict({
                 "train": bt_train_swapped,
                 "dev": base_splits["dev"],
