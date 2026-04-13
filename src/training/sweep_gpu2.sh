@@ -17,8 +17,8 @@ declare -A MODELS
 MODELS=(
     ["microsoft/deberta-v2-xlarge"]="1e-5 12 32"
     ["Qwen/Qwen2.5-1.5B"]="1e-5 8 32"
-    ["google/gemma-2-2b"]="1e-5 10 16"
-    ["microsoft/phi-2"]="1e-5 10 16"
+    ["google/gemma-2-2b"]="1e-5 10 4"
+    ["microsoft/phi-2"]="1e-5 10 4"
 )
 
 for checkpoint in "${!MODELS[@]}"; do
