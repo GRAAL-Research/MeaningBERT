@@ -81,7 +81,7 @@ def main():
     training_args = TrainingArguments(
         output_dir="meaning_bert_train",
         logging_strategy="epoch",
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         per_device_train_batch_size=16,
         per_device_eval_batch_size=64,
         num_train_epochs=num_epoch,
