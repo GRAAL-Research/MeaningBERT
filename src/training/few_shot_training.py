@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shutil
 from typing import Optional
 
 import wandb
@@ -336,6 +337,12 @@ def main() -> None:
     artifact.add_dir(best_model_dir)
     wandb.log_artifact(artifact)
     print(f"Model artifact logged to wandb: {artifact_name}")
+
+    # Clean up intermediate checkpoints to save disk space
+    output_dir = f"meaning_bert_train_{checkpoint_short_name}"
+    if os.path.isdir(output_dir):
+        shutil.rmtree(output_dir)
+        print(f"Cleaned up intermediate checkpoints: {output_dir}")
 
 
 if __name__ == "__main__":
