@@ -23,31 +23,22 @@ echo "Removed __pycache__ directories"
 echo ""
 echo "=== Cleaning wandb remote runs ==="
 
-# Check if wandb is available
-if ! command -v wandb &> /dev/null; then
-    echo "wandb CLI not found. Install with: pip install wandb"
-    echo "Skipping remote cleanup."
-    exit 0
-fi
-
-# List wandb project runs (adjust entity/project as needed)
-ENTITY=$(wandb whoami 2>/dev/null | head -1 | awk '{print $1}' || echo "")
-PROJECT="MeaningBERT"
-
-if [ -z "$ENTITY" ]; then
-    echo "Not logged in to wandb. Run: wandb login"
-    echo "Skipping remote cleanup."
-    exit 0
-fi
-
-echo "Wandb entity: $ENTITY, project: $PROJECT"
-echo "Deleting all remote runs..."
-
-# Use wandb API to delete all runs in the project
+# Use wandb Python API directly (more reliable than CLI parsing)
 python3 -c "
 import wandb
+
 api = wandb.Api()
-runs = api.runs('$ENTITY/$PROJECT')
+entity = api.default_entity
+project = 'MeaningBERT'
+
+if not entity:
+    print('Not logged in to wandb. Run: wandb login')
+    exit(0)
+
+print(f'Wandb entity: {entity}, project: {project}')
+print('Deleting all remote runs...')
+
+runs = api.runs(f'{entity}/{project}')
 print(f'Found {len(runs)} runs to delete')
 for run in runs:
     print(f'  Deleting {run.name} ({run.id})')
