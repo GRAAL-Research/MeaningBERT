@@ -65,7 +65,7 @@ def get_predictions(model_dir: str, dataset: Dataset, data_collator: DataCollato
         report_to="none",
     )
 
-    trainer = Trainer(model=model, args=training_args, data_collator=data_collator, tokenizer=tokenizer)
+    trainer = Trainer(model=model, args=training_args, data_collator=data_collator, processing_class=tokenizer)
     predictions = trainer.predict(dataset)
     return predictions.predictions.squeeze()
 

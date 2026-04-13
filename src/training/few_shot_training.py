@@ -265,7 +265,7 @@ def main() -> None:
         train_dataset=tokenized_csmd_dataset["train"],
         eval_dataset=tokenized_csmd_dataset["dev"],
         data_collator=data_collator,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         compute_metrics=compute_metrics,
         callbacks=callbacks,
     )
