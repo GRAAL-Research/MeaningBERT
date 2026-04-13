@@ -41,10 +41,19 @@ if [ -z "$ENTITY" ]; then
 fi
 
 echo "Wandb entity: $ENTITY, project: $PROJECT"
-echo "To delete all runs in the project, run:"
-echo "  wandb runs delete $ENTITY/$PROJECT --all"
-echo ""
-echo "Or delete specific runs via the wandb UI: https://wandb.ai/$ENTITY/$PROJECT"
+echo "Deleting all remote runs..."
+
+# Use wandb API to delete all runs in the project
+python3 -c "
+import wandb
+api = wandb.Api()
+runs = api.runs('$ENTITY/$PROJECT')
+print(f'Found {len(runs)} runs to delete')
+for run in runs:
+    print(f'  Deleting {run.name} ({run.id})')
+    run.delete()
+print('All remote runs deleted.')
+"
 
 echo ""
 echo "=== Done ==="
