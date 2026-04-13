@@ -6,11 +6,19 @@ r2_metric = load("r_squared")
 pearsonr_metric = load("pearsonr")
 
 
+def _sanitize_predictions(predictions):
+    """Squeeze (N,1)->(N,) and replace NaN/Inf with 0."""
+    predictions = predictions.squeeze()
+    predictions = np.nan_to_num(predictions, nan=0.0, posinf=0.0, neginf=0.0)
+    return predictions
+
+
 def compute_metrics(eval_pred):
     """
     Function to compute various metric during training.
     """
     predictions, labels = eval_pred
+    predictions = _sanitize_predictions(predictions)
     rmse = root_mean_squared_error(labels, predictions)
     r_squared = r2_metric.compute(predictions=predictions, references=labels)
     pearson_corr = pearsonr_metric.compute(predictions=predictions, references=labels, return_pvalue=True)
@@ -36,6 +44,7 @@ def eval_compute_metrics_identical(eval_pred):
     See here for compute details https://huggingface.co/spaces/evaluate-metric/r_squared/edit/main/r_squared.py.
     """
     predictions, labels = eval_pred
+    predictions = _sanitize_predictions(predictions)
     rmse = root_mean_squared_error(labels, predictions)
     mean_score = predictions.mean()
     st_dev_score = predictions.std()
@@ -68,6 +77,7 @@ def eval_compute_metrics_unrelated(eval_pred):
     See here for compute details https://huggingface.co/spaces/evaluate-metric/r_squared/edit/main/r_squared.py.
     """
     predictions, labels = eval_pred
+    predictions = _sanitize_predictions(predictions)
     rmse = root_mean_squared_error(labels, predictions)
     mean_score = predictions.mean()
     st_dev_score = predictions.std()
