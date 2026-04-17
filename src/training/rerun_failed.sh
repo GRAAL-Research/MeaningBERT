@@ -21,9 +21,5 @@ echo ""
 echo "All 3 GPUs running. Monitor with:"
 echo "  tail -f rerun_gpu0.log rerun_gpu1.log rerun_gpu2.log"
 echo ""
-echo "Wait for completion:"
-wait $PID0 && echo "GPU 0 done" &
-wait $PID1 && echo "GPU 1 done" &
-wait $PID2 && echo "GPU 2 done" &
-wait
-echo "=== All GPUs done ==="
+echo "Check completion with:"
+echo "  ps -p $PID0,$PID1,$PID2"
