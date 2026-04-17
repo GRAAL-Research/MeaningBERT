@@ -9,6 +9,7 @@ Usage::
     python analyze_sweep_results.py --project davebulaval/meaningbert-checkpoint-sweep
     python analyze_sweep_results.py --project davebulaval/meaningbert-checkpoint-sweep --output_dir ./results
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,7 +18,6 @@ from collections import defaultdict
 from statistics import mean, stdev
 
 import wandb
-
 
 AUGMENTATION_LABELS: dict[str, str] = {
     "none": "No augmentation",
@@ -151,10 +151,16 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
 def print_summary(rows: list[dict]) -> None:
     """Print a formatted summary table to stdout."""
     display_cols = [
-        "Checkpoint", "Augmentation", "N_folds",
-        "RMSE", "R2", "Pearson",
-        "Identical =100%", "Identical >95%",
-        "Unrelated =0%", "Unrelated <5%",
+        "Checkpoint",
+        "Augmentation",
+        "N_folds",
+        "RMSE",
+        "R2",
+        "Pearson",
+        "Identical =100%",
+        "Identical >95%",
+        "Unrelated =0%",
+        "Unrelated <5%",
     ]
 
     # Header
@@ -169,16 +175,22 @@ def print_summary(rows: list[dict]) -> None:
 
 def save_csv(rows: list[dict], output_path: str) -> None:
     """Save summary rows to CSV."""
-    import csv
+    import csv  # pylint: disable=import-outside-toplevel
 
     cols = [
-        "Checkpoint", "Augmentation", "N_folds",
-        "RMSE", "R2", "Pearson",
-        "Identical =100%", "Identical >95%",
-        "Unrelated =0%", "Unrelated <5%",
+        "Checkpoint",
+        "Augmentation",
+        "N_folds",
+        "RMSE",
+        "R2",
+        "Pearson",
+        "Identical =100%",
+        "Identical >95%",
+        "Unrelated =0%",
+        "Unrelated <5%",
     ]
 
-    with open(output_path, "w", newline="") as f:
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
@@ -248,7 +260,7 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     lines.append(r"\end{tabular}}")
     lines.append(r"\end{table}")
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
     print(f"LaTeX table saved to {output_path}")
@@ -283,12 +295,15 @@ def main() -> None:
     """Entry point."""
     parser = argparse.ArgumentParser(description="Analyze MeaningBERT sweep results from wandb.")
     parser.add_argument(
-        "--project", type=str, default="davebulaval/meaningbert-checkpoint-sweep",
+        "--project",
+        type=str,
+        default="davebulaval/meaningbert-checkpoint-sweep",
         help="Wandb project path (entity/project).",
     )
     parser.add_argument("--output_dir", type=str, default="./results", help="Directory for output files.")
     parser.add_argument(
-        "--progress_only", action="store_true",
+        "--progress_only",
+        action="store_true",
         help="Only print progress report, don't generate tables.",
     )
     args = parser.parse_args()

@@ -91,7 +91,7 @@ def main() -> None:
         print(f"\n=== {label} ===")
         print("  " + " ".join(cmd))
         if not args.dry_run:
-            result = subprocess.run(cmd)
+            result = subprocess.run(cmd, check=False)
             if result.returncode != 0:
                 print(f"  ERROR: run failed with exit code {result.returncode}")
 
