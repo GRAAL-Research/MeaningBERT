@@ -1,4 +1,5 @@
 """Relaunch failed wandb runs by parsing their config and re-submitting."""
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,8 @@ def build_command(run: wandb.apis.public.Run) -> list[str]:
     precision_flags = _precision_flags(checkpoint)
 
     return [
-        sys.executable, "few_shot_training.py",
+        sys.executable,
+        "few_shot_training.py",
         f"--checkpoint={checkpoint}",
         f"--fold={fold}",
         f"--seed={seed}",
