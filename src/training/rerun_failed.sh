@@ -5,6 +5,12 @@
 # GPU 2: deberta-v2-xlarge + phi-2 (40 runs)
 export WANDB_PROJECT="meaningbert-checkpoint-sweep"
 
+# libnvrtc-builtins.so.13.0 is bundled in the nvidia/cu13 package of the venv
+# but not in LD_LIBRARY_PATH by default - deberta-v2/v3 JIT needs it.
+VENV_NVRTC=$(python -c "import site; print(site.getsitepackages()[0])")/nvidia/cu13/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$VENV_NVRTC
+echo "LD_LIBRARY_PATH: $VENV_NVRTC added"
+
 nohup python rerun_failed.py --gpu 0 --hardcoded > rerun_gpu0.log 2>&1 &
 PID0=$!
 echo "GPU 0 started (PID $PID0) -> rerun_gpu0.log"
