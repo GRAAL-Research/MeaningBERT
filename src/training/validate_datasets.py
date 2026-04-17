@@ -13,6 +13,7 @@ Checks:
     - Back-translation: corpus is larger than swap variant
     - Column consistency across all datasets
 """
+
 from __future__ import annotations
 
 import argparse
@@ -85,7 +86,10 @@ def check_swap_present(swap_dataset, base_dataset, split_name: str, fold_name: s
     if split_name != "train":
         return True
     if len(swap_dataset) <= len(base_dataset):
-        print(f"  FAIL [{fold_name}/{split_name}]: swap ({len(swap_dataset)}) should be larger than base ({len(base_dataset)})")
+        print(
+            f"  FAIL [{fold_name}/{split_name}]: swap ({len(swap_dataset)})"
+            f" should be larger than base ({len(base_dataset)})"
+        )
         return False
     return True
 
@@ -193,7 +197,10 @@ def main() -> None:
                 bt_train = len(datasets["meaning_with_back_translation"]["train"])
                 swap_train = len(datasets["meaning_with_swap"]["train"])
                 if bt_train <= swap_train:
-                    print(f"  FAIL [{fold_name}]: back_translation train ({bt_train}) should be larger than swap train ({swap_train})")
+                    print(
+                        f"  FAIL [{fold_name}]: back_translation train ({bt_train})"
+                        f" should be larger than swap train ({swap_train})"
+                    )
                     errors += 1
 
         # Print stats for this fold

@@ -20,6 +20,7 @@ Each fold is stratified on source type (original/identical/unrelated).
 Swap skips identical pairs. Back-translation applied on train split only per fold
 to prevent data leakage (slower but correct).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -87,7 +88,7 @@ def back_translate_batch(
     return results
 
 
-def back_translate_dataset(
+def back_translate_dataset(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     dataset: Dataset,
     en_fr: tuple[MarianTokenizer, MarianMTModel],
     fr_en: tuple[MarianTokenizer, MarianMTModel],
@@ -143,12 +144,14 @@ def back_translate_dataset(
             print(f"  Dropped {n_dropped} bt pairs colliding with dev/test")
         aug_orig, aug_simp, aug_labels = keep_orig, keep_simp, keep_labels
 
-    augmented = Dataset.from_dict({
-        "original": aug_orig,
-        "simplification": aug_simp,
-        "label": aug_labels,
-        "source": ["back_translated"] * len(aug_orig),
-    })
+    augmented = Dataset.from_dict(
+        {
+            "original": aug_orig,
+            "simplification": aug_simp,
+            "label": aug_labels,
+            "source": ["back_translated"] * len(aug_orig),
+        }
+    )
 
     # Ensure original rows are tagged
     if "source" not in dataset.column_names:
@@ -189,12 +192,14 @@ def apply_commutative_swap(dataset: Dataset) -> Dataset:
         swap_simp.append(orig)
         swap_labels.append(label)
 
-    swapped = Dataset.from_dict({
-        "original": swap_orig,
-        "simplification": swap_simp,
-        "label": swap_labels,
-        "source": ["swapped"] * len(swap_orig),
-    })
+    swapped = Dataset.from_dict(
+        {
+            "original": swap_orig,
+            "simplification": swap_simp,
+            "label": swap_labels,
+            "source": ["swapped"] * len(swap_orig),
+        }
+    )
 
     return concatenate_datasets([dataset, swapped])
 
@@ -222,19 +227,27 @@ def create_fold_splits(
     strata = full_dataset[stratify_column]
 
     train_dev_idx, test_idx = train_test_split(
-        indices, test_size=test_ratio, random_state=seed, stratify=strata,
+        indices,
+        test_size=test_ratio,
+        random_state=seed,
+        stratify=strata,
     )
     relative_dev_ratio = dev_ratio / (1 - test_ratio)
     train_dev_strata = [strata[i] for i in train_dev_idx]
     train_idx, dev_idx = train_test_split(
-        train_dev_idx, test_size=relative_dev_ratio, random_state=seed, stratify=train_dev_strata,
+        train_dev_idx,
+        test_size=relative_dev_ratio,
+        random_state=seed,
+        stratify=train_dev_strata,
     )
 
-    return DatasetDict({
-        "train": full_dataset.select(train_idx),
-        "dev": full_dataset.select(dev_idx),
-        "test": full_dataset.select(test_idx),
-    })
+    return DatasetDict(
+        {
+            "train": full_dataset.select(train_idx),
+            "dev": full_dataset.select(dev_idx),
+            "test": full_dataset.select(test_idx),
+        }
+    )
 
 
 def main() -> None:
@@ -281,7 +294,9 @@ def main() -> None:
     full_dataset = full_dataset.select(unique_indices)
 
     print(f"  Full corpus: {len(full_dataset)} examples (after dedup)")
-    print(f"    original: {len(meaning_pool)}, identical: {len(holdout_identical)}, unrelated: {len(holdout_unrelated)}")
+    print(
+        f"    original: {len(meaning_pool)}, identical: {len(holdout_identical)}, unrelated: {len(holdout_unrelated)}"
+    )
 
     # Load translation models once (reused across folds)
     en_fr = None
@@ -311,11 +326,13 @@ def main() -> None:
         base_splits.save_to_disk(base_path)
 
         # 2. Swap (commutative property) - applied only on train
-        swap_splits = DatasetDict({
-            "train": apply_commutative_swap(base_splits["train"]),
-            "dev": base_splits["dev"],
-            "test": base_splits["test"],
-        })
+        swap_splits = DatasetDict(
+            {
+                "train": apply_commutative_swap(base_splits["train"]),
+                "dev": base_splits["dev"],
+                "test": base_splits["test"],
+            }
+        )
         swap_path = os.path.join(fold_dir, "meaning_with_swap")
         swap_splits.save_to_disk(swap_path)
 
@@ -335,27 +352,32 @@ def main() -> None:
 
             print(f"\n  Back-translating fold {fold_idx} train ({len(base_splits['train'])} examples)...")
             bt_train = back_translate_dataset(
-                base_splits["train"], en_fr, fr_en, device, args.batch_size,
+                base_splits["train"],
+                en_fr,
+                fr_en,
+                device,
+                args.batch_size,
                 exclude_fingerprints=dev_test_fps,
             )
             bt_train_swapped = apply_commutative_swap(bt_train)
 
             # Final dedup of swapped bt pairs against dev/test
             keep_indices = [
-                i for i, (o, s) in enumerate(
-                    zip(bt_train_swapped["original"], bt_train_swapped["simplification"])
-                )
+                i
+                for i, (o, s) in enumerate(zip(bt_train_swapped["original"], bt_train_swapped["simplification"]))
                 if f"{o}|||{s}" not in dev_test_fps
             ]
             if len(keep_indices) < len(bt_train_swapped):
                 n_dropped = len(bt_train_swapped) - len(keep_indices)
                 print(f"  Dropped {n_dropped} swapped pairs colliding with dev/test")
                 bt_train_swapped = bt_train_swapped.select(keep_indices)
-            bt_splits = DatasetDict({
-                "train": bt_train_swapped,
-                "dev": base_splits["dev"],
-                "test": base_splits["test"],
-            })
+            bt_splits = DatasetDict(
+                {
+                    "train": bt_train_swapped,
+                    "dev": base_splits["dev"],
+                    "test": base_splits["test"],
+                }
+            )
             bt_path = os.path.join(fold_dir, "meaning_with_back_translation")
             bt_splits.save_to_disk(bt_path)
 
@@ -363,10 +385,12 @@ def main() -> None:
         source_counts: dict[str, int] = {}
         for src in base_splits["train"]["source"]:
             source_counts[src] = source_counts.get(src, 0) + 1
-        print(f"  Fold {fold_idx} (seed={seed}): "
-              f"train={len(base_splits['train'])} {source_counts}, "
-              f"dev={len(base_splits['dev'])}, "
-              f"test={len(base_splits['test'])}")
+        print(
+            f"  Fold {fold_idx} (seed={seed}): "
+            f"train={len(base_splits['train'])} {source_counts}, "
+            f"dev={len(base_splits['dev'])}, "
+            f"test={len(base_splits['test'])}"
+        )
 
     # Free GPU memory
     if en_fr is not None:
@@ -376,7 +400,7 @@ def main() -> None:
 
     print("\n=== Done ===")
     print(f"All datasets saved to {output_dir}/")
-    print(f"Structure:")
+    print("Structure:")
     print(f"  folds/ ({num_folds} folds)")
     for fold_idx in range(num_folds):
         fold_dir = os.path.join(output_dir, "folds", f"fold_{fold_idx}")
