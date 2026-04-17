@@ -1,8 +1,16 @@
-"""Relaunch failed wandb runs by parsing their config and re-submitting."""
+"""Relaunch failed wandb runs by parsing their config and re-submitting.
+
+Run with --gpu to target a specific GPU. Launch 3 instances in parallel:
+
+    nohup python rerun_failed.py --gpu 0 > rerun_gpu0.log 2>&1 &
+    nohup python rerun_failed.py --gpu 1 > rerun_gpu1.log 2>&1 &
+    nohup python rerun_failed.py --gpu 2 > rerun_gpu2.log 2>&1 &
+"""
 
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 
@@ -12,6 +20,25 @@ import wandb
 PHI2_CHECKPOINT = "microsoft/phi-2"
 
 COMMON = ["--data_dir=./data", "--early_stopping_patience=50", "--dataloader_num_workers=4"]
+
+# Checkpoint -> GPU assignment matching the original sweep layout.
+# GPU 0: deberta-v3-small
+# GPU 1: deberta-v3-base, deberta-v3-large
+# GPU 2: deberta-v2-xlarge, phi-2
+CHECKPOINT_GPU: dict[str, int] = {
+    "microsoft/deberta-v3-small": 0,
+    "microsoft/deberta-v3-base": 1,
+    "microsoft/deberta-v3-large": 1,
+    "microsoft/deberta-v2-xlarge": 2,
+    "microsoft/phi-2": 2,
+}
+
+
+def gpu_for_checkpoint(checkpoint: str) -> int:
+    for key, gpu in CHECKPOINT_GPU.items():
+        if key in checkpoint:
+            return gpu
+    return 0
 
 
 def build_command(run: wandb.apis.public.Run) -> list[str]:
@@ -24,8 +51,6 @@ def build_command(run: wandb.apis.public.Run) -> list[str]:
     freeze: int = cfg.get("freeze_layers", 0)
     bs: int = cfg.get("per_device_train_batch_size", 32)
 
-    precision_flags = _precision_flags(checkpoint)
-
     return [
         sys.executable,
         "few_shot_training.py",
@@ -36,13 +61,13 @@ def build_command(run: wandb.apis.public.Run) -> list[str]:
         f"--learning_rate={lr}",
         f"--freeze_layers={freeze}",
         f"--per_device_train_batch_size={bs}",
-        *precision_flags,
+        *_precision_flags(checkpoint),
         *COMMON,
     ]
 
 
 def _precision_flags(checkpoint: str) -> list[str]:
-    if checkpoint == PHI2_CHECKPOINT:
+    if PHI2_CHECKPOINT in checkpoint:
         return ["--no-bf16", "--fp16"]
     if "gemma" in checkpoint.lower():
         return ["--no-bf16"]
@@ -50,9 +75,7 @@ def _precision_flags(checkpoint: str) -> list[str]:
 
 
 def _parse_checkpoint_from_name(name: str) -> str:
-    # e.g. microsoft_deberta-v3-small_seed42_... -> microsoft/deberta-v3-small
     base = name.split("_seed")[0]
-    # first underscore that separates org from model name
     parts = base.split("_", 1)
     return "/".join(parts) if len(parts) == 2 else base
 
@@ -65,37 +88,49 @@ def _parse_fold_from_name(name: str) -> int:
 
 
 def _parse_aug_from_name(name: str) -> str:
-    if "back_translation" in name:
-        return "back_translation"
-    return "swap"
+    return "back_translation" if "back_translation" in name else "swap"
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Relaunch failed wandb runs.")
+    parser = argparse.ArgumentParser(description="Relaunch failed wandb runs on a specific GPU.")
     parser.add_argument("--project", default="davebulaval/meaningbert-checkpoint-sweep")
+    parser.add_argument(
+        "--gpu",
+        type=int,
+        choices=[0, 1, 2],
+        required=True,
+        help="GPU index to use (sets CUDA_VISIBLE_DEVICES). Run 3 instances in parallel.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print commands without executing.")
-    parser.add_argument("--filter-checkpoint", default=None, help="Only relaunch runs matching this substring.")
     args = parser.parse_args()
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+
     api = wandb.Api()
-    failed_runs = list(api.runs(args.project, filters={"state": "failed"}))
-    print(f"Found {len(failed_runs)} failed runs in {args.project}")
+    all_failed = list(api.runs(args.project, filters={"state": "failed"}))
 
-    if args.filter_checkpoint:
-        failed_runs = [r for r in failed_runs if args.filter_checkpoint in r.name]
-        print(f"Filtered to {len(failed_runs)} runs matching '{args.filter_checkpoint}'")
+    # Keep only runs assigned to this GPU
+    my_runs = []
+    for run in all_failed:
+        checkpoint = run.config.get("checkpoint") or _parse_checkpoint_from_name(run.name)
+        if gpu_for_checkpoint(checkpoint) == args.gpu:
+            my_runs.append(run)
 
-    for i, run in enumerate(failed_runs, 1):
+    total = len(all_failed)
+    mine = len(my_runs)
+    print(f"GPU {args.gpu}: {mine} runs to relaunch (out of {total} total failed)")
+
+    for i, run in enumerate(my_runs, 1):
         cmd = build_command(run)
-        label = f"[{i}/{len(failed_runs)}] {run.name}"
-        print(f"\n=== {label} ===")
+        checkpoint = run.config.get("checkpoint") or _parse_checkpoint_from_name(run.name)
+        print(f"\n=== [GPU {args.gpu}] [{i}/{mine}] {run.name} ===")
         print("  " + " ".join(cmd))
         if not args.dry_run:
             result = subprocess.run(cmd, check=False)
             if result.returncode != 0:
-                print(f"  ERROR: run failed with exit code {result.returncode}")
+                print(f"  ERROR: exit code {result.returncode}")
 
-    print(f"\nDone: {len(failed_runs)} runs {'(dry-run)' if args.dry_run else 'completed'}.")
+    print(f"\n[GPU {args.gpu}] Done: {mine} runs {'(dry-run)' if args.dry_run else 'completed'}.")
 
 
 if __name__ == "__main__":
