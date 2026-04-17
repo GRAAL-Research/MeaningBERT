@@ -11,14 +11,13 @@ Usage::
     # Also clean failed/crashed wandb runs
     python cleanup.py --delete --clean-wandb
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import shutil
-from glob import glob
 from pathlib import Path
-
 
 TRAINING_DIR = Path(__file__).parent
 
@@ -75,7 +74,7 @@ def format_size(size_bytes: int) -> str:
 def clean_wandb_failed(delete: bool) -> None:
     """Delete failed wandb runs via the API."""
     try:
-        import wandb
+        import wandb  # pylint: disable=import-outside-toplevel
     except ImportError:
         print("  wandb not installed, skipping API cleanup")
         return
@@ -84,7 +83,7 @@ def clean_wandb_failed(delete: bool) -> None:
     project = "davebulaval/meaningbert-checkpoint-sweep"
     try:
         runs = api.runs(project, filters={"state": "crashed"})
-    except Exception as e:
+    except wandb.errors.CommError as e:
         print(f"  Could not fetch wandb runs: {e}")
         return
 

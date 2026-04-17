@@ -1,4 +1,5 @@
 """Fine-tune a pretrained model for meaning preservation regression on CSMD."""
+
 from __future__ import annotations
 
 import argparse
@@ -76,11 +77,11 @@ def freeze_layers(model: PreTrainedModel, num_layers_to_freeze: int) -> None:
     # Locate the layer list depending on the model architecture.
     layer_list = None
     for attr_path in [
-        "base_model.encoder.layer",       # BERT, DeBERTa, ELECTRA
-        "deberta.encoder.layer",           # DeBERTa v2/v3
-        "model.layers",                    # LLaMA, Qwen, Gemma, Phi, SmolLM
-        "transformer.h",                   # GPT-2
-        "encoder.layers",                  # ModernBERT
+        "base_model.encoder.layer",  # BERT, DeBERTa, ELECTRA
+        "deberta.encoder.layer",  # DeBERTa v2/v3
+        "model.layers",  # LLaMA, Qwen, Gemma, Phi, SmolLM
+        "transformer.h",  # GPT-2
+        "encoder.layers",  # ModernBERT
     ]:
         obj = model
         found = True
@@ -111,39 +112,61 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--seed", type=int, default=45, help="Random seed for training.")
     parser.add_argument(
-        "--data_dir", type=str, default=None,
+        "--data_dir",
+        type=str,
+        default=None,
         help="Root directory containing pre-generated datasets (from prepare_datasets.py).",
     )
     parser.add_argument(
-        "--fold", type=int, default=None,
+        "--fold",
+        type=int,
+        default=None,
         help="Fold index for k-fold cross-validation (0-9). Requires --data_dir.",
     )
     parser.add_argument(
-        "--data_augmentation", type=str, default="swap",
+        "--data_augmentation",
+        type=str,
+        default="swap",
         choices=["none", "swap", "back_translation"],
         help="Data augmentation variant.",
     )
     parser.add_argument(
-        "--checkpoint", type=str, default="bert-base-uncased",
+        "--checkpoint",
+        type=str,
+        default="bert-base-uncased",
         help="Pretrained model checkpoint for fine-tuning.",
     )
     parser.add_argument(
-        "--learning_rate", type=float, default=None,
+        "--learning_rate",
+        type=float,
+        default=None,
         help="Learning rate. If not set, uses a per-model-family default.",
     )
     parser.add_argument("--freeze_layers", type=int, default=0, help="Number of bottom layers to freeze.")
     parser.add_argument("--per_device_train_batch_size", type=int, default=64, help="Training batch size per device.")
     parser.add_argument(
-        "--gradient_accumulation_steps", type=int, default=1,
+        "--gradient_accumulation_steps",
+        type=int,
+        default=1,
         help="Gradient accumulation steps (effective batch = batch_size * accumulation).",
     )
     parser.add_argument(
-        "--bf16", action=argparse.BooleanOptionalAction, default=True,
+        "--bf16",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Use bfloat16 mixed precision (recommended for RTX Ada GPUs). Use --no-bf16 to disable.",
+    )
+    parser.add_argument(
+        "--fp16",
+        action="store_true",
+        default=False,
+        help="Use float16 mixed precision. For models where bf16 causes NaN and fp32 causes dtype errors.",
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
-        "--early_stopping_patience", type=int, default=50,
+        "--early_stopping_patience",
+        type=int,
+        default=50,
         help="Early stopping patience in epochs. 0 to disable.",
     )
     return parser
@@ -164,6 +187,7 @@ def main() -> None:
     batch_size: int = args.per_device_train_batch_size
     grad_accum: int = args.gradient_accumulation_steps
     use_bf16: bool = args.bf16
+    use_fp16: bool = args.fp16
     num_workers: int = args.dataloader_num_workers
     es_patience: int = args.early_stopping_patience
 
@@ -184,12 +208,8 @@ def main() -> None:
             # Extract them from the test set by source tag for holdout evaluation.
             test_set = csmd_dataset["test"]
             if "source" in test_set.column_names:
-                holdout_identical_dataset = DatasetDict({
-                    "test": test_set.filter(lambda x: x["source"] == "identical")
-                })
-                holdout_unrelated_dataset = DatasetDict({
-                    "test": test_set.filter(lambda x: x["source"] == "unrelated")
-                })
+                holdout_identical_dataset = DatasetDict({"test": test_set.filter(lambda x: x["source"] == "identical")})
+                holdout_unrelated_dataset = DatasetDict({"test": test_set.filter(lambda x: x["source"] == "unrelated")})
         else:
             holdout_identical_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_identical"))
             holdout_unrelated_dataset = load_from_disk(os.path.join(data_dir, "meaning_holdout_unrelated"))
@@ -215,7 +235,10 @@ def main() -> None:
     # Remove non-tensor columns before tokenization to avoid Trainer collation errors.
     cols_to_remove = [c for c in COLUMNS_TO_REMOVE if c in csmd_dataset["train"].column_names]
     tokenized_csmd_dataset = csmd_dataset.map(
-        tokenize_function, batched=True, remove_columns=cols_to_remove, num_proc=4,
+        tokenize_function,
+        batched=True,
+        remove_columns=cols_to_remove,
+        num_proc=4,
     )
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
@@ -223,7 +246,10 @@ def main() -> None:
     checkpoint_short_name = checkpoint.replace("/", "_")
     effective_batch = batch_size * grad_accum
     fold_str = f"_fold{fold}" if fold is not None else ""
-    run_name = f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}_freeze{num_freeze}_aug{data_augmentation}{fold_str}"
+    run_name = (
+        f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}"
+        f"_freeze{num_freeze}_aug{data_augmentation}{fold_str}"
+    )
 
     training_args = TrainingArguments(
         output_dir=f"meaning_bert_train_{checkpoint_short_name}",
@@ -242,6 +268,7 @@ def main() -> None:
         metric_for_best_model="eval_loss",
         learning_rate=lr,
         bf16=use_bf16,
+        fp16=use_fp16,
         dataloader_num_workers=num_workers,
         dataloader_pin_memory=True,
     )
@@ -275,14 +302,16 @@ def main() -> None:
     print("----------Training start----------")
     trainer.train()
 
-    wandb.run.config.update({
-        "data_augmentation": data_augmentation,
-        "fold": fold,
-        "checkpoint": checkpoint,
-        "freeze_layers": num_freeze,
-        "effective_batch_size": effective_batch,
-        "early_stopping_patience": es_patience,
-    })
+    wandb.run.config.update(
+        {
+            "data_augmentation": data_augmentation,
+            "fold": fold,
+            "checkpoint": checkpoint,
+            "freeze_layers": num_freeze,
+            "effective_batch_size": effective_batch,
+            "early_stopping_patience": es_patience,
+        }
+    )
     wandb.log({"Best model checkpoint path": trainer.state.best_model_checkpoint})
 
     # --- Evaluate ---
@@ -297,7 +326,8 @@ def main() -> None:
         tok_identical = holdout_identical_dataset.map(tokenize_function, batched=True, remove_columns=cols)
         trainer.compute_metrics = eval_compute_metrics_identical
         identical_results = trainer.evaluate(
-            eval_dataset=tok_identical["test"], metric_key_prefix="test/identical_sentences",
+            eval_dataset=tok_identical["test"],
+            metric_key_prefix="test/identical_sentences",
         )
 
     if holdout_unrelated_dataset is not None and len(holdout_unrelated_dataset["test"]) > 0:
@@ -305,7 +335,8 @@ def main() -> None:
         tok_unrelated = holdout_unrelated_dataset.map(tokenize_function, batched=True, remove_columns=cols)
         trainer.compute_metrics = eval_compute_metrics_unrelated
         unrelated_results = trainer.evaluate(
-            eval_dataset=tok_unrelated["test"], metric_key_prefix="test/unrelated_sentences",
+            eval_dataset=tok_unrelated["test"],
+            metric_key_prefix="test/unrelated_sentences",
         )
 
     # --- Save & log artifact ---

@@ -4,6 +4,7 @@ Usage::
 
     python ensemble_evaluate.py --model_dirs model_a/ model_b/ model_c/ --data_dir ./data --fold 0
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,13 +29,19 @@ def create_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Ensemble evaluation over multiple saved models.")
     parser.add_argument(
-        "--model_dirs", type=str, nargs="+", required=True,
+        "--model_dirs",
+        type=str,
+        nargs="+",
+        required=True,
         help="Paths to saved model directories.",
     )
     parser.add_argument("--data_dir", type=str, default=None, help="Root data directory (from prepare_datasets.py).")
     parser.add_argument("--fold", type=int, default=None, help="Fold index (0-9). Requires --data_dir.")
     parser.add_argument(
-        "--split", type=str, default="test", choices=["test", "dev"],
+        "--split",
+        type=str,
+        default="test",
+        choices=["test", "dev"],
         help="Dataset split to evaluate on.",
     )
     return parser
@@ -112,7 +119,7 @@ def main() -> None:
     print(f"  R2:      {r2:.4f}")
     print(f"  Pearson: {pearson_r:.4f} (p={pearson_p:.2e})")
 
-    print(f"\n  Per-model R2:")
+    print("\n  Per-model R2:")
     for model_dir, preds in zip(args.model_dirs, all_preds):
         model_r2 = r2_score(labels, preds)
         print(f"    {os.path.basename(model_dir)}: {model_r2:.4f}")
