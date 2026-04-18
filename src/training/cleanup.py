@@ -27,11 +27,20 @@ from pathlib import Path
 TRAINING_DIR = Path(__file__).parent
 
 
+def _checkpoint_step(cp: Path) -> int:
+    """Extract the step number from a checkpoint directory name (checkpoint-N)."""
+    try:
+        return int(cp.name.split("-")[1])
+    except (IndexError, ValueError):
+        return -1
+
+
 def keep_best_checkpoints(delete: bool) -> None:
     """For each training output dir, keep only the best checkpoint and delete the rest.
 
-    The best checkpoint is identified from trainer_state.json (best_model_checkpoint field).
-    If trainer_state.json is missing or malformed, all checkpoints in that dir are skipped.
+    The Trainer writes trainer_state.json inside each checkpoint-* subdirectory (not at the
+    output dir root when a run crashes). The most recent checkpoint's trainer_state.json
+    contains the authoritative best_model_checkpoint field.
     """
     total_deleted = 0
     total_size = 0
@@ -40,9 +49,18 @@ def keep_best_checkpoints(delete: bool) -> None:
         if not output_dir.is_dir():
             continue
 
-        state_file = output_dir / "trainer_state.json"
+        checkpoints = [cp for cp in output_dir.glob("checkpoint-*") if cp.is_dir()]
+        if not checkpoints:
+            print(f"  {output_dir.name}: no checkpoints found, skipping")
+            continue
+
+        # Read trainer_state.json from the highest-numbered (most recent) checkpoint
+        checkpoints_sorted = sorted(checkpoints, key=_checkpoint_step)
+        latest_cp = checkpoints_sorted[-1]
+        state_file = latest_cp / "trainer_state.json"
+
         if not state_file.exists():
-            print(f"  {output_dir.name}: no trainer_state.json, skipping")
+            print(f"  {output_dir.name}: no trainer_state.json in {latest_cp.name}, skipping")
             continue
 
         try:
@@ -56,14 +74,13 @@ def keep_best_checkpoints(delete: bool) -> None:
             print(f"  {output_dir.name}: best_model_checkpoint not set, skipping")
             continue
 
-        # best_model_checkpoint can be absolute or relative to the output_dir
+        # best_model_checkpoint is relative to the CWD at training time (src/training/)
         best_path = Path(best_raw)
         if not best_path.is_absolute():
             best_path = TRAINING_DIR / best_path
-        best_name = best_path.name  # e.g. "checkpoint-150"
+        best_name = best_path.name  # e.g. "checkpoint-414"
 
-        checkpoints = sorted(output_dir.glob("checkpoint-*"))
-        to_delete = [cp for cp in checkpoints if cp.is_dir() and cp.name != best_name]
+        to_delete = [cp for cp in checkpoints_sorted if cp.name != best_name]
 
         if not to_delete:
             print(f"  {output_dir.name}: best={best_name}, nothing else to remove")
