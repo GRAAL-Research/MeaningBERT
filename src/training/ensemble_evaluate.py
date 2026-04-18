@@ -11,7 +11,7 @@ import argparse
 import os
 
 import numpy as np
-from datasets import Dataset, load_dataset, load_from_disk
+from datasets import DatasetDict, load_dataset, load_from_disk
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score
 from transformers import (
@@ -47,20 +47,26 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_predictions(model_dir: str, dataset: Dataset, data_collator: DataCollatorWithPadding) -> np.ndarray:
-    """Load a model and return its predictions on *dataset*.
+def get_predictions(model_dir: str, raw_dataset: DatasetDict, split: str) -> np.ndarray:
+    """Load a model, tokenize with its own tokenizer, and return predictions.
 
     Args:
         model_dir: Path to a saved model directory.
-        dataset: Tokenized HF dataset split.
-        data_collator: Padding collator matching the tokenizer.
+        raw_dataset: Non-tokenized HF DatasetDict (needs 'original', 'simplification', 'label').
+        split: Split name to evaluate on ('test' or 'dev').
 
     Returns:
-        1-D array of predicted scores.
+        1-D array of predicted scores, NaN/Inf replaced with 0.
     """
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    def tokenize_fn(example: dict) -> dict:
+        return tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
+
+    cols = [c for c in COLUMNS_TO_REMOVE if c in raw_dataset[split].column_names]
+    tokenized = raw_dataset.map(tokenize_fn, batched=True, remove_columns=cols)
 
     model = AutoModelForSequenceClassification.from_pretrained(model_dir, num_labels=1)
     if model.config.pad_token_id is None:
@@ -71,10 +77,11 @@ def get_predictions(model_dir: str, dataset: Dataset, data_collator: DataCollato
         per_device_eval_batch_size=64,
         report_to="none",
     )
+    data_collator = DataCollatorWithPadding(tokenizer)
 
     trainer = Trainer(model=model, args=training_args, data_collator=data_collator, processing_class=tokenizer)
-    predictions = trainer.predict(dataset)
-    return predictions.predictions.squeeze()
+    raw_preds = trainer.predict(tokenized[split]).predictions.squeeze()
+    return np.nan_to_num(raw_preds, nan=0.0, posinf=0.0, neginf=0.0)
 
 
 def main() -> None:
@@ -82,35 +89,22 @@ def main() -> None:
     parser = create_parser()
     args = parser.parse_args()
 
-    # Load dataset
+    # Load raw (non-tokenized) dataset — each model tokenizes with its own tokenizer
     if args.data_dir is not None and args.fold is not None:
         fold_dir = os.path.join(args.data_dir, "folds", f"fold_{args.fold}", "meaning")
         csmd_dataset = load_from_disk(fold_dir)
     else:
         csmd_dataset = load_dataset("davebulaval/CSMD", "meaning")
 
-    # Use tokenizer from first model
-    first_tokenizer = AutoTokenizer.from_pretrained(args.model_dirs[0])
-    if first_tokenizer.pad_token is None:
-        first_tokenizer.pad_token = first_tokenizer.eos_token
-
-    def tokenize_function(example: dict) -> dict:
-        return first_tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
-
-    cols = [c for c in COLUMNS_TO_REMOVE if c in csmd_dataset[args.split].column_names]
-    eval_dataset = csmd_dataset.map(tokenize_function, batched=True, remove_columns=cols)
-    data_collator = DataCollatorWithPadding(first_tokenizer)
-
-    dataset = eval_dataset[args.split]
     all_preds: list[np.ndarray] = []
     for model_dir in args.model_dirs:
         print(f"Getting predictions from {model_dir}...")
-        preds = get_predictions(model_dir, dataset, data_collator)
+        preds = get_predictions(model_dir, csmd_dataset, args.split)
         all_preds.append(preds)
 
     # Ensemble: simple average
     ensemble_preds = np.mean(all_preds, axis=0)
-    labels = np.array(dataset["label"])
+    labels = np.array(csmd_dataset[args.split]["label"])
 
     r2 = r2_score(labels, ensemble_preds)
     pearson_r, pearson_p = pearsonr(labels, ensemble_preds)

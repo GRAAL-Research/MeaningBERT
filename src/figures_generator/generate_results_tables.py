@@ -40,6 +40,16 @@ def correction(wandb_project_name, figures_saving_directory):
             elif data_augmentation == "False 500 holdout fixed":
                 holdout_500_false.append(dict(run.summary))
 
+    required = {
+        "holdout_500_false": holdout_500_false,
+        "holdout_500_true": holdout_500_true,
+        "data_augmentation_false": data_augmentation_false,
+        "data_augmentation_true": data_augmentation_true,
+    }
+    empty = [name for name, lst in required.items() if not lst]
+    if empty:
+        raise SystemExit(f"No finished runs found for: {', '.join(empty)}. Check the wandb project name.")
+
     doc_1115 = get_table_1115(
         few_shot_data=[
             data_augmentation_false,

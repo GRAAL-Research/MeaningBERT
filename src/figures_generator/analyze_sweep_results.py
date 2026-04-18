@@ -36,19 +36,19 @@ TEST_METRICS: list[str] = [
 ]
 
 HOLDOUT_IDENTICAL_METRICS: list[str] = [
-    "test/identical_sentences/rmse",
-    "test/identical_sentences/ratio_95",
-    "test/identical_sentences/ratio_99",
-    "test/identical_sentences/ratio_equals",
-    "test/identical_sentences/mean_score",
+    "train/test/identical_sentences_rmse",
+    "train/test/identical_sentences_ratio_95",
+    "train/test/identical_sentences_ratio_99",
+    "train/test/identical_sentences_ratio_equals",
+    "train/test/identical_sentences_mean_score",
 ]
 
 HOLDOUT_UNRELATED_METRICS: list[str] = [
-    "test/unrelated_sentences/rmse",
-    "test/unrelated_sentences/ratio_1",
-    "test/unrelated_sentences/ratio_5",
-    "test/unrelated_sentences/ratio_equals",
-    "test/unrelated_sentences/mean_score",
+    "train/test/unrelated_sentences_rmse",
+    "train/test/unrelated_sentences_ratio_1",
+    "train/test/unrelated_sentences_ratio_5",
+    "train/test/unrelated_sentences_ratio_equals",
+    "train/test/unrelated_sentences_mean_score",
 ]
 
 
@@ -70,6 +70,8 @@ def fetch_runs(project: str) -> list[dict]:
 
         entry = {
             "name": run.name,
+            "id": run.id,
+            "created_at": run.created_at,
             "checkpoint": checkpoint,
             "augmentation": augmentation,
             "fold": fold,
@@ -81,7 +83,13 @@ def fetch_runs(project: str) -> list[dict]:
             value = summary.get(metric_key)
             # Handle nested dicts (e.g. R2 can be {"r_squared": 0.5})
             if isinstance(value, dict):
-                value = value.get("r_squared", value)
+                value = value.get("r_squared", None)
+            # Ensure numeric or None
+            if value is not None:
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    value = None
             entry[metric_key] = value
 
         results.append(entry)
@@ -95,6 +103,35 @@ def _extract_seed_from_name(name: str) -> int | None:
         if part.startswith("seed") and part[4:].isdigit():
             return int(part[4:])
     return None
+
+
+def deduplicate_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Keep one run per (checkpoint, augmentation, fold), preferring the most recent.
+
+    Returns (deduplicated_runs, duplicate_runs).
+    """
+    seen: dict[tuple, dict] = {}
+    duplicates: list[dict] = []
+
+    for run in runs:
+        key = (run["checkpoint"], run["augmentation"], run["fold"])
+        if key not in seen:
+            seen[key] = run
+        else:
+            # Keep the most recent, mark the older one as duplicate
+            existing = seen[key]
+            if run["created_at"] > existing["created_at"]:
+                duplicates.append(existing)
+                seen[key] = run
+            else:
+                duplicates.append(run)
+
+    if duplicates:
+        print(f"  Deduplicated: removed {len(duplicates)} duplicate runs (kept most recent per fold)")
+        for dup in duplicates:
+            print(f"    {dup['name']} (id={dup['id']})")
+
+    return list(seen.values()), duplicates
 
 
 def group_runs(
@@ -114,10 +151,10 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
         ("test/rmse", "RMSE", "low"),
         ("test/R2", "R2", "high"),
         ("test/pearson_corr", "Pearson", "high"),
-        ("test/identical_sentences/ratio_equals", "Identical =100%", "high"),
-        ("test/identical_sentences/ratio_95", "Identical >95%", "high"),
-        ("test/unrelated_sentences/ratio_equals", "Unrelated =0%", "high"),
-        ("test/unrelated_sentences/ratio_5", "Unrelated <5%", "high"),
+        ("train/test/identical_sentences_ratio_equals", "Identical =100%", "high"),
+        ("train/test/identical_sentences_ratio_95", "Identical >95%", "high"),
+        ("train/test/unrelated_sentences_ratio_equals", "Unrelated =0%", "high"),
+        ("train/test/unrelated_sentences_ratio_5", "Unrelated <5%", "high"),
     ]
 
     rows: list[dict] = []
@@ -129,7 +166,12 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
         }
 
         for metric_key, label, _ in metrics_to_summarize:
-            values = [r[metric_key] for r in run_list if r.get(metric_key) is not None]
+            import math  # pylint: disable=import-outside-toplevel
+            values = [
+                r[metric_key]
+                for r in run_list
+                if isinstance(r.get(metric_key), float) and not math.isnan(r[metric_key])
+            ]
             if len(values) >= 2:
                 row[f"{label}_mean"] = mean(values)
                 row[f"{label}_std"] = stdev(values)
@@ -318,6 +360,7 @@ def main() -> None:
         print("\nNo finished runs found. Tables will be generated once runs complete.")
         return
 
+    runs, _ = deduplicate_runs(runs)
     groups = group_runs(runs)
     rows = compute_summary_table(groups)
 

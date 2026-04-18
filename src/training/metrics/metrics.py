@@ -1,6 +1,10 @@
+import logging
+
 import numpy as np
 from evaluate import load
 from sklearn.metrics import root_mean_squared_error
+
+_log = logging.getLogger(__name__)
 
 r2_metric = load("r_squared")
 pearsonr_metric = load("pearsonr")
@@ -9,6 +13,9 @@ pearsonr_metric = load("pearsonr")
 def _sanitize_predictions(predictions):
     """Squeeze (N,1)->(N,) and replace NaN/Inf with 0."""
     predictions = predictions.squeeze()
+    n_bad = int(np.sum(~np.isfinite(predictions)))
+    if n_bad > 0:
+        _log.warning("_sanitize_predictions: replacing %d NaN/Inf values with 0", n_bad)
     predictions = np.nan_to_num(predictions, nan=0.0, posinf=0.0, neginf=0.0)
     return predictions
 

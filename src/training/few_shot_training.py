@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import os
 import shutil
-from typing import Optional
+from typing import Any, Optional
 
+import torch
 import wandb
 from datasets import DatasetDict, load_dataset, load_from_disk
 from poutyne import set_seeds
@@ -22,6 +24,17 @@ from transformers import (
 )
 
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
+
+
+def _sanitize_for_json(obj: Any) -> Any:
+    """Replace NaN/Inf float values with None so wandb artifact metadata stays JSON-compliant."""
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
 
 log = logging.getLogger("pytorch_lightning")
 log.propagate = False
@@ -273,8 +286,17 @@ def main() -> None:
         dataloader_pin_memory=True,
     )
 
-    # Regression head: num_labels=1
-    model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=1)
+    # Regression head: num_labels=1.
+    # Explicit torch_dtype prevents models that default to float16 in their config (e.g. phi-2)
+    # from being loaded in FP16 while bf16 training is requested, which causes accelerate to
+    # create a GradScaler and then fail with "Attempting to unscale FP16 gradients."
+    if use_bf16:
+        model_dtype = torch.bfloat16
+    elif use_fp16:
+        model_dtype = torch.float16
+    else:
+        model_dtype = torch.float32
+    model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=1, torch_dtype=model_dtype)
 
     # Sync model pad_token_id with tokenizer (needed for decoder-based models).
     if model.config.pad_token_id is None:
@@ -349,7 +371,7 @@ def main() -> None:
         name=artifact_name,
         type="model",
         description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
-        metadata={
+        metadata=_sanitize_for_json({
             "checkpoint": checkpoint,
             "seed": seed,
             "fold": fold,
@@ -363,7 +385,7 @@ def main() -> None:
             "test_results": test_results,
             "holdout_identical_results": identical_results,
             "holdout_unrelated_results": unrelated_results,
-        },
+        }),
     )
     artifact.add_dir(best_model_dir)
     wandb.log_artifact(artifact)

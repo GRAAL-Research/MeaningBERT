@@ -562,7 +562,7 @@ def compute_other_metrics_on_holdout_unrelated_set(holdout_unrelated_set, logger
         logger.log({f"test/irrelevant_sentence_{metric_name}_ratio_5": ratio_5})
 
         rmse_score = root_mean_squared_error(metric_score, ratings)
-        logger.log({f"test/irrelevant_sentence{metric_name}_rmse": rmse_score})
+        logger.log({f"test/irrelevant_sentence_{metric_name}_rmse": rmse_score})
 
-        logger.log({f"test/irrelevant_sentence{metric_name}_mean": mean(metric_score)})
-        logger.log({f"test/irrelevant_sentence{metric_name}_st_dev": stdev(metric_score)})
+        logger.log({f"test/irrelevant_sentence_{metric_name}_mean": mean(metric_score)})
+        logger.log({f"test/irrelevant_sentence_{metric_name}_st_dev": stdev(metric_score)})

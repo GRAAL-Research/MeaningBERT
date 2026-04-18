@@ -117,24 +117,39 @@ def _parse_aug_from_name(name: str) -> str:
     return "back_translation" if "back_translation" in name else "swap"
 
 
-def get_hardcoded_runs(gpu: int) -> list[tuple[list[str], str]]:
-    """Return (command, label) pairs for the given GPU from the hardcoded list."""
+def get_hardcoded_runs(gpu: int, finished_names: set[str]) -> list[tuple[list[str], str]]:
+    """Return (command, label) pairs for the given GPU, skipping already-finished runs."""
     runs = []
     for checkpoint, lr, freeze, bs in HARDCODED_CONFIGS:
         if gpu_for_checkpoint(checkpoint) != gpu:
             continue
+        checkpoint_short = checkpoint.replace("/", "_")
         for aug in AUGMENTATIONS:
             for fold, seed in zip(FOLDS, SEEDS):
+                # float(lr) ensures "2e-5" formats as "2e-05", matching few_shot_training.py run names.
+                run_name = (
+                    f"{checkpoint_short}_seed{seed}_lr{float(lr)}_bs{bs}"
+                    f"_freeze{freeze}_aug{aug}_fold{fold}"
+                )
+                if run_name in finished_names:
+                    print(f"  SKIP (already finished): {run_name}")
+                    continue
                 cmd = build_command_from_config(checkpoint, fold, seed, aug, lr, freeze, bs)
                 label = f"{checkpoint} fold={fold} aug={aug}"
                 runs.append((cmd, label))
     return runs
 
 
-def get_wandb_runs(gpu: int, project: str) -> list[tuple[list[str], str]]:
-    """Return (command, label) pairs for failed runs assigned to this GPU."""
+def get_finished_run_names(project: str) -> set[str]:
+    """Return the set of run names that already finished successfully."""
     api = wandb.Api()
-    all_failed = list(api.runs(project, filters={"state": "failed"}))
+    return {run.name for run in api.runs(project, filters={"state": "finished"})}
+
+
+def get_wandb_runs(gpu: int, project: str) -> list[tuple[list[str], str]]:
+    """Return (command, label) pairs for failed/crashed runs assigned to this GPU."""
+    api = wandb.Api()
+    all_failed = [r for r in api.runs(project) if r.state in ("failed", "crashed")]
     runs = []
     for run in all_failed:
         checkpoint = run.config.get("checkpoint") or _parse_checkpoint_from_name(run.name)
@@ -164,11 +179,13 @@ def main() -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
     if args.hardcoded:
-        my_runs = get_hardcoded_runs(args.gpu)
+        finished = get_finished_run_names(args.project)
+        print(f"GPU {args.gpu}: {len(finished)} runs already finished (will be skipped)")
+        my_runs = get_hardcoded_runs(args.gpu, finished)
         print(f"GPU {args.gpu}: {len(my_runs)} runs to relaunch (hardcoded list)")
     else:
         my_runs = get_wandb_runs(args.gpu, args.project)
-        print(f"GPU {args.gpu}: {len(my_runs)} runs to relaunch (from wandb failed)")
+        print(f"GPU {args.gpu}: {len(my_runs)} runs to relaunch (from wandb failed/crashed)")
 
     for i, (cmd, label) in enumerate(my_runs, 1):
         print(f"\n=== [GPU {args.gpu}] [{i}/{len(my_runs)}] {label} ===")

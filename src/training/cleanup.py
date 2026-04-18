@@ -71,8 +71,57 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes:.1f} TB"
 
 
-def clean_wandb_failed(delete: bool) -> None:
-    """Delete failed wandb runs via the API."""
+def dedup_wandb_runs(project: str, delete: bool) -> None:
+    """Delete duplicate finished runs, keeping the most recent per (checkpoint, aug, fold)."""
+    try:
+        import wandb  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        print("  wandb not installed, skipping dedup")
+        return
+
+    api = wandb.Api()
+    try:
+        all_finished = [r for r in api.runs(project) if r.state == "finished"]
+    except wandb.errors.CommError as e:
+        print(f"  Could not fetch wandb runs: {e}")
+        return
+
+    # Group by (checkpoint, augmentation, fold) and keep most recent
+    seen: dict[tuple, object] = {}
+    to_delete = []
+    for run in all_finished:
+        cfg = run.config
+        checkpoint = cfg.get("checkpoint", "unknown")
+        aug = cfg.get("data_augmentation", "unknown")
+        fold = cfg.get("fold")
+        key = (checkpoint, aug, fold)
+        if key not in seen:
+            seen[key] = run
+        else:
+            existing = seen[key]
+            if run.created_at > existing.created_at:
+                to_delete.append(existing)
+                seen[key] = run
+            else:
+                to_delete.append(run)
+
+    if not to_delete:
+        print("  No duplicate finished runs found")
+        return
+
+    for run in to_delete:
+        cfg = run.config
+        label = f"{cfg.get('checkpoint','?')} aug={cfg.get('data_augmentation','?')} fold={cfg.get('fold','?')}"
+        if delete:
+            run.delete()
+            print(f"  Deleted duplicate: {run.name} ({run.id}) [{label}]")
+        else:
+            print(f"  Would delete duplicate: {run.name} ({run.id}) [{label}]")
+    print(f"  Total: {len(to_delete)} duplicate runs")
+
+
+def clean_wandb_failed(project: str, delete: bool) -> None:
+    """Delete failed/crashed wandb runs via the API."""
     try:
         import wandb  # pylint: disable=import-outside-toplevel
     except ImportError:
@@ -80,32 +129,33 @@ def clean_wandb_failed(delete: bool) -> None:
         return
 
     api = wandb.Api()
-    project = "davebulaval/meaningbert-checkpoint-sweep"
     try:
-        runs = api.runs(project, filters={"state": "crashed"})
+        all_runs = list(api.runs(project))
     except wandb.errors.CommError as e:
         print(f"  Could not fetch wandb runs: {e}")
         return
 
-    crashed = list(runs)
-    if not crashed:
-        print("  No crashed wandb runs found")
+    to_delete = [r for r in all_runs if r.state in ("crashed", "failed")]
+    if not to_delete:
+        print("  No crashed/failed wandb runs found")
         return
 
-    for run in crashed:
+    for run in to_delete:
         if delete:
             run.delete()
-            print(f"  Deleted wandb run: {run.name} ({run.id})")
+            print(f"  Deleted wandb run: {run.name} ({run.id}) [{run.state}]")
         else:
-            print(f"  Would delete wandb run: {run.name} ({run.id})")
-    print(f"  Total: {len(crashed)} crashed runs")
+            print(f"  Would delete wandb run: {run.name} ({run.id}) [{run.state}]")
+    print(f"  Total: {len(to_delete)} crashed/failed runs")
 
 
 def main() -> None:
     """Find and optionally delete intermediate checkpoints and failed runs."""
     parser = argparse.ArgumentParser(description="Clean up training artifacts.")
     parser.add_argument("--delete", action="store_true", help="Actually delete files (default: dry run).")
-    parser.add_argument("--clean-wandb", action="store_true", help="Also delete crashed wandb runs via API.")
+    parser.add_argument("--clean-wandb", action="store_true", help="Also delete crashed/failed wandb runs via API.")
+    parser.add_argument("--dedup-wandb", action="store_true", help="Delete duplicate finished wandb runs (keep most recent per fold).")
+    parser.add_argument("--project", default="davebulaval/meaningbert-checkpoint-sweep", help="Wandb project path.")
     args = parser.parse_args()
 
     # 1. Intermediate checkpoints
@@ -136,10 +186,15 @@ def main() -> None:
             print(f"  Would delete: {run_dir.name} ({format_size(size)})")
     print(f"  Total: {len(failed_runs)} failed runs, {format_size(total_size)}")
 
-    # 3. Remote wandb crashed runs
+    # 3. Remote wandb crashed/failed runs
     if args.clean_wandb:
-        print("\n=== Crashed wandb runs (remote) ===")
-        clean_wandb_failed(args.delete)
+        print("\n=== Crashed/failed wandb runs (remote) ===")
+        clean_wandb_failed(args.project, args.delete)
+
+    # 4. Duplicate finished wandb runs
+    if args.dedup_wandb:
+        print("\n=== Duplicate finished wandb runs (remote) ===")
+        dedup_wandb_runs(args.project, args.delete)
 
     if not args.delete:
         print("\nDry run. Use --delete to actually remove files.")

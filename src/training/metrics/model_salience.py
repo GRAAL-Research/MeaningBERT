@@ -41,7 +41,7 @@ class CoverageModel:
             self.reload_model(model_file)
 
     def reload_model(self, model_file):
-        print(self.model.load_state_dict(torch.load(model_file), strict=False))
+        print(self.model.load_state_dict(torch.load(model_file, weights_only=True), strict=False))
 
     def process_text(self, document):
         sentences = [" " + sent for sent in nltk.tokenize.sent_tokenize(document) if len(sent) > 0]

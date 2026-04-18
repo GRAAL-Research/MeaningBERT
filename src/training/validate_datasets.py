@@ -180,28 +180,28 @@ def main() -> None:
                 if not check_labels(ds[split_name], split_name, f"{fold_name}/{variant}"):
                     errors += 1
 
-            # Swap should have more train examples than base
-            if "meaning" in datasets and "meaning_with_swap" in datasets:
-                checks += 1
-                if not check_swap_present(
-                    datasets["meaning_with_swap"]["train"],
-                    datasets["meaning"]["train"],
-                    "train",
-                    fold_name,
-                ):
-                    errors += 1
+        # Swap should have more train examples than base (once per fold, not per variant)
+        if "meaning" in datasets and "meaning_with_swap" in datasets:
+            checks += 1
+            if not check_swap_present(
+                datasets["meaning_with_swap"]["train"],
+                datasets["meaning"]["train"],
+                "train",
+                fold_name,
+            ):
+                errors += 1
 
-            # Back-translation should have more train examples than swap
-            if "meaning_with_swap" in datasets and "meaning_with_back_translation" in datasets:
-                checks += 1
-                bt_train = len(datasets["meaning_with_back_translation"]["train"])
-                swap_train = len(datasets["meaning_with_swap"]["train"])
-                if bt_train <= swap_train:
-                    print(
-                        f"  FAIL [{fold_name}]: back_translation train ({bt_train})"
-                        f" should be larger than swap train ({swap_train})"
-                    )
-                    errors += 1
+        # Back-translation should have more train examples than swap (once per fold)
+        if "meaning_with_swap" in datasets and "meaning_with_back_translation" in datasets:
+            checks += 1
+            bt_train = len(datasets["meaning_with_back_translation"]["train"])
+            swap_train = len(datasets["meaning_with_swap"]["train"])
+            if bt_train <= swap_train:
+                print(
+                    f"  FAIL [{fold_name}]: back_translation train ({bt_train})"
+                    f" should be larger than swap train ({swap_train})"
+                )
+                errors += 1
 
         # Print stats for this fold
         if "meaning" in datasets:
