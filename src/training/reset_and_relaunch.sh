@@ -2,7 +2,8 @@
 # reset_and_relaunch.sh
 #
 # Tue les processus d'entraînement en cours, nettoie wandb (failed + doublons),
-# puis relance les 68 runs manquants sur 3 GPUs en parallèle.
+# supprime les checkpoints locaux résiduels, puis relance les runs manquants
+# sur 3 GPUs en parallèle.
 #
 # Usage:
 #   bash reset_and_relaunch.sh            # exécution complète
@@ -25,22 +26,24 @@ echo "LD_LIBRARY_PATH: ajout de ${VENV_NVRTC}"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Tuer les processus few_shot_training.py en cours
+# 1. Tuer les processus rerun_failed.py et few_shot_training.py en cours
 # ---------------------------------------------------------------------------
 echo "=== 1. Processus en cours ==="
-PIDS=$(pgrep -f few_shot_training.py || true)
-if [[ -z "$PIDS" ]]; then
-    echo "  Aucun processus few_shot_training.py actif."
-else
-    echo "  PIDs trouvés : $PIDS"
-    if [[ $DRY_RUN -eq 0 ]]; then
-        kill $PIDS
-        echo "  Tués."
-        sleep 2
+for PATTERN in rerun_failed.py few_shot_training.py; do
+    PIDS=$(pgrep -f "$PATTERN" || true)
+    if [[ -z "$PIDS" ]]; then
+        echo "  Aucun processus $PATTERN actif."
     else
-        echo "  [dry-run] pkill -f few_shot_training.py"
+        echo "  PIDs $PATTERN : $PIDS"
+        if [[ $DRY_RUN -eq 0 ]]; then
+            kill $PIDS
+            echo "  Tués."
+        else
+            echo "  [dry-run] kill $PIDS"
+        fi
     fi
-fi
+done
+[[ $DRY_RUN -eq 0 ]] && sleep 2
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -57,9 +60,24 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# 3. Prévisualisation des runs à relancer (toujours affiché)
+# 3. Suppression des checkpoints locaux résiduels
+#    (les dossiers meaning_bert_train_* sont partagés par modèle : un checkpoint
+#     d'un fold crashé ferait reprendre le Trainer sur le mauvais fold)
 # ---------------------------------------------------------------------------
-echo "=== 3. Runs à relancer (dry-run par GPU) ==="
+echo "=== 3. Checkpoints locaux ==="
+
+if [[ $DRY_RUN -eq 1 ]]; then
+    echo "  [dry-run] python cleanup.py"
+    python cleanup.py
+else
+    python cleanup.py --delete
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
+# 4. Prévisualisation des runs à relancer (toujours affiché)
+# ---------------------------------------------------------------------------
+echo "=== 4. Runs à relancer (dry-run par GPU) ==="
 for GPU in 0 1 2; do
     echo "--- GPU ${GPU} ---"
     python rerun_failed.py --gpu "${GPU}" --hardcoded --dry-run
@@ -67,9 +85,9 @@ for GPU in 0 1 2; do
 done
 
 # ---------------------------------------------------------------------------
-# 4. Lancement sur 3 GPUs en parallèle
+# 5. Lancement sur 3 GPUs en parallèle
 # ---------------------------------------------------------------------------
-echo "=== 4. Lancement ==="
+echo "=== 5. Lancement ==="
 
 if [[ $DRY_RUN -eq 1 ]]; then
     echo "  [dry-run] Lancement non effectué."
