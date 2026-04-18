@@ -8,6 +8,10 @@ Usage::
     # Actually delete
     python cleanup.py --delete
 
+    # Keep only the best checkpoint per output dir, delete the rest
+    python cleanup.py --keep-best
+    python cleanup.py --keep-best --delete
+
     # Also clean failed/crashed wandb runs
     python cleanup.py --delete --clean-wandb
 """
@@ -15,11 +19,68 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 from pathlib import Path
 
 TRAINING_DIR = Path(__file__).parent
+
+
+def keep_best_checkpoints(delete: bool) -> None:
+    """For each training output dir, keep only the best checkpoint and delete the rest.
+
+    The best checkpoint is identified from trainer_state.json (best_model_checkpoint field).
+    If trainer_state.json is missing or malformed, all checkpoints in that dir are skipped.
+    """
+    total_deleted = 0
+    total_size = 0
+
+    for output_dir in sorted(TRAINING_DIR.glob("meaning_bert_train_*")):
+        if not output_dir.is_dir():
+            continue
+
+        state_file = output_dir / "trainer_state.json"
+        if not state_file.exists():
+            print(f"  {output_dir.name}: no trainer_state.json, skipping")
+            continue
+
+        try:
+            state = json.loads(state_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            print(f"  {output_dir.name}: malformed trainer_state.json ({exc}), skipping")
+            continue
+
+        best_raw = state.get("best_model_checkpoint")
+        if not best_raw:
+            print(f"  {output_dir.name}: best_model_checkpoint not set, skipping")
+            continue
+
+        # best_model_checkpoint can be absolute or relative to the output_dir
+        best_path = Path(best_raw)
+        if not best_path.is_absolute():
+            best_path = TRAINING_DIR / best_path
+        best_name = best_path.name  # e.g. "checkpoint-150"
+
+        checkpoints = sorted(output_dir.glob("checkpoint-*"))
+        to_delete = [cp for cp in checkpoints if cp.is_dir() and cp.name != best_name]
+
+        if not to_delete:
+            print(f"  {output_dir.name}: best={best_name}, nothing else to remove")
+            continue
+
+        print(f"  {output_dir.name}: keeping {best_name}")
+        for cp in to_delete:
+            size = get_dir_size(cp)
+            total_size += size
+            total_deleted += 1
+            if delete:
+                shutil.rmtree(cp)
+                print(f"    Deleted: {cp.name} ({format_size(size)})")
+            else:
+                print(f"    Would delete: {cp.name} ({format_size(size)})")
+
+    print(f"  Total: {total_deleted} non-best checkpoints, {format_size(total_size)}")
 
 
 def find_intermediate_checkpoints() -> list[Path]:
@@ -153,10 +214,20 @@ def main() -> None:
     """Find and optionally delete intermediate checkpoints and failed runs."""
     parser = argparse.ArgumentParser(description="Clean up training artifacts.")
     parser.add_argument("--delete", action="store_true", help="Actually delete files (default: dry run).")
+    parser.add_argument("--keep-best", action="store_true", help="Keep only the best checkpoint per output dir (identified via trainer_state.json).")
     parser.add_argument("--clean-wandb", action="store_true", help="Also delete crashed/failed wandb runs via API.")
     parser.add_argument("--dedup-wandb", action="store_true", help="Delete duplicate finished wandb runs (keep most recent per fold).")
     parser.add_argument("--project", default="davebulaval/meaningbert-checkpoint-sweep", help="Wandb project path.")
     args = parser.parse_args()
+
+    # 0. Keep-best mode: prune non-best checkpoints only
+    if args.keep_best:
+        print("=== Keep best checkpoint per output dir ===")
+        keep_best_checkpoints(args.delete)
+        print("")
+        if not args.delete:
+            print("Dry run. Use --delete to actually remove files.")
+        return
 
     # 1. Intermediate checkpoints
     print("=== Intermediate checkpoints ===")
