@@ -1,0 +1,30 @@
+{
+  "_provenance": "Verbatim from the LaTeX source of arXiv:2504.09394 (tables_synthetic_samples.tex and tables_simplified_sample.tex, retrieved via https://arxiv.org/e-print/2504.09394 on 2026-09-19). These are the only concrete SynthSimpliEval example pairs the paper publishes. None carries a numeric score: the paper reports only aggregate statistics for the full pools. This file exists to document exactly what was found, not to serve as training data.",
+  "synthetic_complex_sentence_samples": [
+    {
+      "domain": "architecture",
+      "concept_noun": "grocery",
+      "sentence": "The cantilevered roofline of the facility must accommodate 30-degree angular deviations in structural supports while maintaining a 3-inch minimum clearance from refrigerated storage units."
+    },
+    {
+      "domain": "mathematics",
+      "concept_noun": "vacation",
+      "sentence": "The optimization of vacation scheduling for a group can be modeled as a constraint satisfaction problem, where the objective function minimizes the total dissatisfaction across all participants, subject to constraints on available dates and group size."
+    },
+    {
+      "domain": "anthropology",
+      "concept_noun": "alcohol",
+      "sentence": "Ethnographic studies reveal that the ritualized consumption of alcohol in social gatherings serves as a significant mediator of interpersonal relationships and community cohesion in diverse cultural contexts."
+    }
+  ],
+  "simplified_sample": {
+    "complex": "The integration of advanced payment systems in chemical engineering plants necessitates a robust cybersecurity framework to protect sensitive operational data and financial transactions.",
+    "simplifications": {
+      "llama-3-1b": "Using advanced payment systems in factories helps keep the important things safe. To keep this safe, strong computer security measures are needed.",
+      "llama-3-3b": "To keep information about the plants and money safe, we need a strong system to protect it from hackers and keep track of all the payments.",
+      "llama-3-8b": "Using computers in factories that make chemicals requires a strong way to keep the information and money safe from being hacked.",
+      "llama-3-70b": "When we use new ways to pay for things in chemical plants, we need to make sure we have strong protection for our computers and money information so it doesn't get stolen or hurt."
+    },
+    "label_raw": null
+  }
+}

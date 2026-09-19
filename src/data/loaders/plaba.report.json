@@ -1,0 +1,29 @@
+{
+  "corpus": "plaba",
+  "status": "DELIVERED",
+  "n_rows": 806,
+  "n_rows_read_before_filtering": 819,
+  "n_rows_dropped_empty_text": 6,
+  "n_rows_dropped_non_finite_label": 0,
+  "n_duplicates_dropped_within_corpus": 7,
+  "n_unique_originals": 116,
+  "scale": "likert3_signed",
+  "label_raw_min": -1.0,
+  "label_raw_max": 1.0,
+  "label_raw_mean": 0.9416873449131513,
+  "n_annotators_median": 1,
+  "pct_with_std": 0.0,
+  "domains": {"biomedical": 806},
+  "systems": {
+    "gpt-3.5-zero-shot": 117,
+    "llama-2-7b-chat": 116,
+    "llama-2-7b-chat-scer-0.5": 117,
+    "human": 456
+  },
+  "split_hints": {"": 806},
+  "license": "unspecified (source repository ships no LICENSE file)",
+  "license_allows_redistribution": false,
+  "source_url": "https://github.com/ondovb/plaba-ft/tree/main/eval/manual",
+  "retrieval_date": "2026-09-19",
+  "notes": "DELIVERED as of 2026-09-19 (rev.: was BLOCKED, unblocked once the contract owner added the likert3_signed scale to CONTRACT.md/schema.py -- see RAPPORT.md). validate() passes on the full 806-row dataset. Chain: (1) The public PLABA parallel corpus (Attal et al. 2023, Nature Sci Data, CC-BY-4.0, https://doi.org/10.1038/s41597-022-01920-3, distributed via https://bionlp.nlm.nih.gov/plaba2023/) carries no human preservation-of-meaning score -- 750 abstracts of expert plain-language rewrites with no rating attached, so per BRIEF.md it does not qualify for CSMD v2 on its own and was not loaded. (2) The scored data comes from the TREC PLABA track manual evaluation (2023/2024; overview: Ondov et al. 2025, https://pubmed.ncbi.nlm.nih.gov/40969486/ / arXiv:2507.14096), which rated system outputs on Simplicity, Accuracy (2023: avg of Completeness and Faithfulness), Completeness and Brevity. The official per-sentence judgment files are hosted at https://trec.nist.gov/results/... which returns HTTP 401 without TREC participant credentials -- access refused, per BRIEF.md rule 4, and not used. (3) A partial mirror of the same manual evaluation (TREC 2023 round 1 protocol, 7 evaluated systems: gpt-3.5-zero-shot, llama-2-7b-chat, llama-2-7b-chat-scer-0.5, and 4 independent human reference re-evaluations) is published in a co-author's own repository, https://github.com/ondovb/plaba-ft, under eval/manual/*.acc.csv, retrieved 2026-09-19. This is the source actually parsed for the numbers above. It carries no LICENSE file (default all-rights-reserved), hence license_allows_redistribution=false: CSMD v2 can ship this loader, not redistribute the 806 rows as-is. (4) Axis choice: this loader emits Faithfulness ('Do points made in the output match those of the source?'), the closer analogue to CSMD's meaning-preservation judgment than Completeness ('how much of the source survives'), since a simplification can omit detail while remaining faithful to what it does say. Completeness ('Acc. comp.') is captured in the parser (open_question_completeness_raw in extract_rows()) but not emitted; it remains an open question for harmonize.py's owner. (5) SCALE: both axes are recorded on a signed 3-point Likert scale {-1, 0, 1} (higher is better). This had no match in CONTRACT.md's original SCALES table (severity3 shares the cardinality but has bounds [1,3] and the opposite orientation, which would have silently inverted the signal). The loader stopped and signalled this per CONTRACT.md rule 3; the contract owner then added likert3_signed (low=-1.0, high=1.0, higher_is_better=true) to CONTRACT.md and schema.py, and this loader now emits scale='likert3_signed'. (6) VIGILANCE POINT FOR H2: label_raw_mean = 0.9417 on a [-1, 1] scale means the emitted labels are heavily concentrated near the upper bound -- almost every row is close to 'fully faithful'. This is semantically plausible (the evaluated systems are strong modern baselines plus expert human references) but it means this corpus alone carries little label variance. Anyone testing H2 (whether SimpEval/SALSA/SimpleText/PLABA are harmonisable onto a common 0-100 scale without destroying signal) should not read a high correlation on PLABA alone as a strong positive signal for H2: with almost all labels near +1, there is little room for a metric to be wrong, and a ceiling-effect artifact could masquerade as agreement. (7) Alignment: the mission brief anticipated an irregular phrase-to-phrase alignment problem (PLABA's guidelines allow splitting or dropping source sentences). That problem was already resolved upstream by the TREC manual-evaluation spreadsheet itself: each row is one (source sentence, already-merged system output) pair, with no duplicate (Abst, Sent) keys observed. 6 rows across the 819 read were dropped for having an empty Output cell (the annotators judged the sentence as effectively omitted, with the automatic accuracy score of -1 for both axes); 7 further rows were dropped as exact (original, simplification, system) duplicates within the corpus, per CONTRACT.md's own-corpus dedup rule. (8) Leakage note: PLABA's 40 manually-evaluated source abstracts are PubMed biomedical text; CSMD v1's known overlap risk is with ASSET/Wikipedia-domain corpora (SimpEval, SALSA), which PLABA does not share a domain with, so no leakage check against CSMD was run for this corpus."
+}
