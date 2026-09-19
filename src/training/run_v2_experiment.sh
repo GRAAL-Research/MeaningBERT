@@ -39,7 +39,7 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 # than deberta-v3-base (110 M against 184 M, and no disentangled attention), so it takes a
 # larger micro-batch for the same memory.
 MICRO_SMALL="${MICRO_SMALL:-32}"
-MICRO_D="${MICRO_D:-8}"
+MICRO_D="${MICRO_D:-16}"
 
 micro_batch_for() {
     case "$1" in

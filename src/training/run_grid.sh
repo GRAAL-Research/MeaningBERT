@@ -35,12 +35,16 @@ VARIANTS="${VARIANTS:-c_none c_full d_none d_full}"
 # The d rung truncates at 512 tokens where c tops out at 209, so it takes a smaller
 # micro-batch. The effective batch stays EFFECTIVE_BATCH everywhere through gradient
 # accumulation, so optimisation is comparable across the whole grid.
+# Ordered by information per hour, not by size. bert-base-uncased comes first because it
+# is what MeaningBERT v1 published: without it, "v2 beats v1" compares two different
+# models. deberta-v3-large comes last because it costs roughly three times the rest and
+# answers the least interesting question.
 ALL_ARCHS="\
 bert|bert-base-uncased|32|16
-deberta-v3-base|microsoft/deberta-v3-base|32|8
-deberta-v3-large|microsoft/deberta-v3-large|8|4
-nli-deberta-v3-base|MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli|32|8
-stsb-roberta-base|cross-encoder/stsb-roberta-base|32|16"
+deberta-v3-base|microsoft/deberta-v3-base|32|16
+nli-deberta-v3-base|MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli|32|16
+stsb-roberta-base|cross-encoder/stsb-roberta-base|32|16
+deberta-v3-large|microsoft/deberta-v3-large|8|8"
 
 ARCHS="${ARCHS:-}"
 

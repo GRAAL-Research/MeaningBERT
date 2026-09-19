@@ -52,6 +52,9 @@ log.setLevel(logging.ERROR)
 
 NUM_EPOCH = 500
 
+#: Token budget per pair. See --max_length for the measurements behind this number.
+DEFAULT_MAX_LENGTH = 256
+
 # Default learning rates per model family.
 # Decoder-based and DeBERTa models tend to need lower LRs than BERT.
 MODEL_FAMILY_LR: dict[str, float] = {
@@ -312,6 +315,18 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
+        "--max_length",
+        type=int,
+        default=DEFAULT_MAX_LENGTH,
+        help=(
+            "Token budget per pair, capped by the model's own limit. The default is not the "
+            "model limit: measured on the v2 corpora, the 99th percentile is 164 to 178 tokens "
+            "and only 0.17 to 0.31 percent of pairs exceed 256, while a handful reach 1737. "
+            "Budgeting for those few forces a small micro-batch on every batch, which measured "
+            "8.8 samples per second against 21.8. Truncation clips a tail, it does not drop a pair."
+        ),
+    )
+    parser.add_argument(
         "--results_json",
         type=str,
         default=None,
@@ -454,7 +469,8 @@ def main() -> None:
     # batch of 32 padded to 1737 tokens is roughly thirty times the usual memory on a 16 GB
     # card. The bound has to be explicit.
     _config = AutoConfig.from_pretrained(checkpoint)
-    max_length = min(getattr(_config, "max_position_embeddings", 512) or 512, 512)
+    _model_limit = min(getattr(_config, "max_position_embeddings", 512) or 512, 512)
+    max_length = min(args.max_length, _model_limit)
 
     def tokenize_function(example: dict) -> dict:
         return tokenizer(
@@ -648,7 +664,15 @@ def main() -> None:
         print(f"Results written to {results_json}")
 
     # --- Save & log artifact ---
-    best_model_dir = f"meaningbert_best_model_{checkpoint_short_name}_seed{seed}{fold_str}"
+    # The variant and the head belong in the name. Without them every run of the grid
+    # writes to the same directory and silently overwrites the previous one, leaving a
+    # single checkpoint per architecture with no way to tell which configuration produced
+    # it. The whole point of the grid is to publish the winner.
+    best_model_dir = os.path.join(
+        os.environ.get("MEANINGBERT_MODEL_DIR", "models"),
+        f"{checkpoint_short_name}_{variant_tag}_{output_head}_seed{seed}{fold_str}",
+    )
+    os.makedirs(best_model_dir, exist_ok=True)
     # Stamp the output head into the config BEFORE saving. The head is applied outside the
     # model, so a checkpoint trained with `sigmoid` emits raw logits, not a 0-100 score.
     # Published as-is, `scores.logits.tolist()` from the model card would return values
@@ -659,7 +683,7 @@ def main() -> None:
     trainer.save_model(best_model_dir)
     tokenizer.save_pretrained(best_model_dir)
 
-    artifact_name = f"meaningbert-{checkpoint_short_name}-seed{seed}{fold_str}"
+    artifact_name = f"meaningbert-{checkpoint_short_name}-{variant_tag}-{output_head}-seed{seed}{fold_str}"
     artifact = wandb.Artifact(
         name=artifact_name,
         type="model",
