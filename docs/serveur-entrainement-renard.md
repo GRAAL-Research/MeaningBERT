@@ -8,8 +8,9 @@ Ce fichier porte les **decisions**. Le **releve materiel** vit dans
 | Point | Decision | Date |
 |---|---|---|
 | Serveur d'entrainement | `renard`, et non `caribou` | 2026-09-19, David |
-| GPU | **GPU 1 uniquement, la Quadro P5000**. `CUDA_VISIBLE_DEVICES=1` | 2026-09-19, David |
-| Multi-GPU | interdit | 2026-09-19 |
+| GPU | ~~GPU 1 uniquement, la Quadro P5000~~ **remplace le 2026-09-19** : voir ci-dessous | 2026-09-19, David |
+| Parc d'entrainement | renard GPU 0 et GPU 1, plus souris GPU 0. Une tranche de grille par carte | 2026-09-19, David |
+| Multi-GPU **dans un run** | toujours interdit : un entrainement, une carte | 2026-09-19 |
 | Precision | ce que dit le releve genere. Aujourd'hui `fp32`, faute de bf16 | derive |
 | Ablations H2 | `deberta-v3-base` | 2026-09-19 |
 | Modele final v2 | `deberta-v3-large` | 2026-09-19 |
@@ -63,3 +64,60 @@ s'atteint par le corpus.
 5. Verifier que les corrections C1 a C3 de `docs/H1-diagnostic-calibration.md` sont en
    place. Entrainer sans elles reproduirait la compression d'amplitude, et on aurait
    change le corpus pour rien.
+
+## Le parc, et pourquoi il a trois cartes
+
+Decision du 2026-09-19, David : *separer la charge pour accelerer l'execution*.
+
+La grille de la phase 2 est sequentielle par construction, un entrainement par carte a la
+fois. Sur la seule P5000, ses vingt runs demandaient une nuit et une journee, pendant que
+deux cartes dormaient a cote. Le verificateur d'environnement les donne a egalite sur la
+charge de reference :
+
+| Carte | Machine | Memoire | Debit de reference |
+|---|---|---|---|
+| Quadro P5000 | renard GPU 1 | 16 Go | mesure a l'installation |
+| GeForce GTX 1080 Ti | renard GPU 0 | 10.9 Go | 41.0 pas/s |
+| TITAN Xp | souris GPU 0 | 11.9 Go | 40.4 pas/s |
+
+Les trois sont Pascal, `sm_61`, donc `fp32` partout et la meme roue `torch==2.14.0+cu126`,
+gelee dans `env/renard-lock.txt` et installee telle quelle sur souris. Rien ne distingue
+les runs d'une machine a l'autre : c'est ce qui autorise a les comparer.
+
+### Une tranche par carte
+
+`src/training/run_worker.sh <nom>` lit `env/workers/<nom>.env` et n'execute que la tranche
+qui y est decrite, sous forme de lots `architectures|variantes` separes par `;`.
+
+Le partitionnement est **statique**. renard et souris ne partagent aucun systeme de
+fichiers, donc aucun verrou commun n'est possible et une file de travail partagee non
+plus. Des tranches disjointes rendent la collision impossible sans coordination.
+
+`deberta-v3-large` ne se partitionne pas par architecture, puisqu'il est seul et coute
+trois fois le reste : il se coupe par rang de corpus. Son rang `d`, ou les sequences
+montent a 512 jetons, va sur la P5000 et ses 16 Go.
+
+Deux garde-fous :
+
+- `run_worker.sh` attend que sa carte soit libre avant de demarrer. Deux entrainements
+  concurrents sur 11 a 16 Go tombent en OOM tous les deux.
+- `run_grid.sh` refuse un appel **sans** `ARCHS` tant que `results/GRID_PARTITIONED`
+  existe. C'est ce que fait la phase 2 de `run_everything.sh`, ecrite quand il n'y avait
+  qu'un GPU : elle relancerait la grille entiere sur une carte, en double du reste du parc.
+
+### Reprise et collecte
+
+Un chien de garde par tranche, toutes les dix minutes, sur chaque machine :
+
+```
+*/10 * * * * ~/MeaningBERT/src/training/watchdog_worker.sh renard-gpu0
+```
+
+Relancer ne coute rien : `run_grid.sh` saute toute variante dont le JSON existe deja. Une
+tranche complete pose `results/WORKER_COMPLETE-<nom>` et le chien de garde se tait.
+
+Les resultats vivent sur trois machines. Pour les rassembler et les analyser :
+
+```
+bash src/training/collect_results.sh
+```
