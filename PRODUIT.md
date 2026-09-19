@@ -28,8 +28,11 @@ systemes sans lancer une campagne d'annotation.
 1. Corpus d'entrainement passe de 1355 a au moins 8000 paires portant un jugement humain.
 2. Pearson sur un test externe tenu a l'ecart (Agrawal & Carpuat TACL 2024, ou un split
    SimpEval jamais vu) superieur au v1 mesure sur le meme test.
-3. RMSE sur echelle 0-100 sous 15, et R2 positif. Le sweep actuel est a 35-54 de RMSE et
-   R2 negatif ; c'est le symptome de calibration a corriger.
+3. RMSE sur echelle 0-100 sous 15, et R2 positif. **Traduit en cible directe : Pearson
+   >= 0,914.** Avec sigma_y = 37,01, le RMSE minimal atteignable vaut
+   sigma_y * sqrt(1 - r^2), donc RMSE < 15 equivaut exactement a Pearson > 0,914. Le
+   Pearson actuel est de 0,80. La calibration seule amene le RMSE a 22,1 ; le reste du
+   chemin est le travail de l'expansion de corpus.
 4. Les deux sanity checks v1 repassent : identique >= 95 et non reliee <= 5, sur un
    holdout reellement tenu a l'ecart.
 
@@ -52,7 +55,7 @@ Verrouilles. Tout ce qui suit est explicitement hors portee et part en v3 ou v4.
 
 | # | Hypothese | Risque si fausse | Comment on la teste |
 |---|---|---|---|
-| H1 | L'anomalie du sweep (R2 negatif, RMSE 40, Identical=100% a 0,000) vient de la calibration de sortie, pas d'un defaut de donnee ou de modele. | On ajoute 8000 paires et on ne voit aucun gain parce que le pipeline est casse en aval. | Phase 1, diagnostic isole avant tout ajout de corpus. |
+| H1 | ~~L'anomalie du sweep vient de la calibration de sortie.~~ **CONFIRMEE le 2026-09-19.** Voir `docs/H1-diagnostic-calibration.md`. | - | Resolue. 40 a 55 % du RMSE est recuperable par recalibrage affine ; les 4 checkpoints convergent vers le meme plancher de 22,1-23,1. |
 | H2 | Les scores de SimpEval, SALSA, SimpleText et PLABA sont harmonisables sur une echelle 0-100 commune sans detruire le signal. | Le corpus fusionne est plus bruite que CSMD seul et la metrique se degrade. | Ablation : entrainer sur CSMD seul vs CSMD + chaque corpus, un a un. |
 | H3 | Les 60 phrases partagees entre SimpEval2022 et SynthSimpliEval suffisent comme point d'ancrage inter-corpus. | L'harmonisation repose sur une normalisation arbitraire par corpus. | Mesurer l'accord sur les paires communes avant de fixer le mapping. |
 | H4 | Les licences des cinq corpus permettent une rediffusion dans CSMD v2. | On ne peut pas republier le corpus, seulement les loaders. | Verification licence par licence en phase 1. |
@@ -65,5 +68,10 @@ entrainement non mesure.
 
 ## Journal
 
+- 2026-09-19 : H1 confirmee et fermee. Trois defaillances : compression d'amplitude sur
+  100 % des runs (pred_mean 21-36 contre un label mean de 62,66), 40-55 % du RMSE
+  recuperable par recalibrage affine, et un run effondre rapporte comme predicteur de
+  zero par `np.nan_to_num`. Cinq corrections C1-C5 identifiees, C1 et C3 prerequises a
+  tout reentrainement. Detail dans `docs/H1-diagnostic-calibration.md`.
 - 2026-09-19 : cadrage v2 ecrit. Sequence v2 corpus / v3 polarite + dissociation /
   v4 multilingue arbitree par David. Voir ROADMAP.md pour le detail des corpus.
