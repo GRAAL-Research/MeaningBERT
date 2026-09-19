@@ -1,0 +1,1323 @@
+[
+  {
+    "source": "Further important aspects of Fungi in Art relate to preservation of artworks from fungal decay and contamination, as well as initiatives fostering and supporting works able to stimulate dialogues between mycologists (fungal researchers), artists, and society (as for example from the 'Massee Art Grant' by the British Mycological Society or works encouraged and supported by the Fungi Foundation).",
+    "target": "An important aspect of Fungi in Art is the protection of artwork from fungal damage. || Another important aspect is to make sure mycologists, artists, and society are all on the same page.",
+    "metadata": {
+      "annotator": "annotator_1",
+      "system": "new-wiki-1/Human-2-written"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            259,
+            397
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "a lot"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            216,
+            237
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "bad_deletion",
+            "bad_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "deletion",
+        "input_idx": [
+          [
+            95,
+            113
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "somewhat"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 4,
+        "category": "deletion",
+        "input_idx": [
+          [
+            125,
+            172
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "a lot"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            0,
+            25
+          ]
+        ],
+        "output_idx": [
+          [
+            0,
+            19
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "trivial"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            42,
+            64
+          ]
+        ],
+        "output_idx": [
+          [
+            36,
+            53
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "a lot"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "substitution",
+        "input_idx": [
+          [
+            89,
+            94
+          ]
+        ],
+        "output_idx": [
+          [
+            77,
+            84
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "a lot"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 4,
+        "category": "substitution",
+        "input_idx": [
+          [
+            68,
+            76
+          ]
+        ],
+        "output_idx": [
+          [
+            57,
+            64
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "trivial"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 5,
+        "category": "substitution",
+        "input_idx": [
+          [
+            176,
+            203
+          ]
+        ],
+        "output_idx": [
+          [
+            119,
+            128
+          ],
+          [
+            163,
+            188
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "a lot"
+            }
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "In time Eliot relocated to Washington, D.C., first as director of the National Capital Park and Planning Commission until 1933, involved in the development of the National Mall, then until 1943 as Director of the National Resources Planning Board, which formed part of the Public Works Administration.",
+    "target": "When he moved to Washington, D.C., he worked for the National Capital Park and Planning Commission until 1933. || He helped with the building of the National Mall. || After that, he worked for the National Resources Planning Board, which was part of the Public Works Administration.",
+    "metadata": {
+      "annotator": "annotator_3",
+      "system": "new-wiki-1/Muss"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            183,
+            193
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "somewhat"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            178,
+            182
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "trivial_deletion"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            8,
+            13
+          ]
+        ],
+        "output_idx": [
+          [
+            5,
+            7
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "less",
+            "less": {
+              "val": "bad_deletion",
+              "bad_deletion": "somewhat"
+            }
+          },
+          "grammar_error": "yes"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            14,
+            23
+          ]
+        ],
+        "output_idx": [
+          [
+            8,
+            13
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "substitution",
+        "input_idx": [
+          [
+            45,
+            65
+          ]
+        ],
+        "output_idx": [
+          [
+            35,
+            48
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 4,
+        "category": "substitution",
+        "input_idx": [
+          [
+            128,
+            136
+          ]
+        ],
+        "output_idx": [
+          [
+            117,
+            123
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 5,
+        "category": "substitution",
+        "input_idx": [
+          [
+            137,
+            158
+          ]
+        ],
+        "output_idx": [
+          [
+            124,
+            141
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 6,
+        "category": "substitution",
+        "input_idx": [
+          [
+            194,
+            208
+          ]
+        ],
+        "output_idx": [
+          [
+            179,
+            192
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "bad",
+              "bad": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 7,
+        "category": "substitution",
+        "input_idx": [
+          [
+            254,
+            260
+          ]
+        ],
+        "output_idx": [
+          [
+            238,
+            241
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "insertion",
+        "output_idx": [
+          [
+            114,
+            116
+          ]
+        ],
+        "annotation": {
+          "insertion_type": {
+            "val": "elaboration",
+            "elaboration": "minor"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "insertion",
+        "output_idx": [
+          [
+            167,
+            178
+          ]
+        ],
+        "annotation": {
+          "insertion_type": {
+            "val": "elaboration",
+            "elaboration": "minor"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "structure",
+        "constituent_edits": [
+          {
+            "id": 8,
+            "category": "substitution",
+            "input_idx": [
+              [
+                0,
+                7
+              ]
+            ],
+            "output_idx": [
+              [
+                0,
+                4
+              ]
+            ]
+          }
+        ],
+        "annotation": {
+          "structure_type": {
+            "val": "transition"
+          },
+          "impact": {
+            "val": "trivial"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "structure",
+        "constituent_edits": [
+          {
+            "id": 9,
+            "category": "substitution",
+            "input_idx": [
+              [
+                45,
+                65
+              ]
+            ],
+            "output_idx": [
+              [
+                35,
+                48
+              ]
+            ]
+          }
+        ],
+        "annotation": {
+          "structure_type": {
+            "val": "voice"
+          },
+          "impact": {
+            "val": "good",
+            "good": "somewhat"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "structure",
+        "constituent_edits": [
+          {
+            "id": 10,
+            "category": "substitution",
+            "input_idx": [
+              [
+                194,
+                208
+              ]
+            ],
+            "output_idx": [
+              [
+                179,
+                192
+              ]
+            ]
+          }
+        ],
+        "annotation": {
+          "structure_type": {
+            "val": "pos"
+          },
+          "impact": {
+            "val": "bad",
+            "bad": "minor"
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "Divided into sections pertaining to each season and covering self-reliance, growing and gardening, cooking, health and beauty, and wilderness, and with photos and illustrations evocative of the great outdoors, A Wilder Life shows that getting in touch with nature is possible.",
+    "target": "A Wilder Life shows that getting in touch with nature is possible. || To show this, the book details many different aspects of the outdoors.",
+    "metadata": {
+      "annotator": "annotator_0",
+      "system": "new-wiki-1/Human-2-written"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            0,
+            209
+          ]
+        ],
+        "output_idx": [
+          [
+            93,
+            140
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "less",
+            "less": {
+              "val": "good_deletion",
+              "good_deletion": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "insertion",
+        "output_idx": [
+          [
+            84,
+            92
+          ]
+        ],
+        "annotation": {
+          "insertion_type": {
+            "val": "elaboration",
+            "elaboration": "minor"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "insertion",
+        "output_idx": [
+          [
+            70,
+            83
+          ]
+        ],
+        "annotation": {
+          "insertion_type": {
+            "val": "elaboration",
+            "elaboration": "minor"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "reorder",
+        "input_idx": [
+          [
+            210,
+            276
+          ]
+        ],
+        "output_idx": [
+          [
+            0,
+            66
+          ]
+        ],
+        "annotation": {
+          "reorder_level": {
+            "val": "component_level",
+            "component_level": {
+              "val": "good",
+              "good": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "structure",
+        "constituent_edits": [
+          {
+            "id": 2,
+            "category": "substitution",
+            "input_idx": [
+              [
+                0,
+                209
+              ]
+            ],
+            "output_idx": [
+              [
+                93,
+                140
+              ]
+            ]
+          }
+        ],
+        "annotation": {
+          "structure_type": {
+            "val": "clausal"
+          },
+          "impact": {
+            "val": "good",
+            "good": "somewhat"
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "The Supreme Court of the United Kingdom unanimously denies the Scottish government the right to hold a second referendum on Scottish independence from the United Kingdom without approval from the British government.",
+    "target": "The Supreme Court of the United Kingdom ruled that the Scottish government cannot hold another referendum on Scottish independence without permission from the British government.",
+    "metadata": {
+      "annotator": "annotator_3",
+      "system": "new-wiki-1/GPT-3-few-shot"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            146,
+            169
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            40,
+            51
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "trivial_deletion"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            178,
+            186
+          ]
+        ],
+        "output_idx": [
+          [
+            139,
+            149
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            52,
+            58
+          ],
+          [
+            83,
+            95
+          ]
+        ],
+        "output_idx": [
+          [
+            40,
+            50
+          ],
+          [
+            75,
+            81
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "substitution",
+        "input_idx": [
+          [
+            101,
+            109
+          ]
+        ],
+        "output_idx": [
+          [
+            87,
+            94
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "less",
+            "less": {
+              "val": "good_deletion",
+              "good_deletion": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "Further important aspects of Fungi in Art relate to preservation of artworks from fungal decay and contamination, as well as initiatives fostering and supporting works able to stimulate dialogues between mycologists (fungal researchers), artists, and society (as for example from the 'Massee Art Grant' by the British Mycological Society or works encouraged and supported by the Fungi Foundation).",
+    "target": "An important aspect of Fungi in Art is the protection of artwork from fungal damage. || Another important aspect is to make sure mycologists, artists, and society are all on the same page.",
+    "metadata": {
+      "annotator": "annotator_3",
+      "system": "new-wiki-1/Human-2-written"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            259,
+            397
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "a lot"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            216,
+            237
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "somewhat"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "deletion",
+        "input_idx": [
+          [
+            95,
+            113
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 4,
+        "category": "deletion",
+        "input_idx": [
+          [
+            125,
+            172
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "somewhat"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            0,
+            25
+          ]
+        ],
+        "output_idx": [
+          [
+            0,
+            19
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            42,
+            64
+          ]
+        ],
+        "output_idx": [
+          [
+            36,
+            53
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "substitution",
+        "input_idx": [
+          [
+            89,
+            94
+          ]
+        ],
+        "output_idx": [
+          [
+            77,
+            84
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 4,
+        "category": "substitution",
+        "input_idx": [
+          [
+            68,
+            76
+          ]
+        ],
+        "output_idx": [
+          [
+            57,
+            64
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 5,
+        "category": "substitution",
+        "input_idx": [
+          [
+            176,
+            203
+          ]
+        ],
+        "output_idx": [
+          [
+            119,
+            128
+          ],
+          [
+            163,
+            188
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "bad",
+              "bad": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "On November 5, 2022, FIFA sent out a letter to all participating nations telling them to cease and avoid any further or current discussion of Qatar's poor human rights records to \"respect all opinions and beliefs, without handing out moral lessons to the rest of the world\" and to \"focus on the football.\"",
+    "target": "On November 5, 2022, FIFA sent a letter to all of its participating nations. || This letter told them to stop discussing Qatar’s poor human rights records to “respect all opinions and beliefs, without handing out moral lessons to the rest of the world” and to “focus on the football.”.",
+    "metadata": {
+      "annotator": "annotator_0",
+      "system": "new-wiki-1/Human-1-written"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            105,
+            127
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            73,
+            80
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "good_deletion",
+            "good_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            89,
+            104
+          ]
+        ],
+        "output_idx": [
+          [
+            105,
+            109
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "somewhat"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            281,
+            305
+          ]
+        ],
+        "output_idx": [
+          [
+            260,
+            285
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "trivial"
+            }
+          },
+          "grammar_error": "yes"
+        }
+      },
+      {
+        "id": 1,
+        "category": "insertion",
+        "output_idx": [
+          [
+            80,
+            96
+          ]
+        ],
+        "annotation": {
+          "insertion_type": {
+            "val": "elaboration",
+            "elaboration": "minor"
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "structure",
+        "constituent_edits": [
+          {
+            "id": 3,
+            "category": "substitution",
+            "input_idx": [
+              [
+                128,
+                141
+              ]
+            ],
+            "output_idx": [
+              [
+                110,
+                120
+              ]
+            ]
+          }
+        ],
+        "annotation": {
+          "structure_type": {
+            "val": "tense"
+          },
+          "impact": {
+            "val": "good",
+            "good": "minor"
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  },
+  {
+    "source": "The Supreme Court of the United Kingdom unanimously denies the Scottish government the right to hold a second referendum on Scottish independence from the United Kingdom without approval from the British government.",
+    "target": "The Supreme Court of the United Kingdom ruled that the Scottish government cannot hold another referendum on Scottish independence without permission from the British government.",
+    "metadata": {
+      "annotator": "annotator_0",
+      "system": "new-wiki-1/GPT-3-few-shot"
+    },
+    "edits": [
+      {
+        "id": 1,
+        "category": "deletion",
+        "input_idx": [
+          [
+            146,
+            169
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "bad_deletion",
+            "bad_deletion": "minor"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "deletion",
+        "input_idx": [
+          [
+            40,
+            51
+          ]
+        ],
+        "annotation": {
+          "deletion_type": {
+            "val": "bad_deletion",
+            "bad_deletion": "somewhat"
+          },
+          "coreference": "no",
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 1,
+        "category": "substitution",
+        "input_idx": [
+          [
+            178,
+            186
+          ]
+        ],
+        "output_idx": [
+          [
+            139,
+            149
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "trivial"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 2,
+        "category": "substitution",
+        "input_idx": [
+          [
+            52,
+            58
+          ],
+          [
+            83,
+            95
+          ]
+        ],
+        "output_idx": [
+          [
+            40,
+            50
+          ],
+          [
+            75,
+            81
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "good",
+              "good": "minor"
+            }
+          },
+          "grammar_error": "no"
+        }
+      },
+      {
+        "id": 3,
+        "category": "substitution",
+        "input_idx": [
+          [
+            101,
+            109
+          ]
+        ],
+        "output_idx": [
+          [
+            87,
+            94
+          ]
+        ],
+        "annotation": {
+          "substitution_info_change": {
+            "val": "same",
+            "same": {
+              "val": "trivial"
+            }
+          },
+          "grammar_error": "no"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,67 @@
+{
+  "corpus": "salsa",
+  "status": "BLOCKED_BEFORE_CONTRACT_BOUNDARY",
+  "n_rows": 0,
+  "n_unique_originals": 0,
+  "scale": null,
+  "label_raw_min": null,
+  "label_raw_max": null,
+  "label_raw_mean": null,
+  "n_annotators_median": null,
+  "pct_with_std": null,
+  "domains": {},
+  "systems": {},
+  "split_hints": {},
+  "license": "Apache-2.0",
+  "license_allows_redistribution": null,
+  "source_url": "https://github.com/davidheineman/salsa",
+  "retrieval_date": "2026-09-19",
+  "notes": "load() raises SalsaAggregationPending on purpose; n_rows for the CONTRACT schema is 0 because no sentence-level label_raw is emitted. See RAPPORT.md for the full account. Summary: (1) the full SALSA corpus (19K edit annotations on 840 simplifications, per the paper and the repo README) was never published anywhere reachable -- the repo's own data/ directory referenced by README.md and every analysis notebook does not exist in any commit, on the one branch, in the one fork, or in any release; only a 50 sentence-pair demo (thresh.tools/data/salsa.json, mirrored at interface/example_data.json in-repo) is real and available, and this loader works from that. (2) Even with data, going from SALSA's edit-level annotations to a sentence-level label_raw requires an aggregation decision this loader is not authorized to make (BRIEF.md mission text); SALSA's own sentence score (calculate_sentence_score in analysis/utils/scoring.py, the LENS-SALSA training target) is unbounded and does not match any CONTRACT.md scale, and its raw-annotation input format was never published either. load_edit_level() delivers the parsed, classified edit-level working table instead (edit-level report below). license_allows_redistribution is left null (H4 unresolved for SALSA): the repository is Apache-2.0 (covers the code and the bundled 50-item demo), but the full corpus, had it been published, might carry different terms -- unverifiable since it does not exist.",
+  "edit_level_report": {
+    "raw_source_url": "https://thresh.tools/data/salsa.json",
+    "raw_source_note": "Interface demo dataset, identical to interface/example_data.json in the SALSA repo and to public/data/salsa.json in the thresh tool's own repo. Not the full 19K/840 corpus.",
+    "retrieval_date": "2026-09-19",
+    "n_sentence_pair_annotator_instances": 50,
+    "n_unique_source_target_system_triples": 48,
+    "n_multi_annotator_triples": 2,
+    "n_edits_parsed": 319,
+    "n_edits_skipped": 0,
+    "edits_by_category": {
+      "substitution": 120,
+      "deletion": 84,
+      "structure": 56,
+      "insertion": 35,
+      "reorder": 24,
+      "split": 0
+    },
+    "edits_by_family": {
+      "lexical": 128,
+      "content": 120,
+      "syntax": 71
+    },
+    "edits_by_quality": {
+      "good": 241,
+      "trivial": 46,
+      "bad": 32
+    },
+    "systems": {
+      "new-wiki-1/Human-2-written": 10,
+      "new-wiki-1/Muss": 9,
+      "new-wiki-1/GPT-3-few-shot": 8,
+      "new-wiki-1/Human-1-written": 8,
+      "new-wiki-1/GPT-3-zero-shot": 7,
+      "new-wiki-1/T5-11B": 6,
+      "new-wiki-1/T5-3B": 2
+    },
+    "candidate_aggregation_previews": {
+      "max_content_error_severity": {
+        "n_instances_with_a_content_error": 13,
+        "n_instances_with_no_content_error": 37,
+        "distribution_over_instances_with_an_error": {"1_minor": 6, "2_moderate": 5, "3_majeur": 2}
+      },
+      "content_error_count": {"mean": 0.32, "max": 2.0, "n_zero": 37},
+      "content_error_severity_sum": {"mean": 0.52, "max": 4.0}
+    },
+    "overlap_with_other_v2_corpora": "Not measured: SALSA's 'new-wiki' sources are drawn from English Wikipedia simplification pairs similar in provenance to ASSET/SimpEval, but this loader has no access to SimpEval's or CSMD's source sentences to compute an actual overlap. Flagged as an open question in RAPPORT.md rather than silently assumed to be zero."
+  }
+}
