@@ -132,11 +132,21 @@ def build_condition(condition: str, seed: int) -> tuple[DatasetDict, dict]:
     return splits, record
 
 
-def make_translator(batch_size: int = 64) -> Callable[[list[str]], list[str]]:
+def make_translator(batch_size: int = 128) -> Callable[[list[str]], list[str]]:
     """Build an English round-trip paraphraser through French.
 
     French is a pivot, not a target: nothing non-English enters the corpus. Loaded lazily
     so that every other part of this module runs without torch.
+
+    Two details do most of the work on a Pascal card, where there is no bf16 and no flash
+    attention to hide behind:
+
+    * **length-sorted batching.** Batching in corpus order pads every sentence up to the
+      longest in its batch, and these corpora mix 5-token and 80-token sentences. Sorting
+      by length, translating, then restoring the original order cuts the padded compute
+      several times over for an identical result.
+    * **a generation budget tied to the input.** ``max_length=512`` makes the decoder
+      willing to run far past anything a sentence-level corpus contains.
     """
     import torch  # pylint: disable=import-outside-toplevel
     from transformers import MarianMTModel, MarianTokenizer  # pylint: disable=import-outside-toplevel
@@ -150,15 +160,24 @@ def make_translator(batch_size: int = 64) -> Callable[[list[str]], list[str]]:
 
     @torch.inference_mode()
     def hop(texts: list[str], tokenizer, model) -> list[str]:
-        inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-        return tokenizer.batch_decode(model.generate(**inputs, max_length=512), skip_special_tokens=True)
+        """Translate *texts* once, batching by length and restoring the input order."""
+        order = sorted(range(len(texts)), key=lambda i: len(texts[i]))
+        out: list[Optional[str]] = [None] * len(texts)
+        for start in range(0, len(order), batch_size):
+            chunk = order[start : start + batch_size]
+            inputs = tokenizer(
+                [texts[i] for i in chunk], return_tensors="pt", padding=True, truncation=True, max_length=256
+            ).to(device)
+            budget = int(inputs["input_ids"].shape[1] * 1.6) + 12
+            decoded = tokenizer.batch_decode(
+                model.generate(**inputs, max_length=budget, num_beams=1), skip_special_tokens=True
+            )
+            for index, text in zip(chunk, decoded):
+                out[index] = text
+        return [text or "" for text in out]
 
     def translate(texts: list[str]) -> list[str]:
-        out: list[str] = []
-        for start in range(0, len(texts), batch_size):
-            chunk = texts[start : start + batch_size]
-            out.extend(hop(hop(chunk, *pairs[0]), *pairs[1]))
-        return out
+        return hop(hop(texts, *pairs[0]), *pairs[1])
 
     return translate
 
@@ -175,7 +194,7 @@ def build_all(output_dir: str, seed: int, conditions: list[str], modes: list[str
             if mode == "full" and translator is None:
                 print("Loading the back-translation models once...")
                 translator = make_translator()
-            augmented, counts = augment_splits(splits, mode, translate=translator, seed=seed)
+            augmented, counts = augment_splits(splits, mode, translate=translator, batch_size=4096, seed=seed)
             name = f"{condition}_{mode}"
             path = os.path.join(output_dir, name)
             augmented.save_to_disk(path)
