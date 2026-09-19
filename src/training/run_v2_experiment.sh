@@ -35,10 +35,16 @@ export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:T
 # Conditions a, b and c top out at 209 tokens and sit at 13.7 GB of the 16 GB at a
 # micro-batch of 32. The v2 corpora reach 512 after truncation, because SimpleText is
 # scientific abstracts and PLABA is biomedical; a 512-token batch of 32 would not fit.
+# Overridable so the same runner serves several backbones. bert-base-uncased is lighter
+# than deberta-v3-base (110 M against 184 M, and no disentangled attention), so it takes a
+# larger micro-batch for the same memory.
+MICRO_SMALL="${MICRO_SMALL:-32}"
+MICRO_D="${MICRO_D:-8}"
+
 micro_batch_for() {
     case "$1" in
-        d_*) echo 8 ;;
-        *)   echo 32 ;;
+        d_*) echo "$MICRO_D" ;;
+        *)   echo "$MICRO_SMALL" ;;
     esac
 }
 

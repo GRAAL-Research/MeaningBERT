@@ -44,6 +44,7 @@ LABEL_STD: float = 37.01
 class RunResult:
     """One finished run."""
 
+    arch: str
     variant: str
     condition: str
     mode: str
@@ -57,6 +58,20 @@ class RunResult:
     epochs: float
     train_rows: int
     diverged: bool
+
+    @property
+    def objective(self) -> float:
+        """The stated goal of v2, as one number: maximise Pearson with both sanity checks near 100.
+
+        A product, not a sum. A model that correlates beautifully but scores identical
+        pairs at 90 has not met the goal, and an average would hide that; multiplying makes
+        any one weak term drag the whole score down. Read it next to its three components,
+        never instead of them.
+        """
+        terms = (self.pearson, self.identical_ratio_95 / 100.0, self.unrelated_ratio_5 / 100.0)
+        if any(not math.isfinite(term) for term in terms):
+            return float("nan")
+        return float(terms[0] * terms[1] * terms[2])
 
     @property
     def rmse_floor(self) -> float:
@@ -86,12 +101,16 @@ def load_run(path: str) -> Optional[RunResult]:
         return None
 
     variant = os.path.splitext(os.path.basename(path))[0]
+    # Grid layout is results/grid/<arch>/<variant>.json; the flat layout has no arch level.
+    parent = os.path.basename(os.path.dirname(os.path.abspath(path)))
+    arch = payload.get("checkpoint", "").split("/")[-1] or parent
     condition, _, mode = variant.partition("_")
     test = payload.get("test", {}) or {}
     identical = payload.get("identical", {}) or {}
     unrelated = payload.get("unrelated", {}) or {}
 
     return RunResult(
+        arch=arch,
         variant=variant,
         condition=condition,
         mode=mode,
@@ -113,15 +132,16 @@ def load_run(path: str) -> Optional[RunResult]:
 
 
 def load_runs(runs_dir: str) -> list[RunResult]:
-    """Read every run JSON in *runs_dir*, ordered by condition then mode."""
+    """Read every run JSON under *runs_dir*, flat or one directory per architecture."""
     runs = []
-    for name in sorted(os.listdir(runs_dir)):
-        if name.endswith(".json"):
-            run = load_run(os.path.join(runs_dir, name))
-            if run is not None:
-                runs.append(run)
+    for root, _, names in os.walk(runs_dir):
+        for name in sorted(names):
+            if name.endswith(".json"):
+                run = load_run(os.path.join(root, name))
+                if run is not None:
+                    runs.append(run)
     order = {"none": 0, "full": 1}
-    return sorted(runs, key=lambda r: (r.condition, order.get(r.mode, 9)))
+    return sorted(runs, key=lambda r: (r.arch, r.condition, order.get(r.mode, 9)))
 
 
 def _fmt(value: float, width: int = 7, digits: int = 3) -> str:
@@ -129,59 +149,79 @@ def _fmt(value: float, width: int = 7, digits: int = 3) -> str:
 
 
 def render(runs: list[RunResult]) -> str:
-    """Render the results table and the decomposition of the gains."""
+    """Render the results, ranked by the stated objective, plus the diagnostic ladder."""
     lines = [
-        f"{'variant':10} {'condition':26} {'augment.':22} {'Pearson':>8} {'RMSE':>7} {'floor':>7} "
-        f"{'R2':>7} {'pred_mu':>8} {'pred_sd':>8} {'ident>95':>9} {'unrel<5':>8} {'train':>7} {'ep':>5}",
-        "-" * 150,
+        "Objectif : maximiser Pearson avec identiques et non reliees au plus pres de 100 %.",
+        "objectif = Pearson x (identiques>95) x (non reliees<5), en produit pour qu'un",
+        "seul terme faible tire tout vers le bas.",
+        "",
+        f"{'arch':22} {'variant':8} {'objectif':>9} {'Pearson':>8} {'ident>95':>9} {'unrel<5':>8} "
+        f"{'RMSE':>7} {'floor':>7} {'R2':>7} {'pred_mu':>8} {'pred_sd':>8} {'train':>7} {'ep':>4}",
+        "-" * 140,
     ]
-    for run in runs:
+    for run in sorted(runs, key=lambda r: (-(r.objective if math.isfinite(r.objective) else -1))):
         flag = "  DIVERGED" if run.diverged else ""
         lines.append(
-            f"{run.variant:10} {CONDITION_LABELS.get(run.condition, '?'):26} "
-            f"{MODE_LABELS.get(run.mode, run.mode):22} {_fmt(run.pearson, 8)} {_fmt(run.rmse, 7, 2)} "
-            f"{_fmt(run.rmse_floor, 7, 2)} {_fmt(run.r2, 7)} {_fmt(run.pred_mean, 8, 2)} "
-            f"{_fmt(run.pred_std, 8, 2)} {_fmt(run.identical_ratio_95, 9, 1)} {_fmt(run.unrelated_ratio_5, 8, 1)} "
-            f"{run.train_rows:>7} {_fmt(run.epochs, 5, 0)}{flag}"
+            f"{run.arch[:22]:22} {run.variant:8} {_fmt(run.objective, 9)} {_fmt(run.pearson, 8)} "
+            f"{_fmt(run.identical_ratio_95, 9, 1)} {_fmt(run.unrelated_ratio_5, 8, 1)} "
+            f"{_fmt(run.rmse, 7, 2)} {_fmt(run.rmse_floor, 7, 2)} {_fmt(run.r2, 7)} "
+            f"{_fmt(run.pred_mean, 8, 2)} {_fmt(run.pred_std, 8, 2)} {run.train_rows:>7} {_fmt(run.epochs, 4, 0)}{flag}"
         )
 
-    by_variant = {run.variant: run for run in runs}
+    by_arch: dict[str, dict[str, RunResult]] = {}
+    for run in runs:
+        by_arch.setdefault(run.arch, {})[run.variant] = run
 
-    lines += ["", "Decomposition, Pearson on the test split", "-" * 60]
-    for mode in ("none", "full"):
-        steps = [
-            ("a -> b", "source-sentence leak (H5)", f"a_{mode}", f"b_{mode}"),
-            ("b -> c", "permuted labels (H6)", f"b_{mode}", f"c_{mode}"),
-            ("c -> d", "the three added corpora", f"c_{mode}", f"d_{mode}"),
-        ]
-        lines.append(f"  {MODE_LABELS[mode]}:")
-        for arrow, what, left, right in steps:
-            if left in by_variant and right in by_variant:
-                delta = by_variant[right].pearson - by_variant[left].pearson
-                lines.append(f"    {arrow}  {what:32} {delta:+.3f}")
+    lines += ["", "Corpus : v1 corrige (c) contre v2 (d), a augmentation egale", "-" * 72]
+    for arch, variants in sorted(by_arch.items()):
+        for mode in ("none", "full"):
+            left, right = variants.get(f"c_{mode}"), variants.get(f"d_{mode}")
+            if left and right:
+                lines.append(
+                    f"  {arch[:22]:22} {MODE_LABELS[mode]:22} Pearson {right.pearson - left.pearson:+.3f}"
+                    f"   objectif {right.objective - left.objective:+.3f}"
+                )
 
-    lines += ["", "Augmentation, at each rung", "-" * 60]
-    for condition in ("a", "b", "c", "d"):
-        none, full = by_variant.get(f"{condition}_none"), by_variant.get(f"{condition}_full")
-        if none and full:
-            lines.append(
-                f"  {condition}  {CONDITION_LABELS[condition]:26} "
-                f"Pearson {full.pearson - none.pearson:+.3f}   RMSE {full.rmse - none.rmse:+.2f}"
-            )
+    lines += ["", "Augmentation : aucune contre les trois ensemble, a corpus egal", "-" * 72]
+    for arch, variants in sorted(by_arch.items()):
+        for condition in ("c", "d"):
+            none, full = variants.get(f"{condition}_none"), variants.get(f"{condition}_full")
+            if none and full:
+                label = CONDITION_LABELS[condition]
+                lines.append(
+                    f"  {arch[:22]:22} {label:26} Pearson {full.pearson - none.pearson:+.3f}"
+                    f"   ident {full.identical_ratio_95 - none.identical_ratio_95:+.1f} pts"
+                    f"   objectif {full.objective - none.objective:+.3f}"
+                )
 
-    target = by_variant.get("d_full") or by_variant.get("d_none")
-    if target:
+    lines += ["", "Diagnostics, sur l'architecture de reference seulement", "-" * 72]
+    for arch, variants in sorted(by_arch.items()):
+        for arrow, what, left_key, right_key in (
+            ("a -> b", "fuite par phrase source (H5)", "a", "b"),
+            ("b -> c", "etiquettes permutees (H6)", "b", "c"),
+        ):
+            for mode in ("none", "full"):
+                left, right = variants.get(f"{left_key}_{mode}"), variants.get(f"{right_key}_{mode}")
+                if left and right:
+                    lines.append(
+                        f"  {arch[:22]:22} {arrow}  {what:30} {MODE_LABELS[mode][:12]:12} "
+                        f"Pearson {right.pearson - left.pearson:+.3f}"
+                        f"   ident {right.identical_ratio_95 - left.identical_ratio_95:+.1f} pts"
+                    )
+
+    finite = [r for r in runs if math.isfinite(r.objective)]
+    if finite:
+        best = max(finite, key=lambda r: r.objective)
         lines += [
             "",
-            "Against the PRODUIT.md target",
-            "-" * 60,
-            f"  best v2 run   : {target.variant}, Pearson {target.pearson:.3f}, RMSE {target.rmse:.2f}",
-            "  target        : Pearson >= 0.914, RMSE < 15",
-            f"  RMSE floor at this correlation: {target.rmse_floor:.2f}",
+            "Meilleure configuration au sens de l'objectif",
+            "-" * 72,
+            f"  {best.arch} / {best.variant}",
+            f"  Pearson {best.pearson:.3f}   identiques>95 {best.identical_ratio_95:.1f} %   "
+            f"non reliees<5 {best.unrelated_ratio_5:.1f} %   RMSE {best.rmse:.2f}",
+            "  cible PRODUIT.md : Pearson >= 0,914, RMSE < 15",
+            f"  plancher de RMSE a cette correlation : {best.rmse_floor:.2f}",
         ]
-        if math.isfinite(target.rmse) and math.isfinite(target.rmse_floor):
-            gap = target.rmse - target.rmse_floor
-            lines.append(f"  still recoverable by recalibration alone: {gap:.2f} RMSE points")
     return "\n".join(lines)
 
 

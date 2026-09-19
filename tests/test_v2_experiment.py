@@ -88,9 +88,10 @@ def test_the_ladder_has_exactly_four_rungs():
 # --- result analysis ---------------------------------------------------------------
 
 
-def _run(variant="d_full", pearson=0.85, rmse=20.0, **overrides):
+def _run(variant="d_full", pearson=0.85, rmse=20.0, arch="deberta-v3-base", **overrides):
     condition, _, mode = variant.partition("_")
     fields = {
+        "arch": arch,
         "variant": variant,
         "condition": condition,
         "mode": mode,
@@ -175,25 +176,39 @@ def test_runs_are_ordered_by_rung_then_by_augmentation(tmp_path):
     assert [r.variant for r in load_runs(str(tmp_path))] == ["a_none", "a_full", "c_full", "d_full"]
 
 
-def test_the_report_decomposes_each_rung_of_the_ladder():
+def test_runs_are_found_one_directory_per_architecture(tmp_path):
+    """The grid writes results/grid/<arch>-<head>/<variant>.json."""
+    for arch in ("bert-clamped", "deberta-clamped"):
+        sub = os.path.join(str(tmp_path), arch)
+        os.makedirs(sub)
+        _write(sub, "d_none", {"test_pearson_corr": 0.8, "test_rmse": 20.0})
+    assert len(load_runs(str(tmp_path))) == 2
+
+
+def test_the_report_decomposes_the_two_diagnostics():
     runs = [
         _run("a_none", pearson=0.80),
         _run("b_none", pearson=0.62),
         _run("c_none", pearson=0.79),
-        _run("d_none", pearson=0.84),
     ]
     report = render(runs)
-    assert "source-sentence leak (H5)" in report
+    assert "fuite par phrase source (H5)" in report
     assert "-0.180" in report  # a -> b, the leak disappearing
     assert "+0.170" in report  # b -> c, the H6 correction
-    assert "+0.050" in report  # c -> d, the added corpora
 
 
-def test_the_report_compares_augmentation_at_each_rung():
+def test_the_report_compares_the_two_corpora_at_equal_augmentation():
+    runs = [_run("c_none", pearson=0.79), _run("d_none", pearson=0.84)]
+    report = render(runs)
+    assert "v1 corrige (c) contre v2 (d)" in report
+    assert "+0.050" in report
+
+
+def test_the_report_compares_augmentation_at_equal_corpus():
     runs = [_run("d_none", pearson=0.80, rmse=22.0), _run("d_full", pearson=0.83, rmse=19.0)]
     report = render(runs)
+    assert "Augmentation" in report
     assert "+0.030" in report
-    assert "-3.00" in report
 
 
 def test_the_report_flags_a_diverged_run():
@@ -202,8 +217,33 @@ def test_the_report_flags_a_diverged_run():
 
 def test_the_report_states_the_produit_target():
     report = render([_run("d_full", pearson=0.85, rmse=20.0)])
-    assert "0.914" in report
-    assert "RMSE < 15" in report
+    assert "0,914" in report
+
+
+def test_the_objective_multiplies_its_three_terms():
+    """A product, so one weak sanity check drags the whole score down."""
+    run = _run(pearson=0.90, identical_ratio_95=50.0, unrelated_ratio_5=100.0)
+    assert run.objective == pytest.approx(0.45)
+
+
+def test_the_objective_punishes_a_failing_sanity_check_harder_than_an_average_would():
+    strong = _run(pearson=0.90, identical_ratio_95=95.0, unrelated_ratio_5=95.0)
+    lopsided = _run(pearson=0.95, identical_ratio_95=20.0, unrelated_ratio_5=100.0)
+    assert strong.objective > lopsided.objective
+
+
+def test_the_objective_is_undefined_when_a_term_is_missing():
+    assert math.isnan(_run(pearson=float("nan")).objective)
+
+
+def test_the_report_names_the_best_configuration_by_objective():
+    runs = [
+        _run("c_none", pearson=0.95, identical_ratio_95=10.0, unrelated_ratio_5=99.0),
+        _run("d_full", pearson=0.85, identical_ratio_95=99.0, unrelated_ratio_5=99.0),
+    ]
+    report = render(runs)
+    assert "Meilleure configuration" in report
+    assert report.index("d_full") < report.index("c_none")
 
 
 def test_the_report_survives_a_partial_experiment():

@@ -649,6 +649,13 @@ def main() -> None:
 
     # --- Save & log artifact ---
     best_model_dir = f"meaningbert_best_model_{checkpoint_short_name}_seed{seed}{fold_str}"
+    # Stamp the output head into the config BEFORE saving. The head is applied outside the
+    # model, so a checkpoint trained with `sigmoid` emits raw logits, not a 0-100 score.
+    # Published as-is, `scores.logits.tolist()` from the model card would return values
+    # like -2.3. The config is the only thing that travels with the weights, so it has to
+    # carry the answer; `meaningbert.scorer` reads it back.
+    trainer.model.config.meaningbert_output_head = output_head
+    trainer.model.config.meaningbert_score_range = [0.0, 100.0]
     trainer.save_model(best_model_dir)
     tokenizer.save_pretrained(best_model_dir)
 

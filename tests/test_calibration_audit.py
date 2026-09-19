@@ -2,6 +2,8 @@
 
 import math
 
+import numpy as np
+
 import pytest
 
 from diagnostics.calibration_audit import (
@@ -163,3 +165,68 @@ def test_the_audit_reproduces_the_observed_amplitude_compression():
     assert audit.pearson > 0.75
     assert audit.recoverable_fraction > 0.4
     assert not math.isnan(audit.rmse_after_affine)
+
+
+# --- the clamped head, added because the score domain is closed -----------------------
+
+
+def test_the_score_domain_is_closed_at_both_ends():
+    """A null score exists and means no meaning preserved; 100 means fully preserved.
+    100*sigmoid maps onto the OPEN interval (0, 100), so neither endpoint is reachable,
+    while 31 to 48 percent of the v2 training labels sit exactly on one of them."""
+    from training.calibration import percent_from_logits
+
+    reachable = percent_from_logits(np.array([-50.0, 50.0]), "clamped")
+    assert reachable[0] == 0.0
+    assert reachable[1] == 100.0
+
+
+def test_the_sigmoid_head_does_not_reach_the_endpoints_at_realistic_logits():
+    """Not a claim of strict unreachability: in float64 the sigmoid saturates to exactly
+    1.0 somewhere past a logit of 37, so it does numerically return 100. The point is that
+    training never gets there. The measured identical predictions sit at 96.36, which is a
+    logit of 3.3, and the MSE gradient through the sigmoid at that point is already about
+    0.035 per unit of error."""
+    from training.calibration import percent_from_logits
+
+    reached = percent_from_logits(np.array([-3.3, 3.3]), "sigmoid")
+    assert reached[0] > 0.0
+    assert reached[1] < 100.0
+    assert reached[1] == pytest.approx(96.4, abs=0.2)
+
+
+def test_the_gradient_argument_the_clamped_head_answers():
+    """d/dz of 100*sigmoid(z) collapses as z grows, so the optimiser stalls short of the
+    endpoint. The clamped head has a gradient of 1 right up to the boundary."""
+    for logit, ceiling in ((3.3, 3.5), (6.9, 0.11), (10.0, 0.005)):
+        slope = 100.0 * (1.0 / (1.0 + np.exp(-logit))) * (1.0 - 1.0 / (1.0 + np.exp(-logit)))
+        assert slope < ceiling
+
+
+def test_reaching_ninety_nine_with_a_sigmoid_needs_a_large_logit():
+    """Which is why the measured identical predictions pile up at 96.36: the MSE gradient
+    has all but vanished by the time the logit gets there."""
+    from training.calibration import percent_from_logits
+
+    assert percent_from_logits(np.array([4.6]), "sigmoid")[0] == pytest.approx(99.0, abs=0.1)
+
+
+def test_the_clamped_head_maps_the_unit_targets_like_the_other_bounded_heads():
+    from training.calibration import targets_for_head
+
+    assert list(targets_for_head(np.array([0.0, 50.0, 100.0]), "clamped")) == [0.0, 0.5, 1.0]
+
+
+def test_the_clamped_unit_output_is_bounded_on_both_sides():
+    from training.calibration import unit_from_logits
+
+    values = unit_from_logits(np.array([-3.0, 0.5, 4.0]), "clamped")
+    assert values.min() >= 0.0
+    assert values.max() <= 1.0
+
+
+def test_an_unknown_head_is_refused_rather_than_guessed():
+    from training.calibration import percent_from_logits
+
+    with pytest.raises(ValueError, match="Unknown output head"):
+        percent_from_logits(np.array([0.0]), "softmax")

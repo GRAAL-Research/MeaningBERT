@@ -58,7 +58,16 @@ SCORE_MAX: float = 100.0
 #: ``normalized``
 #:     Linear output trained against targets divided by 100, multiplied back by 100 and
 #:     clipped for evaluation. Bounded only at evaluation time.
-OUTPUT_HEADS: tuple[str, ...] = ("linear", "sigmoid", "normalized")
+#: ``clamped``
+#:     Linear output on the unit scale, clamped to ``[0, 1]`` inside the loss. Unlike
+#:     ``sigmoid`` it can *reach* the endpoints: ``100 * sigmoid(z)`` needs ``z = 4.6`` to
+#:     read 99 and ``z = 6.9`` to read 99.9, and the MSE gradient vanishes long before
+#:     that, so the predictions on identical pairs pile up just under the ceiling. Measured
+#:     on the v2 runs: identical pairs score 96.36 with a spread of 0.58. When the goal is
+#:     for identical pairs to read 100 and unrelated pairs 0, the asymptote is the binding
+#:     constraint, and a clamp removes it. The cost is a zero gradient outside the range,
+#:     which is harmless because every target lies inside it.
+OUTPUT_HEADS: tuple[str, ...] = ("linear", "sigmoid", "normalized", "clamped")
 DEFAULT_OUTPUT_HEAD: str = "linear"
 
 #: Recalibration methods.
@@ -154,7 +163,7 @@ def percent_from_logits(logits: Any, head: str = DEFAULT_OUTPUT_HEAD) -> Any:
         return logits
     if head == "sigmoid":
         return sigmoid_percent(logits)
-    if head == "normalized":
+    if head in ("normalized", "clamped"):
         return unit_percent(logits)
     raise ValueError(f"Unknown output head {head!r}. Expected one of {OUTPUT_HEADS}.")
 
@@ -175,7 +184,7 @@ def targets_for_head(labels: Any, head: str = DEFAULT_OUTPUT_HEAD) -> Any:
     """
     if head == "linear":
         return labels
-    if head in ("sigmoid", "normalized"):
+    if head in ("sigmoid", "normalized", "clamped"):
         return labels / SCORE_MAX
     raise ValueError(f"Unknown output head {head!r}. Expected one of {OUTPUT_HEADS}.")
 
@@ -200,6 +209,12 @@ def unit_from_logits(logits: Any, head: str = DEFAULT_OUTPUT_HEAD) -> Any:
         return sigmoid_percent(logits) / SCORE_MAX
     if head == "normalized":
         return logits
+    if head == "clamped":
+        # Clamping inside the loss is what lets the head reach the endpoints exactly.
+        # Outside [0, 1] the gradient is zero, which costs nothing: every target is inside.
+        if hasattr(logits, "clamp"):  # torch.Tensor
+            return logits.clamp(0.0, 1.0)
+        return np.clip(logits, 0.0, 1.0)
     raise ValueError(f"Unknown output head {head!r}. Expected one of {OUTPUT_HEADS}.")
 
 
