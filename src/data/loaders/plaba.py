@@ -25,25 +25,29 @@ much of the source information survives) and ``Acc. faith.`` (Faithfulness -- do
 output's points match the source's). This loader reads those files (see ``RAPPORT.md`` for
 how to obtain them; they are not committed, per the environment rules).
 
-Blocking issue -- see RAPPORT.md
----------------------------------
+Scale
+-----
 Both scores are recorded on a symmetric 3-point Likert scale, ``{-1, 0, 1}`` (higher is
 better), confirmed against the source paper's own description of the annotation protocol.
-``src/data/CONTRACT.md`` enumerates exactly six permitted native scales (``da100``,
-``likert5``, ``likert7``, ``severity3``, ``binary``, ``error_count``); none of them has
-bounds ``[-1, 1]``. ``severity3`` has the right cardinality but the wrong orientation
-(higher is worse there, higher is better here) and the wrong bounds (``[1, 3]``), so
-reusing it would silently invert the signal for whoever consumes ``label_raw`` -- exactly
-the kind of invented mapping ``BRIEF.md`` rule 3 forbids. This loader therefore parses and
-aggregates the real judgments (so the pipeline is fully exercised and tested) but stops
-short of calling ``schema.build()`` and raises :class:`UnsupportedScaleError` instead of
-returning a dataset.
+This originally had no match in ``src/data/CONTRACT.md``'s ``SCALES`` table (``severity3``
+shares the cardinality but not the bounds or the orientation, and reusing it would have
+silently inverted the signal). The contract owner has since added ``likert3_signed``
+(``low=-1.0``, ``high=1.0``, ``higher_is_better=True``) to that table for exactly this case;
+see ``CONTRACT.md`` and ``RAPPORT.md`` for the decision trail. ``load()`` now emits
+``scale="likert3_signed"``.
 
 Axis choice: this loader targets **Faithfulness** ("Do points made in the output match
 those of the source?"), which is the closer analogue to CSMD's "preservation du sens" than
 Completeness ("how much of the source survives"), since a simplification can legitimately
-omit detail while still being faithful to what it does say. Completeness is left as an open
-question in ``RAPPORT.md``.
+omit detail while still being faithful to what it does say. Completeness is captured during
+parsing (see ``open_question_completeness_raw`` in :func:`extract_rows`) but not emitted;
+it is left as an open question in ``RAPPORT.md``.
+
+Vigilance point (H2): the emitted ``label_raw`` is heavily concentrated near the upper
+bound (mean 0.9417 on 806 rows -- see ``plaba.report.json`` and ``RAPPORT.md``), because the
+evaluated systems are strong modern baselines and the human rows are expert references.
+Whoever tests H2 should not read a high correlation on this corpus alone as a strong
+signal: with almost all labels near +1, there is little variance for a metric to explain.
 """
 
 from __future__ import annotations
@@ -56,17 +60,16 @@ from typing import Final
 
 from datasets import Dataset
 
+from data.schema import build
+
 RAW_DIR: Final[Path] = Path(__file__).resolve().parents[3] / "datastore" / "raw" / "plaba" / "eval" / "manual"
 
 CORPUS: Final[str] = "plaba"
 DOMAIN: Final[str] = "biomedical"
+SCALE: Final[str] = "likert3_signed"
 LABEL_COLUMN: Final[str] = "Acc. faith."
 OPEN_QUESTION_COLUMN: Final[str] = "Acc. comp."
-
-# Native scale of the TREC PLABA manual accuracy judgments. Not in CONTRACT.md's SCALES
-# table; see the module docstring and RAPPORT.md.
-NATIVE_SCALE_LOW: Final[float] = -1.0
-NATIVE_SCALE_HIGH: Final[float] = 1.0
+LICENSE: Final[str] = "unspecified (source repository ships no LICENSE file)"
 
 # Filename stem (without ".acc.csv") -> (system value, is_human_reference).
 _SYSTEM_BY_STEM: Final[dict[str, tuple[str, bool]]] = {
@@ -80,8 +83,12 @@ _SYSTEM_BY_STEM: Final[dict[str, tuple[str, bool]]] = {
 }
 
 
-class UnsupportedScaleError(RuntimeError):
-    """Raised when the native annotation scale has no match in CONTRACT.md's SCALES table."""
+class PlabaSourceFormatError(RuntimeError):
+    """Raised when a raw PLABA file does not match the expected structure.
+
+    This means the upstream source changed shape underneath us; guessing a new mapping
+    would be fabricating structure, not just data, so this loader refuses instead.
+    """
 
 
 @dataclass
@@ -125,15 +132,13 @@ def _iter_csv_rows(path: Path) -> list[dict[str, str]]:
         One dict per data row, keyed by header name.
 
     Raises:
-        UnsupportedScaleError: If the file is missing the expected header columns, since
-            that means the source format changed underneath us and guessing would be
-            fabricating structure, not just data.
+        PlabaSourceFormatError: If the file is missing the expected header columns.
     """
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         expected = {"Abst", "Sent", "Source", "Output", "Acc. comp.", "Acc. faith."}
         if reader.fieldnames is None or not expected.issubset(set(reader.fieldnames)):
-            raise UnsupportedScaleError(
+            raise PlabaSourceFormatError(
                 f"{path}: expected columns {sorted(expected)}, found {reader.fieldnames}. "
                 "Refusing to guess a mapping for a changed source format."
             )
@@ -170,7 +175,7 @@ def extract_rows(raw_dir: Path = RAW_DIR) -> ExtractionResult:
     for path in sorted(raw_dir.glob("*.acc.csv")):
         stem = path.name.removesuffix(".acc.csv")
         if stem not in _SYSTEM_BY_STEM:
-            raise UnsupportedScaleError(f"{path}: unrecognised system file stem {stem!r}, refusing to guess.")
+            raise PlabaSourceFormatError(f"{path}: unrecognised system file stem {stem!r}, refusing to guess.")
         system, _is_human = _SYSTEM_BY_STEM[stem]
         slug = stem.lower()
 
@@ -213,25 +218,32 @@ def extract_rows(raw_dir: Path = RAW_DIR) -> ExtractionResult:
 
 
 def load() -> Dataset:
-    """Would return the CONTRACT-compliant PLABA dataset; instead raises, by design.
-
-    See the module docstring and ``RAPPORT.md``: the native annotation scale of the TREC
-    PLABA manual accuracy judgments (a signed 3-point Likert, ``{-1, 0, 1}``) has no match
-    in ``src/data/CONTRACT.md``'s ``SCALES`` table, and CONTRACT.md rule 3 forbids inventing
-    one locally. Parsing, deduplication and aggregation are fully implemented and tested up
-    to that point.
+    """Return the CONTRACT-compliant PLABA dataset (Faithfulness axis, ``likert3_signed``).
 
     Returns:
-        Never returns; kept for interface parity with the other CSMD v2 loaders.
+        One row per (source sentence, system output) pair evaluated for Faithfulness by
+        TREC PLABA expert annotators, on the ``likert3_signed`` scale.
 
     Raises:
-        UnsupportedScaleError: Always, once the source rows have been parsed successfully.
         FileNotFoundError: If the raw CSVs have not been fetched into
             ``datastore/raw/plaba/eval/manual``.
+        PlabaSourceFormatError: If a raw file does not match the expected structure.
     """
     result = extract_rows(RAW_DIR)
-    raise UnsupportedScaleError(
-        f"parsed {len(result.rows)} PLABA Faithfulness judgments across {len(result.systems_seen)} "
-        f"systems on native scale [{NATIVE_SCALE_LOW}, {NATIVE_SCALE_HIGH}] (signed 3-point Likert), "
-        "which has no match in CONTRACT.md's SCALES table. Not emitting a dataset; see RAPPORT.md."
-    )
+    rows = [
+        {
+            "item_id": row["item_id"],
+            "original": row["original"],
+            "simplification": row["simplification"],
+            "label_raw": row["label_raw"],
+            "scale": SCALE,
+            "n_annotators": row["n_annotators"],
+            "label_std": row["label_std"],
+            "domain": row["domain"],
+            "system": row["system"],
+            "split_hint": row["split_hint"],
+            "license": LICENSE,
+        }
+        for row in result.rows
+    ]
+    return build(rows, CORPUS)
