@@ -23,6 +23,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from calibration import DEFAULT_OUTPUT_HEAD, OUTPUT_HEADS, percent_from_logits, targets_for_head, unit_from_logits
 from callbacks import DEFAULT_COLLAPSE_PATIENCE, PredictionCollapseCallback
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
 
@@ -126,6 +127,100 @@ def freeze_layers(model: PreTrainedModel, num_layers_to_freeze: int) -> None:
     print(f"Froze {n}/{len(layer_list)} layers.")
 
 
+class BoundedOutputTrainer(Trainer):
+    """Trainer for the bounded output heads of correction C3.
+
+    The v1 head is a single unbounded linear output trained with MSE against 0-100
+    targets: nothing tells it the scale is bounded, and the sweep answered by compressing
+    its predictions into a quarter of the label amplitude. A bounded head removes the
+    cause. Two things have to happen for that, and both happen here:
+
+    * the loss is computed on the unit scale the head lives on, through
+      :func:`calibration.unit_from_logits` and :func:`calibration.targets_for_head`;
+    * the predictions handed to ``compute_metrics`` are put back on the 0-100 scale by
+      :func:`calibration.percent_from_logits`, so every reported metric stays comparable
+      to the published article.
+
+    The dataset is never touched: the labels stay on the 0-100 scale end to end.
+
+    Args:
+        *args: Forwarded to ``Trainer``.
+        output_head: One of ``calibration.OUTPUT_HEADS``, minus ``linear``, which uses a
+            plain ``Trainer`` instead.
+        **kwargs: Forwarded to ``Trainer``.
+    """
+
+    def __init__(self, *args: Any, output_head: str = DEFAULT_OUTPUT_HEAD, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.output_head = output_head
+
+    def compute_loss(  # pylint: disable=arguments-differ,unused-argument
+        self, model, inputs, return_outputs=False, **kwargs
+    ):
+        """Compute the MSE on the unit scale of the configured head.
+
+        Args:
+            model: The model being trained.
+            inputs: The batch, labels included, on the 0-100 scale.
+            return_outputs: Whether to return the model outputs alongside the loss.
+            **kwargs: Extras passed by newer ``Trainer`` versions, such as
+                ``num_items_in_batch``. Ignored on purpose: the loss is a plain mean.
+
+        Returns:
+            The loss, or ``(loss, outputs)``.
+        """
+        labels = inputs.get("labels")
+        model_inputs = {key: value for key, value in inputs.items() if key != "labels"}
+        outputs = model(**model_inputs)
+        logits = outputs.logits.squeeze(-1)
+        predictions = unit_from_logits(logits, self.output_head)
+        targets = targets_for_head(labels.to(predictions.dtype), self.output_head)
+        loss = torch.nn.functional.mse_loss(predictions, targets)
+        return (loss, outputs) if return_outputs else loss
+
+
+def make_logits_to_percent(output_head: str):
+    """Build the ``preprocess_logits_for_metrics`` hook putting predictions back on 0-100.
+
+    Args:
+        output_head: One of ``calibration.OUTPUT_HEADS``.
+
+    Returns:
+        A callable ``(logits, labels) -> scores``, or ``None`` for the linear head, which
+        already reports on the 0-100 scale.
+    """
+    if output_head == "linear":
+        return None
+
+    def _to_percent(logits, labels):  # pylint: disable=unused-argument
+        if isinstance(logits, (tuple, list)):
+            logits = logits[0]
+        return percent_from_logits(logits, output_head)
+
+    return _to_percent
+
+
+def assert_bf16_is_supported() -> None:
+    """Fail loudly when bf16 is requested on a GPU that cannot do it.
+
+    bf16 needs compute capability 8.0. The v2 training server, renard, runs a Quadro P5000
+    (Pascal, capability 6.1), where the flag either errors out deep in accelerate or falls
+    back to fp32 without saying so. Neither is acceptable for a run whose numbers end up in
+    a table.
+
+    Raises:
+        SystemExit: If no CUDA device is visible, or its capability is below 8.0.
+    """
+    if not torch.cuda.is_available():
+        raise SystemExit("--bf16 was requested but no CUDA device is visible.")
+    major, minor = torch.cuda.get_device_capability(0)
+    if major < 8:
+        raise SystemExit(
+            f"--bf16 was requested but {torch.cuda.get_device_name(0)} has compute capability {major}.{minor}, "
+            f"below the 8.0 bf16 needs. Drop the flag to train in fp32, which is the default."
+        )
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Fine-tune a model for meaning preservation regression.")
@@ -173,8 +268,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--bf16",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Use bfloat16 mixed precision (recommended for RTX Ada GPUs). Use --no-bf16 to disable.",
+        default=False,
+        help=(
+            "Use bfloat16 mixed precision. Needs compute capability 8.0 (Ampere or newer) and is refused "
+            "otherwise. The default is fp32: the v2 training server runs a Pascal card, which has no bf16."
+        ),
     )
     parser.add_argument(
         "--fp16",
@@ -188,6 +286,18 @@ def create_parser() -> argparse.ArgumentParser:
         type=int,
         default=50,
         help="Early stopping patience in epochs. 0 to disable.",
+    )
+    parser.add_argument(
+        "--output_head",
+        type=str,
+        default=DEFAULT_OUTPUT_HEAD,
+        choices=list(OUTPUT_HEADS),
+        help=(
+            "Output layer (correction C3). 'linear' is the unbounded v1 head and the default, so an existing "
+            "command is unchanged. 'sigmoid' trains 100*sigmoid(logit), bounded at every step. 'normalized' "
+            "trains a linear head against targets divided by 100 and rescales at evaluation. The reported "
+            "metrics stay on the 0-100 scale in all three cases."
+        ),
     )
     parser.add_argument(
         "--collapse_patience",
@@ -230,6 +340,10 @@ def main() -> None:
     es_patience: int = args.early_stopping_patience
     collapse_patience: int = args.collapse_patience
     collapse_std_threshold: float = args.collapse_std_threshold
+    output_head: str = args.output_head
+
+    if use_bf16:
+        assert_bf16_is_supported()
 
     set_seeds(seed=seed)
 
@@ -286,9 +400,10 @@ def main() -> None:
     checkpoint_short_name = checkpoint.replace("/", "_")
     effective_batch = batch_size * grad_accum
     fold_str = f"_fold{fold}" if fold is not None else ""
+    head_str = "" if output_head == DEFAULT_OUTPUT_HEAD else f"_head{output_head}"
     run_name = (
         f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}"
-        f"_freeze{num_freeze}_aug{data_augmentation}{fold_str}"
+        f"_freeze{num_freeze}_aug{data_augmentation}{fold_str}{head_str}"
     )
 
     training_args = TrainingArguments(
@@ -346,16 +461,29 @@ def main() -> None:
         )
         callbacks.append(collapse_callback)
 
-    trainer = Trainer(
-        model,
-        training_args,
-        train_dataset=tokenized_csmd_dataset["train"],
-        eval_dataset=tokenized_csmd_dataset["dev"],
-        data_collator=data_collator,
-        processing_class=tokenizer,
-        compute_metrics=compute_metrics,
-        callbacks=callbacks,
-    )
+    # C3: the head the score is read through must travel with the checkpoint, otherwise
+    # whoever loads it later reads raw logits as if they were a 0-100 score.
+    model.config.meaningbert_output_head = output_head
+
+    trainer_kwargs: dict[str, Any] = {
+        "train_dataset": tokenized_csmd_dataset["train"],
+        "eval_dataset": tokenized_csmd_dataset["dev"],
+        "data_collator": data_collator,
+        "processing_class": tokenizer,
+        "compute_metrics": compute_metrics,
+        "callbacks": callbacks,
+    }
+    if output_head == DEFAULT_OUTPUT_HEAD:
+        # Untouched v1 path: a plain Trainer, the model's own MSE on the 0-100 scale.
+        trainer = Trainer(model, training_args, **trainer_kwargs)
+    else:
+        trainer = BoundedOutputTrainer(
+            model,
+            training_args,
+            output_head=output_head,
+            preprocess_logits_for_metrics=make_logits_to_percent(output_head),
+            **trainer_kwargs,
+        )
 
     # --- Train ---
     print("----------Training start----------")
@@ -371,6 +499,8 @@ def main() -> None:
             "early_stopping_patience": es_patience,
             "collapse_patience": collapse_patience,
             "collapse_std_threshold": collapse_std_threshold,
+            "output_head": output_head,
+            "precision": "bf16" if use_bf16 else ("fp16" if use_fp16 else "fp32"),
         }
     )
 
@@ -428,6 +558,7 @@ def main() -> None:
                 "early_stopping_patience": es_patience,
                 "collapse_patience": collapse_patience,
                 "collapse_stop_reason": collapse_reason,
+                "output_head": output_head,
                 "data_augmentation": data_augmentation,
                 "best_checkpoint_path": trainer.state.best_model_checkpoint,
                 "best_eval_loss": trainer.state.best_metric,
