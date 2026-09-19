@@ -40,11 +40,18 @@ incompatibles, et personne ne pourrait plus mesurer H2 (voir PRODUIT.md).
 | `likert5` | Likert 1-5 | 1 | 5 | plus haut = mieux preserve |
 | `likert7` | Likert 1-7 | 1 | 7 | plus haut = mieux preserve |
 | `severity3` | Severite d'erreur 1-3 | 1 | 3 | **plus haut = PIRE**, a inverser |
+| `likert3_signed` | Likert signe a 3 points | -1 | 1 | plus haut = mieux preserve |
 | `binary` | Etiquette binaire | 0 | 1 | 1 = sens preserve |
 | `error_count` | Nombre d'erreurs de distorsion | 0 | inf | **plus haut = PIRE**, a inverser |
 
 Un loader qui a besoin d'une echelle absente de cette table ne l'invente pas : il ouvre
 la question avant d'ecrire le mapping.
+
+`likert3_signed` a ete ajoutee le 2026-09-19 exactement par ce chemin. Le loader PLABA a
+rencontre l'echelle `{-1, 0, 1}` des jugements experts TREC, a constate qu'aucune entree ne
+convenait, et s'est arrete en levant `UnsupportedScaleError` plutot que de reutiliser
+`severity3`, qui a la meme cardinalite mais des bornes differentes et l'orientation
+inverse. Reutiliser `severity3` aurait inverse le signal en silence.
 
 ## Interface Python
 

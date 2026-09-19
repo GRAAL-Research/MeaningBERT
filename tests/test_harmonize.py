@@ -362,3 +362,19 @@ def test_dedup_is_idempotent():
     twice, dropped = deduplicate(once, priority=["csmd", "other"])
     assert len(once) == len(twice)
     assert dropped == {}
+
+
+# --- likert3_signed ------------------------------------------------------------------
+
+
+def test_the_signed_likert_maps_minus_one_to_zero_and_one_to_one_hundred():
+    mapping = BoundsMap(SCALES["likert3_signed"])
+    assert mapping([-1.0, 0.0, 1.0]) == pytest.approx([0.0, 50.0, 100.0])
+
+
+def test_the_signed_likert_is_not_confused_with_severity_three():
+    """severity3 shares the cardinality and inverts; conflating them would flip the sign."""
+    signed = BoundsMap(SCALES["likert3_signed"])([1.0])
+    severity = BoundsMap(SCALES["severity3"])([3.0])
+    assert signed == pytest.approx([100.0])
+    assert severity == pytest.approx([0.0])

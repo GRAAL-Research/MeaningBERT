@@ -185,3 +185,22 @@ def test_validate_reports_every_problem_at_once_not_just_the_first():
     assert "domain: unknown value" in message
     assert "source: unknown value" in message
     assert "n_annotators: 1 negative" in message
+
+
+# --- likert3_signed, added for the PLABA expert judgements ---------------------------
+
+
+def test_the_signed_likert_scale_accepts_its_three_native_values():
+    for value in (-1.0, 0.0, 1.0):
+        validate(_dataset([_row(scale="likert3_signed", label_raw=value)]))
+
+
+def test_the_signed_likert_scale_rejects_a_value_outside_minus_one_to_one():
+    with pytest.raises(ContractError, match=r"outside \[-1.0, 1.0\]"):
+        validate(_dataset([_row(scale="likert3_signed", label_raw=2.0)]))
+
+
+def test_the_signed_likert_scale_is_oriented_higher_is_better():
+    """Unlike severity3, which shares its cardinality but not its orientation."""
+    assert SCALES["likert3_signed"].higher_is_better
+    assert not SCALES["severity3"].higher_is_better
