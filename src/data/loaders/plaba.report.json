@@ -1,0 +1,30 @@
+{
+  "corpus": "plaba",
+  "status": "BLOCKED",
+  "blocking_reason": "native scale not in CONTRACT.md SCALES table",
+  "n_rows": 806,
+  "n_rows_read_before_filtering": 819,
+  "n_rows_dropped_empty_text": 6,
+  "n_rows_dropped_non_finite_label": 0,
+  "n_duplicates_dropped_within_corpus": 7,
+  "n_unique_originals": 116,
+  "scale": "UNSUPPORTED: signed 3-point Likert {-1, 0, 1}, higher is better, bounds [-1.0, 1.0]",
+  "label_raw_min": -1.0,
+  "label_raw_max": 1.0,
+  "label_raw_mean": 0.9416873449131513,
+  "n_annotators_median": 1,
+  "pct_with_std": 0.0,
+  "domains": {"biomedical": 806},
+  "systems": {
+    "gpt-3.5-zero-shot": 117,
+    "llama-2-7b-chat": 116,
+    "llama-2-7b-chat-scer-0.5": 117,
+    "human": 456
+  },
+  "split_hints": {"": 806},
+  "license": "unspecified (source repository ships no LICENSE file)",
+  "license_allows_redistribution": false,
+  "source_url": "https://github.com/ondovb/plaba-ft/tree/main/eval/manual",
+  "retrieval_date": "2026-09-19",
+  "notes": "BLOCKED, no dataset emitted -- CONTRACT.md rule 3 (scale not in the permitted table). Full chain: (1) The public PLABA parallel corpus (Attal et al. 2023, Nature Sci Data, CC-BY-4.0, https://doi.org/10.1038/s41597-022-01920-3, distributed via https://bionlp.nlm.nih.gov/plaba2023/) carries no human preservation-of-meaning score -- it is 750 abstracts of expert plain-language rewrites with no rating attached, so per BRIEF.md it does not qualify for CSMD v2 on its own. (2) The scored data comes from the TREC PLABA track manual evaluation (2023/2024; overview: Ondov et al. 2025, https://pubmed.ncbi.nlm.nih.gov/40969486/ / arXiv:2507.14096), which rated system outputs on Simplicity, Accuracy (= avg of Completeness and Faithfulness in the 2023 protocol), Completeness and Brevity. The official per-sentence judgment files are hosted at https://trec.nist.gov/results/... which returns HTTP 401 without TREC participant credentials -- access refused, per BRIEF.md rule 4. (3) A partial mirror of the same manual evaluation (TREC 2023 round 1 protocol, 7 evaluated systems: gpt-3.5-zero-shot, llama-2-7b-chat, llama-2-7b-chat-scer-0.5, and 4 independent human reference re-evaluations) is published in a co-author's own repository, https://github.com/ondovb/plaba-ft, under eval/manual/*.acc.csv, retrieved 2026-09-19. This is the source actually parsed for the numbers above. It carries no LICENSE file (default all-rights-reserved), hence license_allows_redistribution=false: CSMD v2 could at most redistribute this loader, not the rows. (4) Axis choice: this loader targets Faithfulness ('Do points made in the output match those of the source?'), the closer analogue to CSMD's meaning-preservation judgment than Completeness ('how much of the source survives'), since a simplification can omit detail while remaining faithful to what it does say. Completeness ('Acc. comp.') is captured in the parser (see open_question_completeness_raw in extract_rows()) but not emitted, and is left as the open question below. (5) BLOCKER: both axes are recorded on a signed 3-point Likert scale {-1, 0, 1} (higher is better) -- confirmed against the source paper's description of the annotation protocol and against the observed value set in every file. CONTRACT.md's SCALES table has no entry with bounds [-1, 1]; severity3 has the right cardinality (3 values) but the wrong bounds ([1,3]) and the opposite orientation (higher is worse there, higher is better here), so reusing it would silently invert the signal downstream. Per CONTRACT.md rule 3, this loader does not invent a mapping: it parses, deduplicates and computes the statistics above, then load() raises UnsupportedScaleError instead of returning a dataset. Recommendation (not decided here): add a scale entry to CONTRACT.md, e.g. likert3_signed: low=-1.0, high=1.0, higher_is_better=true. (6) Alignment: the mission brief anticipated an irregular phrase-to-phrase alignment problem (PLABA's guidelines allow splitting or dropping source sentences). That problem is already resolved upstream by the TREC manual-evaluation spreadsheet itself: each row is one (source sentence, already-merged system output) pair, with no duplicate (Abst, Sent) keys observed. 6 rows across the 819 read were dropped for having an empty Output cell (the annotators judged the sentence as effectively omitted, with the automatic accuracy score of -1 for both axes); 7 further rows were dropped as exact (original, simplification, system) duplicates within the corpus, per CONTRACT.md's own-corpus dedup rule. (7) Leakage note: PLABA's 40 manually-evaluated source abstracts are PubMed biomedical text; CSMD v1's known overlap risk is with ASSET/Wikipedia-domain corpora (SimpEval, SALSA), which PLABA does not share a domain with, so no leakage check against CSMD was run for this corpus."
+}
