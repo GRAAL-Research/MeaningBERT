@@ -23,7 +23,13 @@ from transformers import (
     TrainingArguments,
 )
 
+from callbacks import DEFAULT_COLLAPSE_PATIENCE, PredictionCollapseCallback
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
+
+try:  # PYTHONPATH=src, the documented way to run this script.
+    from diagnostics.calibration_audit import COLLAPSE_STD_THRESHOLD
+except ImportError:  # pragma: no cover - repository root on the path instead of ``src``.
+    from src.diagnostics.calibration_audit import COLLAPSE_STD_THRESHOLD  # type: ignore[no-redef]
 
 
 def _sanitize_for_json(obj: Any) -> Any:
@@ -35,6 +41,7 @@ def _sanitize_for_json(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [_sanitize_for_json(v) for v in obj]
     return obj
+
 
 log = logging.getLogger("pytorch_lightning")
 log.propagate = False
@@ -182,6 +189,24 @@ def create_parser() -> argparse.ArgumentParser:
         default=50,
         help="Early stopping patience in epochs. 0 to disable.",
     )
+    parser.add_argument(
+        "--collapse_patience",
+        type=int,
+        default=DEFAULT_COLLAPSE_PATIENCE,
+        help=(
+            "Number of consecutive evaluations with a degenerate prediction spread before the run is stopped "
+            "(correction C2). 0 restores the pre-C2 behaviour, where a collapsed run trains to the end."
+        ),
+    )
+    parser.add_argument(
+        "--collapse_std_threshold",
+        type=float,
+        default=COLLAPSE_STD_THRESHOLD,
+        help=(
+            "Prediction standard deviation below which an evaluation counts as degenerate. The default is the "
+            "threshold the H1 audit uses; a healthy run of the sweep sits between 9 and 17."
+        ),
+    )
     return parser
 
 
@@ -203,6 +228,8 @@ def main() -> None:
     use_fp16: bool = args.fp16
     num_workers: int = args.dataloader_num_workers
     es_patience: int = args.early_stopping_patience
+    collapse_patience: int = args.collapse_patience
+    collapse_std_threshold: float = args.collapse_std_threshold
 
     set_seeds(seed=seed)
 
@@ -309,6 +336,16 @@ def main() -> None:
     if es_patience > 0:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=es_patience))
 
+    # C2: stop a run whose predictions collapsed to a constant, instead of letting it burn
+    # the GPU to the last epoch and report a plausible-looking RMSE.
+    collapse_callback: Optional[PredictionCollapseCallback] = None
+    if collapse_patience > 0:
+        collapse_callback = PredictionCollapseCallback(
+            std_threshold=collapse_std_threshold,
+            patience=collapse_patience,
+        )
+        callbacks.append(collapse_callback)
+
     trainer = Trainer(
         model,
         training_args,
@@ -332,8 +369,17 @@ def main() -> None:
             "freeze_layers": num_freeze,
             "effective_batch_size": effective_batch,
             "early_stopping_patience": es_patience,
+            "collapse_patience": collapse_patience,
+            "collapse_std_threshold": collapse_std_threshold,
         }
     )
+
+    collapse_reason = collapse_callback.stop_reason if collapse_callback is not None else None
+    if collapse_reason is not None:
+        print(f"WARNING: training stopped early because {collapse_reason}. This run is not usable.")
+        wandb.log({"train/collapse_stop_reason": collapse_reason, "train/collapsed": 1.0})
+    else:
+        wandb.log({"train/collapsed": 0.0})
     wandb.log({"Best model checkpoint path": trainer.state.best_model_checkpoint})
 
     # --- Evaluate ---
@@ -371,21 +417,25 @@ def main() -> None:
         name=artifact_name,
         type="model",
         description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
-        metadata=_sanitize_for_json({
-            "checkpoint": checkpoint,
-            "seed": seed,
-            "fold": fold,
-            "learning_rate": lr,
-            "freeze_layers": num_freeze,
-            "effective_batch_size": effective_batch,
-            "early_stopping_patience": es_patience,
-            "data_augmentation": data_augmentation,
-            "best_checkpoint_path": trainer.state.best_model_checkpoint,
-            "best_eval_loss": trainer.state.best_metric,
-            "test_results": test_results,
-            "holdout_identical_results": identical_results,
-            "holdout_unrelated_results": unrelated_results,
-        }),
+        metadata=_sanitize_for_json(
+            {
+                "checkpoint": checkpoint,
+                "seed": seed,
+                "fold": fold,
+                "learning_rate": lr,
+                "freeze_layers": num_freeze,
+                "effective_batch_size": effective_batch,
+                "early_stopping_patience": es_patience,
+                "collapse_patience": collapse_patience,
+                "collapse_stop_reason": collapse_reason,
+                "data_augmentation": data_augmentation,
+                "best_checkpoint_path": trainer.state.best_model_checkpoint,
+                "best_eval_loss": trainer.state.best_metric,
+                "test_results": test_results,
+                "holdout_identical_results": identical_results,
+                "holdout_unrelated_results": unrelated_results,
+            }
+        ),
     )
     artifact.add_dir(best_model_dir)
     wandb.log_artifact(artifact)
