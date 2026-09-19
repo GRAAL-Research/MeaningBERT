@@ -29,7 +29,11 @@ systemes sans lancer une campagne d'annotation.
 2. Pearson sur un test externe tenu a l'ecart (Agrawal & Carpuat TACL 2024, ou un split
    SimpEval jamais vu) superieur au v1 mesure sur le meme test.
 3. RMSE sur echelle 0-100 sous 15, et R2 positif. **Traduit en cible directe : Pearson
-   >= 0,914.** Avec sigma_y = 37,01, le RMSE minimal atteignable vaut
+   >= 0,914**, mesure sur un decoupage groupe par phrase source (H5). **La ligne de base
+   v1 doit etre re-mesuree sur ce meme decoupage avant toute conclusion** : le 0,80 publie
+   est mesure sur un test dont 91 % des phrases sources etaient dans l'entrainement, donc
+   on ne pourrait pas distinguer un gain du a la donnee d'une simple disparition de la
+   fuite. Avec sigma_y = 37,01, le RMSE minimal atteignable vaut
    sigma_y * sqrt(1 - r^2), donc RMSE < 15 equivaut exactement a Pearson > 0,914. Le
    Pearson actuel est de 0,80. La calibration seule amene le RMSE a 22,1 ; le reste du
    chemin est le travail de l'expansion de corpus.
@@ -59,6 +63,7 @@ Verrouilles. Tout ce qui suit est explicitement hors portee et part en v3 ou v4.
 | H2 | Les scores de SimpEval, SALSA, SimpleText et PLABA sont harmonisables sur une echelle 0-100 commune sans detruire le signal. | Le corpus fusionne est plus bruite que CSMD seul et la metrique se degrade. | Ablation : entrainer sur CSMD seul vs CSMD + chaque corpus, un a un. |
 | H3 | Les 60 phrases partagees entre SimpEval2022 et SynthSimpliEval suffisent comme point d'ancrage inter-corpus. | L'harmonisation repose sur une normalisation arbitraire par corpus. | Mesurer l'accord sur les paires communes avant de fixer le mapping. |
 | H4 | Les licences des cinq corpus permettent une rediffusion dans CSMD v2. | On ne peut pas republier le corpus, seulement les loaders. | Verification licence par licence en phase 1. |
+| H5 | ~~Les splits du corpus d'entrainement isolent correctement le test.~~ **REFUTEE le 2026-09-19.** Voir `docs/H5-fuite-par-phrase-source.md`. | - | 91,1 % des lignes de test ont leur phrase source en train, mediane sur les 10 folds. Le Pearson de 0,80 est gonfle. Corrige par `src/data/splits.py`. |
 
 ## Metrique du resultat vise, instrumentation
 
@@ -68,6 +73,12 @@ entrainement non mesure.
 
 ## Journal
 
+- 2026-09-19 : H5 ajoutee et refutee dans la foulee. Le decoupage du corpus
+  d'entrainement fuit par phrase source : 2042 lignes pour 493 phrases sources, et 91,1 %
+  des lignes de test ont leur phrase source en train. `validate_datasets.py` ne voyait
+  rien parce qu'il compare des paires exactes. Corrige par `src/data/splits.py`, qui
+  decoupe par groupe de phrase source et reserve un vrai holdout de sanity. Consequence :
+  la ligne de base v1 doit etre re-mesuree avant de juger l'apport des corpus (L3).
 - 2026-09-19 : H1 confirmee et fermee. Trois defaillances : compression d'amplitude sur
   100 % des runs (pred_mean 21-36 contre un label mean de 62,66), 40-55 % du RMSE
   recuperable par recalibrage affine, et un run effondre rapporte comme predicteur de
