@@ -12,6 +12,7 @@ from figures_generator.compression_report import (
     is_flagged_diverged,
     is_usable_run,
     label_reference_caption,
+    latex_mean_std,
     label_reference_line,
     looks_collapsed,
     pred_moment_columns,
@@ -116,6 +117,16 @@ class TestCompressionReporting:
 
     def test_format_mean_std_ignores_non_finite_values(self):
         assert format_mean_std([10.0, float("nan"), 30.0]) == "20.00 +/- 14.14"
+
+    def test_latex_mean_std(self):
+        assert latex_mean_std([10.0, 20.0, 30.0]) == "20.00" + r"$\pm$" + "10.00"
+        assert latex_mean_std([42.0]) == "42.00"
+        assert latex_mean_std([]) == "n/a"
+        assert latex_mean_std([None, "x"]) == "n/a"
+
+    def test_a_non_numeric_summary_value_is_not_trusted(self):
+        # A summary value that is not a number cannot vouch for a live run.
+        assert looks_collapsed(_healthy(**{"test/st_dev_score": "unavailable"}))
 
     def test_label_reference_carries_both_moments(self):
         line = label_reference_line()

@@ -89,6 +89,9 @@ class TestBoundedHeads:
             inside = (percent > SCORE_MIN) & (percent < SCORE_MAX)
             assert np.allclose(np.asarray(unit)[inside] * SCORE_MAX, np.asarray(percent)[inside])
 
+    def test_linear_head_unit_view_divides_by_one_hundred(self):
+        assert unit_from_logits(np.array([0.0, 50.0, 100.0]), head="linear").tolist() == [0.0, 0.5, 1.0]
+
     def test_unknown_head_is_refused(self):
         with pytest.raises(ValueError, match="Unknown output head"):
             percent_from_logits(np.array([0.0]), head="softmax")
@@ -246,6 +249,23 @@ class TestIdempotence:
         second = fit_calibrator(once, labels, split="dev", method="isotonic")
 
         assert np.allclose(second.transform(once), once, atol=1e-9)
+
+
+class TestCalibratorDescription:
+    """The audit trail: a calibrator says what it is and what it was fitted on."""
+
+    def test_affine_calibrator_describes_its_fit(self):
+        predictions, labels = synthetic_predictions(120, 0.8, seed=59)
+        description = fit_calibrator(predictions, labels, split="dev").describe()
+
+        assert description.startswith("affine(slope=")
+        assert "120 rows of 'dev'" in description
+
+    def test_isotonic_calibrator_describes_its_fit(self):
+        predictions, labels = synthetic_predictions(MIN_ISOTONIC_DEV_SIZE + 5, 0.8, seed=61)
+        description = fit_calibrator(predictions, labels, split="dev", method="isotonic").describe()
+
+        assert description == f"isotonic fitted on {MIN_ISOTONIC_DEV_SIZE + 5} rows of 'dev'"
 
 
 class TestIsotonicGuardRail:

@@ -146,6 +146,15 @@ class TestPredictionCollapseCallback:
 
         assert control.should_training_stop is True
 
+    def test_a_non_numeric_metric_counts_as_degenerate(self):
+        # Anything that is not a number is not "unknown", it is a broken evaluation.
+        callback = PredictionCollapseCallback(patience=1)
+        control = _Control()
+
+        callback.on_evaluate(None, _State(), control, metrics={"eval_st_dev_score": "not a number"})
+
+        assert control.should_training_stop is True
+
     def test_an_evaluation_without_metrics_is_ignored(self):
         callback = PredictionCollapseCallback(std_threshold=1.0, patience=1)
         control = _Control()
