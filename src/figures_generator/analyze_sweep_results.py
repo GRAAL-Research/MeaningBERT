@@ -19,6 +19,11 @@ from statistics import mean, stdev
 
 import wandb
 
+try:  # PYTHONPATH=src.
+    from figures_generator.compression_report import is_usable_run
+except ImportError:  # pragma: no cover - script run from inside ``src/figures_generator``.
+    from compression_report import is_usable_run  # type: ignore[no-redef]
+
 AUGMENTATION_LABELS: dict[str, str] = {
     "none": "No augmentation",
     "swap": "Swap",
@@ -33,6 +38,7 @@ TEST_METRICS: list[str] = [
     "test/pearson_pvalue",
     "test/mean_score",
     "test/st_dev_score",
+    "test/diverged",
 ]
 
 HOLDOUT_IDENTICAL_METRICS: list[str] = [
@@ -76,6 +82,8 @@ def fetch_runs(project: str) -> list[dict]:
             "augmentation": augmentation,
             "fold": fold,
             "seed": seed,
+            # Kept so the C1 filter can read every ``*diverged`` flag, whatever its prefix.
+            "summary": summary,
         }
 
         # Collect all metrics
@@ -134,6 +142,32 @@ def deduplicate_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
     return list(seen.values()), duplicates
 
 
+def filter_usable_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Drop the runs that diverged (C1) or collapsed to a constant output.
+
+    A diverged run used to enter the aggregate as a credible zero-predictor. It is now
+    flagged by ``metrics.compute_metrics`` and excluded here, together with the runs of
+    the previous sweep, which predate the flag but still show the collapse signature.
+
+    Args:
+        runs: Structured run dicts from :func:`fetch_runs`.
+
+    Returns:
+        The ``(usable, excluded)`` split.
+    """
+    usable: list[dict] = []
+    excluded: list[dict] = []
+    for run in runs:
+        (usable if is_usable_run(run.get("summary", {})) else excluded).append(run)
+
+    if excluded:
+        print(f"  Excluded {len(excluded)} diverged or collapsed run(s) from the aggregate (C1):")
+        for run in excluded:
+            print(f"    {run['name']} (id={run['id']})")
+
+    return usable, excluded
+
+
 def group_runs(
     runs: list[dict],
 ) -> dict[tuple[str, str], list[dict]]:
@@ -167,6 +201,7 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
 
         for metric_key, label, _ in metrics_to_summarize:
             import math  # pylint: disable=import-outside-toplevel
+
             values = [
                 r[metric_key]
                 for r in run_list
@@ -361,10 +396,14 @@ def main() -> None:
         return
 
     runs, _ = deduplicate_runs(runs)
+    runs, excluded = filter_usable_runs(runs)
+    if not runs:
+        print("\nEvery finished run is diverged or collapsed. Nothing to aggregate.")
+        return
     groups = group_runs(runs)
     rows = compute_summary_table(groups)
 
-    print(f"\n=== Summary ({len(runs)} finished runs) ===\n")
+    print(f"\n=== Summary ({len(runs)} usable runs, {len(excluded)} excluded) ===\n")
     print_summary(rows)
 
     os.makedirs(args.output_dir, exist_ok=True)
