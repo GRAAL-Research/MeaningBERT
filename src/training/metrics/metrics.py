@@ -1,4 +1,14 @@
+"""Metrics computed during training and evaluation, on the 0-100 meaning preservation scale.
+
+A run whose predictions contain NaN or Inf is **flagged, not repaired**. Rewriting those
+values to 0.0 turns a dead run into a credible zero-predictor: on a 0-100 scale, 0 is a
+legitimate and frequent label (the unrelated pairs), so the resulting RMSE looks plausible
+and the run enters the sweep aggregate unnoticed. See ``docs/H1-diagnostic-calibration.md``,
+correction C1.
+"""
+
 import logging
+from typing import Any
 
 import numpy as np
 from evaluate import load
@@ -9,23 +19,74 @@ _log = logging.getLogger(__name__)
 r2_metric = load("r_squared")
 pearsonr_metric = load("pearsonr")
 
+#: Metric key set to 1.0 when the predictions of a run are not usable, 0.0 otherwise.
+#: Downstream aggregation must exclude the runs flagged by this key.
+DIVERGED_KEY = "diverged"
 
-def _sanitize_predictions(predictions):
-    """Squeeze (N,1)->(N,) and replace NaN/Inf with 0."""
-    predictions = predictions.squeeze()
-    n_bad = int(np.sum(~np.isfinite(predictions)))
-    if n_bad > 0:
-        _log.warning("_sanitize_predictions: replacing %d NaN/Inf values with 0", n_bad)
-    predictions = np.nan_to_num(predictions, nan=0.0, posinf=0.0, neginf=0.0)
-    return predictions
+#: Metric key carrying how many predictions were not finite.
+N_NON_FINITE_KEY = "n_non_finite_predictions"
 
 
-def compute_metrics(eval_pred):
+def _sanitize_predictions(predictions: Any) -> tuple[np.ndarray, int]:
+    """Squeeze ``(N, 1) -> (N,)`` and count the non-finite predictions, without rewriting them.
+
+    Args:
+        predictions: Raw model outputs, of shape ``(N,)`` or ``(N, 1)``.
+
+    Returns:
+        The squeezed predictions and the number of NaN or Inf values they contain. The
+        values themselves are left untouched: a caller that gets a non-zero count must
+        flag the run, not patch the numbers.
     """
-    Function to compute various metric during training.
+    predictions = np.asarray(predictions, dtype=np.float64).squeeze()
+    predictions = np.atleast_1d(predictions)
+    n_non_finite = int(np.sum(~np.isfinite(predictions)))
+    if n_non_finite > 0:
+        _log.error(
+            "_sanitize_predictions: %d/%d predictions are NaN or Inf. The run is flagged as diverged; "
+            "its metrics are reported as NaN and must be excluded from any aggregate.",
+            n_non_finite,
+            predictions.size,
+        )
+    return predictions, n_non_finite
+
+
+def _diverged_metrics(metric_keys: tuple[str, ...], n_non_finite: int) -> dict[str, float]:
+    """Build the metric dict of a diverged run: every number is NaN, the marker is set.
+
+    Args:
+        metric_keys: Names of the metrics the caller normally returns.
+        n_non_finite: Number of non-finite predictions that triggered the flag.
+
+    Returns:
+        A dict with the same keys as a healthy run, all NaN, plus the divergence markers.
+    """
+    metrics: dict[str, float] = {key: float("nan") for key in metric_keys}
+    metrics[DIVERGED_KEY] = 1.0
+    metrics[N_NON_FINITE_KEY] = float(n_non_finite)
+    return metrics
+
+
+_TRAIN_METRIC_KEYS = ("rmse", "R2", "pearson_corr", "pearson_pvalue", "mean_score", "st_dev_score")
+_IDENTICAL_METRIC_KEYS = ("rmse", "mean_score", "st_dev_score", "ratio_equals", "ratio_95", "ratio_99")
+_UNRELATED_METRIC_KEYS = ("rmse", "mean_score", "st_dev_score", "ratio_equals", "ratio_1", "ratio_5")
+
+
+def compute_metrics(eval_pred: tuple[Any, Any]) -> dict[str, Any]:
+    """Compute the regression metrics reported during training and on the test set.
+
+    Args:
+        eval_pred: The ``(predictions, labels)`` pair handed over by the ``Trainer``.
+
+    Returns:
+        The metrics on the 0-100 scale, plus ``diverged`` (0.0 or 1.0). When ``diverged``
+        is 1.0 every other value is NaN and the run must be excluded from aggregates.
     """
     predictions, labels = eval_pred
-    predictions = _sanitize_predictions(predictions)
+    predictions, n_non_finite = _sanitize_predictions(predictions)
+    if n_non_finite > 0:
+        return _diverged_metrics(_TRAIN_METRIC_KEYS, n_non_finite)
+
     rmse = root_mean_squared_error(labels, predictions)
     r_squared = r2_metric.compute(predictions=predictions, references=labels)
     pearson_corr = pearsonr_metric.compute(predictions=predictions, references=labels, return_pvalue=True)
@@ -38,20 +99,29 @@ def compute_metrics(eval_pred):
         "pearson_pvalue": pearson_corr["p-value"],
         "mean_score": mean_score,
         "st_dev_score": st_dev_score,
+        DIVERGED_KEY: 0.0,
     }
 
 
-def eval_compute_metrics_identical(eval_pred):
-    """
-    Function to compute various metric during evaluation for identical sentences.
+def eval_compute_metrics_identical(eval_pred: tuple[Any, Any]) -> dict[str, Any]:
+    """Compute the sanity-check metrics on the identical sentence holdout.
 
     We do not compute the correlation and R2 since the labels are all the same, it does not does compute properly.
     E.g. for the R2 the SST score equal 0 since the mean of all labels is 100 and the references are all 100. Thus,
     SSR / 0 is undefined. And 1 - SSR / 1 would be strange.
     See here for compute details https://huggingface.co/spaces/evaluate-metric/r_squared/edit/main/r_squared.py.
+
+    Args:
+        eval_pred: The ``(predictions, labels)`` pair handed over by the ``Trainer``.
+
+    Returns:
+        The metrics on the 0-100 scale, plus ``diverged`` (0.0 or 1.0).
     """
     predictions, labels = eval_pred
-    predictions = _sanitize_predictions(predictions)
+    predictions, n_non_finite = _sanitize_predictions(predictions)
+    if n_non_finite > 0:
+        return _diverged_metrics(_IDENTICAL_METRIC_KEYS, n_non_finite)
+
     rmse = root_mean_squared_error(labels, predictions)
     mean_score = predictions.mean()
     st_dev_score = predictions.std()
@@ -71,20 +141,29 @@ def eval_compute_metrics_identical(eval_pred):
         "ratio_equals": ratio_equals,
         "ratio_95": ratio_95,
         "ratio_99": ratio_99,
+        DIVERGED_KEY: 0.0,
     }
 
 
-def eval_compute_metrics_unrelated(eval_pred):
-    """
-    Function to compute various metric during evaluation for unrelated sentences.
+def eval_compute_metrics_unrelated(eval_pred: tuple[Any, Any]) -> dict[str, Any]:
+    """Compute the sanity-check metrics on the unrelated sentence holdout.
 
     We do not compute the correlation and R2 since the labels are all the same, it does not does compute properly.
     E.g. for the R2 the SST score equal 0 since the mean of all labels is 100 and the references are all 100. Thus,
     SSR / 0 is undefined. And 1 - SSR / 1 would be strange.
     See here for compute details https://huggingface.co/spaces/evaluate-metric/r_squared/edit/main/r_squared.py.
+
+    Args:
+        eval_pred: The ``(predictions, labels)`` pair handed over by the ``Trainer``.
+
+    Returns:
+        The metrics on the 0-100 scale, plus ``diverged`` (0.0 or 1.0).
     """
     predictions, labels = eval_pred
-    predictions = _sanitize_predictions(predictions)
+    predictions, n_non_finite = _sanitize_predictions(predictions)
+    if n_non_finite > 0:
+        return _diverged_metrics(_UNRELATED_METRIC_KEYS, n_non_finite)
+
     rmse = root_mean_squared_error(labels, predictions)
     mean_score = predictions.mean()
     st_dev_score = predictions.std()
@@ -104,4 +183,5 @@ def eval_compute_metrics_unrelated(eval_pred):
         "ratio_equals": ratio_equals,
         "ratio_1": ratio_1,
         "ratio_5": ratio_5,
+        DIVERGED_KEY: 0.0,
     }

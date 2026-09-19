@@ -1,7 +1,20 @@
+"""LaTeX tables of the article.
+
+Correction C5 of ``docs/H1-diagnostic-calibration.md``: the main table reports the mean
+and the standard deviation of the predictions next to each RMSE, against the mean and the
+standard deviation of the gold labels. The sweep reported a RMSE of 35 to 54 while the
+predictions occupied a quarter of the label amplitude, and nothing in the table said so.
+"""
+
 from statistics import mean, stdev
-from typing import List
+from typing import Callable, List, Optional
 
 from python2latex import Document, Table, italic
+
+try:  # PYTHONPATH=src.
+    from figures_generator.compression_report import label_reference_caption, latex_mean_std
+except ImportError:  # pragma: no cover - script run from inside ``src/figures_generator``.
+    from compression_report import label_reference_caption, latex_mean_std  # type: ignore[no-redef]
 
 all_metrics = [
     "FKGL",
@@ -51,12 +64,41 @@ subset_metrics = [
 subset_metrics.sort()
 
 
+def _fill_moment_column(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    table,
+    col_idx: int,
+    few_shot_data: List,
+    metric_key: Callable[[str], str],
+    meaning_bert_key: str,
+    metrics: Optional[List[str]] = None,
+) -> None:
+    """Fill one descriptive column: a value per benchmark metric, then the two MeaningBERT rows.
+
+    Unlike the Pearson, R2 and RMSE columns, a predicted mean or spread has no best value:
+    it is read against the label distribution stated in the caption. Nothing is bolded here.
+
+    Args:
+        table: The ``python2latex`` table being filled.
+        col_idx: Index of the column to fill.
+        few_shot_data: The five groups of run summaries, as ``get_table_1115`` receives them.
+        metric_key: Builds the wandb summary key of a benchmark metric.
+        meaning_bert_key: The wandb summary key of the same quantity for MeaningBERT.
+        metrics: Metric names, defaulting to :data:`all_metrics`.
+    """
+    for idx, metric in enumerate(metrics if metrics is not None else all_metrics):
+        values = [run_score.get(metric_key(metric)) for run_score in few_shot_data[3]]
+        table[idx + 1, col_idx] = latex_mean_std(values)
+
+    table[-2, col_idx] = latex_mean_std([run_score.get(meaning_bert_key) for run_score in few_shot_data[0]])
+    table[-1, col_idx] = latex_mean_std([run_score.get(meaning_bert_key) for run_score in few_shot_data[1]])
+
+
 def get_table_1115(few_shot_data: List, saving_dir: str):
     alpha = 0.999
     doc = Document(filename="res_1115", filepath=saving_dir, doc_type="article", border="10pt")
 
-    # Create the data
-    col, row = 4, 23
+    # Create the data. Two extra columns carry the predicted moments (C5).
+    col, row = 6, 23
 
     table = doc.new(
         Table(
@@ -65,7 +107,7 @@ def get_table_1115(few_shot_data: List, saving_dir: str):
             alignment=["l"] + ["c"] * (col - 1),
             caption=r"Results of the benchmarking metrics and MeaningBERT trained without data augmentation (DA) "
             r"and with DA. \textbf{Bolded} value are the best results and \textit{italic} one are results "
-            r"with a p-value $\alpha \leq 0.999$.",
+            r"with a p-value $\alpha \leq 0.999$. " + label_reference_caption(),
             caption_pos="bottom",
         )
     )
@@ -75,6 +117,8 @@ def get_table_1115(few_shot_data: List, saving_dir: str):
         "Pearson",
         "R$^2$",
         "RMSE",
+        "Pred mean",
+        "Pred std",
     ]
     table[0, 0:].add_rule()
 
@@ -223,6 +267,24 @@ def get_table_1115(few_shot_data: List, saving_dir: str):
     )
     table[-1:, col_idx] = (
         f"{round(table[-1:, col_idx].data[0][0], 3)}" + r"$\pm$" + f"{round(stdev(data_augmentation), 2)}"
+    )
+
+    # C5: predicted mean and spread, next to the RMSE they explain. A RMSE of 51 with a
+    # predicted spread of 9 against a label spread of 37 is a compression, not a model
+    # that is three points worse than another.
+    _fill_moment_column(
+        table,
+        col_idx=4,
+        few_shot_data=few_shot_data,
+        metric_key=lambda metric: f"test/{metric}_mean",
+        meaning_bert_key="test/mean_score",
+    )
+    _fill_moment_column(
+        table,
+        col_idx=5,
+        few_shot_data=few_shot_data,
+        metric_key=lambda metric: f"test/{metric}_st_dev",
+        meaning_bert_key="test/st_dev_score",
     )
 
     return doc

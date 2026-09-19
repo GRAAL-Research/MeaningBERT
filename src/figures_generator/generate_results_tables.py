@@ -1,8 +1,16 @@
+"""Build the LaTeX result tables of the article from a wandb project.
+
+Runs flagged ``diverged`` by ``metrics.compute_metrics``, and the runs of the previous
+sweep that show the same collapse signature, are excluded before any averaging. See
+``docs/H1-diagnostic-calibration.md``, correction C1.
+"""
+
 import os
 
 import click
 import wandb
 
+from compression_report import drop_unusable_runs
 from figures_generators import (
     get_table_112,
     get_table_1115,
@@ -39,6 +47,13 @@ def correction(wandb_project_name, figures_saving_directory):
                 holdout_500_true.append(dict(run.summary))
             elif data_augmentation == "False 500 holdout fixed":
                 holdout_500_false.append(dict(run.summary))
+
+    # C1: a diverged run reports NaN metrics and must not enter a mean.
+    data_augmentation_true = drop_unusable_runs(data_augmentation_true, "data_augmentation_true")
+    data_augmentation_false = drop_unusable_runs(data_augmentation_false, "data_augmentation_false")
+    previous_scores = drop_unusable_runs(previous_scores, "previous_scores")
+    holdout_500_true = drop_unusable_runs(holdout_500_true, "holdout_500_true")
+    holdout_500_false = drop_unusable_runs(holdout_500_false, "holdout_500_false")
 
     required = {
         "holdout_500_false": holdout_500_false,
