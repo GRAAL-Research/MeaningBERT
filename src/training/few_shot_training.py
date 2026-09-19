@@ -15,6 +15,7 @@ import wandb
 from datasets import DatasetDict, load_dataset, load_from_disk
 from poutyne import set_seeds
 from transformers import (
+    AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollatorWithPadding,
@@ -446,8 +447,23 @@ def main() -> None:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    # DeBERTa-v3's tokenizer reports model_max_length = 1e30, so `truncation=True` alone is
+    # a no-op and the flag silently does nothing. Harmless on the v1 corpora, whose longest
+    # pair is 209 tokens, but the v2 corpora reach 1737: SimpleText is scientific abstracts
+    # and PLABA is biomedical. Past 512 the model is beyond its position embeddings, and a
+    # batch of 32 padded to 1737 tokens is roughly thirty times the usual memory on a 16 GB
+    # card. The bound has to be explicit.
+    _config = AutoConfig.from_pretrained(checkpoint)
+    max_length = min(getattr(_config, "max_position_embeddings", 512) or 512, 512)
+
     def tokenize_function(example: dict) -> dict:
-        return tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
+        return tokenizer(
+            example["original"],
+            example["simplification"],
+            truncation=True,
+            max_length=max_length,
+            padding=True,
+        )
 
     # Remove non-tensor columns before tokenization to avoid Trainer collation errors.
     cols_to_remove = [c for c in COLUMNS_TO_REMOVE if c in csmd_dataset["train"].column_names]
@@ -464,9 +480,13 @@ def main() -> None:
     effective_batch = batch_size * grad_accum
     fold_str = f"_fold{fold}" if fold is not None else ""
     head_str = "" if output_head == DEFAULT_OUTPUT_HEAD else f"_head{output_head}"
+    # With --variant_path the corpus and its augmentation are baked into the variant, so
+    # --data_augmentation is not consulted. Naming the run after it anyway produced
+    # "augswap" on a run with no augmentation at all, which is a label that lies.
+    variant_tag = os.path.basename(os.path.normpath(variant_path)) if variant_path else f"aug{data_augmentation}"
     run_name = (
         f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}"
-        f"_freeze{num_freeze}_aug{data_augmentation}{fold_str}{head_str}"
+        f"_freeze{num_freeze}_{variant_tag}{fold_str}{head_str}"
     )
 
     training_args = TrainingArguments(
