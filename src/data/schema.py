@@ -30,6 +30,11 @@ SCALES: Final[dict[str, ScaleSpec]] = {
     "likert5": ScaleSpec(1.0, 5.0, True),
     "likert7": ScaleSpec(1.0, 7.0, True),
     "severity3": ScaleSpec(1.0, 3.0, False),
+    # Signed 3-point Likert, as used by the TREC PLABA expert judgements: -1 wrong,
+    # 0 partial, 1 correct. Distinct from severity3 despite the same cardinality: the
+    # bounds differ and the orientation is the opposite, so reusing severity3 would
+    # silently invert the signal.
+    "likert3_signed": ScaleSpec(-1.0, 1.0, True),
     "binary": ScaleSpec(0.0, 1.0, True),
     "error_count": ScaleSpec(0.0, math.inf, False),
 }
