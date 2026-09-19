@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import math
 import os
@@ -310,6 +311,22 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
+        "--results_json",
+        type=str,
+        default=None,
+        help="Write the test, identical and unrelated metrics to this path, so the analysis needs no network.",
+    )
+    parser.add_argument(
+        "--num_epochs",
+        type=int,
+        default=NUM_EPOCH,
+        help=(
+            "Training epochs before early stopping. The v1 default of 500 was set for a sweep on three RTX 6000 "
+            "Ada; on the Pascal card of the v2 server it would put a single run beyond a day. Lower it and let "
+            "early stopping decide, but keep it equal across the runs of one comparison."
+        ),
+    )
+    parser.add_argument(
         "--early_stopping_patience",
         type=int,
         default=50,
@@ -370,6 +387,8 @@ def main() -> None:
     collapse_patience: int = args.collapse_patience
     collapse_std_threshold: float = args.collapse_std_threshold
     output_head: str = args.output_head
+    num_epochs: int = args.num_epochs
+    results_json: Optional[str] = args.results_json
 
     if use_bf16:
         assert_bf16_is_supported()
@@ -459,7 +478,7 @@ def main() -> None:
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size * 2,
         gradient_accumulation_steps=grad_accum,
-        num_train_epochs=NUM_EPOCH,
+        num_train_epochs=num_epochs,
         save_total_limit=3,
         save_strategy="epoch",
         load_best_model_at_end=True,
@@ -580,6 +599,33 @@ def main() -> None:
             eval_dataset=tok_unrelated["test"],
             metric_key_prefix="test/unrelated_sentences",
         )
+
+    # --- Persist results locally ---
+    # wandb is the system of record, but an analysis that needs the network to read its own
+    # numbers is an analysis that breaks at the worst moment. One JSON per run, on disk.
+    if results_json is not None:
+        os.makedirs(os.path.dirname(os.path.abspath(results_json)) or ".", exist_ok=True)
+        with open(results_json, "w", encoding="utf-8") as handle:
+            json.dump(
+                _sanitize_for_json(
+                    {
+                        "run_name": run_name,
+                        "checkpoint": checkpoint,
+                        "variant_path": variant_path,
+                        "output_head": output_head,
+                        "seed": seed,
+                        "num_epochs": num_epochs,
+                        "epochs_trained": trainer.state.epoch,
+                        "rows": {split: len(tokenized_csmd_dataset[split]) for split in tokenized_csmd_dataset},
+                        "test": test_results,
+                        "identical": identical_results,
+                        "unrelated": unrelated_results,
+                    }
+                ),
+                handle,
+                indent=2,
+            )
+        print(f"Results written to {results_json}")
 
     # --- Save & log artifact ---
     best_model_dir = f"meaningbert_best_model_{checkpoint_short_name}_seed{seed}{fold_str}"
