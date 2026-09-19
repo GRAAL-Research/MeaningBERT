@@ -29,6 +29,9 @@ EFFECTIVE_BATCH="${EFFECTIVE_BATCH:-32}"
 HEADS="${HEADS:-clamped sigmoid}"
 SEED="${SEED:-42}"
 VARIANTS="${VARIANTS:-c_none c_full d_none d_full}"
+# Deux workers sur la meme machine se disputent les coeurs : 6 chargeurs chacun sur
+# 12 coeurs sature la machine et ralentit les deux. Reglable par worker.
+NUM_WORKERS="${NUM_WORKERS:-6}"
 
 # tag|checkpoint|micro-batch for c|micro-batch for d
 #
@@ -53,6 +56,18 @@ export PYTHONPATH="$REPO/src"
 export TOKENIZERS_PARALLELISM=false
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
+# Garde-fou de partitionnement. Quand la grille est repartie entre plusieurs GPU (voir
+# env/workers/ et src/training/run_worker.sh), un appel SANS ARCHS refait la grille
+# entiere sur une seule carte, en double de ce que les autres workers sont deja en train
+# de calculer. C'est exactement ce que ferait la phase 2 de run_everything.sh, qui a ete
+# ecrite quand il n'y avait qu'un GPU. On refuse plutot que de doubler le travail.
+if [ -z "$ARCHS" ] && [ -f "$REPO/results/GRID_PARTITIONED" ]; then
+    echo "Grille partitionnee entre plusieurs workers (results/GRID_PARTITIONED existe)."
+    echo "Un appel sans ARCHS refera tout en double : refuse."
+    echo "Lancer une tranche : bash src/training/run_worker.sh <nom-du-worker>"
+    exit 0
+fi
+
 started=$(date +%s)
 declare -a failed=()
 
@@ -73,7 +88,7 @@ run_one() {
         --variant_path "$DATA/$variant" --checkpoint "$checkpoint" --output_head "$HEAD" \
         --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
         --per_device_train_batch_size "$micro" --gradient_accumulation_steps "$accum" \
-        --dataloader_num_workers 6 --seed "$SEED" --results_json "$json" > "$log" 2>&1
+        --dataloader_num_workers "$NUM_WORKERS" --seed "$SEED" --results_json "$json" > "$log" 2>&1
     local status=$?
 
     # Only an out-of-memory kill earns a second try: halving the micro-batch changes the
@@ -86,7 +101,7 @@ run_one() {
             --variant_path "$DATA/$variant" --checkpoint "$checkpoint" --output_head "$HEAD" \
             --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
             --per_device_train_batch_size "$retry" --gradient_accumulation_steps "$accum" \
-            --dataloader_num_workers 6 --seed "$SEED" --results_json "$json" > "$log" 2>&1
+            --dataloader_num_workers "$NUM_WORKERS" --seed "$SEED" --results_json "$json" > "$log" 2>&1
         status=$?
     fi
 
