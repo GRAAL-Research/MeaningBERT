@@ -13,13 +13,13 @@ VENV="${VENV:-$HOME/.venvs/meaningbert-v2}"
 DATA="${DATA:-$REPO/data/v2}"
 LOGS="${LOGS:-$REPO/results/v2-runs}"
 CHECKPOINT="${CHECKPOINT:-microsoft/deberta-v3-base}"
-EPOCHS="${EPOCHS:-60}"
-PATIENCE="${PATIENCE:-10}"
-BATCH="${BATCH:-16}"
-ACCUM="${ACCUM:-2}"
+EPOCHS="${EPOCHS:-15}"
+PATIENCE="${PATIENCE:-4}"
+BATCH="${BATCH:-32}"
+ACCUM="${ACCUM:-1}"
 HEAD="${HEAD:-sigmoid}"
 SEED="${SEED:-42}"
-VARIANTS="${VARIANTS:-a_none a_full b_none b_full c_none c_full d_none d_full}"
+VARIANTS="${VARIANTS:-a_none b_none c_none d_none a_full b_full c_full d_full}"
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
 export PYTHONPATH="$REPO/src"
@@ -33,6 +33,9 @@ echo "output head      : $HEAD   (correction C3)"
 echo "epochs / patience: $EPOCHS / $PATIENCE"
 echo "effective batch  : $((BATCH * ACCUM))"
 echo "variants         : $VARIANTS"
+echo
+echo "Ordre : les quatre variantes sans augmentation d'abord. Elles sont les plus petites,"
+echo "donc l'echelle a -> b -> c -> d est lisible bien avant la fin de l'experience."
 echo
 
 started=$(date +%s)

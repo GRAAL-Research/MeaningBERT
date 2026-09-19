@@ -66,6 +66,30 @@ Verrouilles. Tout ce qui suit est explicitement hors portee et part en v3 ou v4.
 | H6 | ~~Les etiquettes de CSMD correspondent a leurs paires.~~ **REFUTEE le 2026-09-19.** Voir `docs/H6-etiquettes-permutees-csmd.md`. | - | 360 lignes sur 1355, soit 26,6 %, portent l'etiquette d'une autre paire. Plafond de Pearson impose : 0,826. Le sweep plafonne a 0,802, soit 97 % de la borne. Corrigee par `src/data/corrections.py`. |
 | H5 | ~~Les splits du corpus d'entrainement isolent correctement le test.~~ **REFUTEE le 2026-09-19.** Voir `docs/H5-fuite-par-phrase-source.md`. | - | 91,1 % des lignes de test ont leur phrase source en train, mediane sur les 10 folds. Le Pearson de 0,80 est gonfle. Corrige par `src/data/splits.py`. |
 
+## Plan d'experience v2
+
+Factoriel 4 x 2. Quatre conditions corpus/decoupage en echelle, chacune entrainee avec et
+sans augmentation. Construit par `src/data/build_corpus.py`, lance par
+`src/training/run_v2_experiment.sh`, lu par
+`src/figures_generator/analyze_v2_experiment.py`.
+
+| Condition | Corpus | Decoupage | Ce que le barreau isole |
+|---|---|---|---|
+| a | CSMD v1 | a la ligne, comme v1 | reproduit le chiffre publie |
+| b | CSMD v1 | groupe par phrase source | la fuite (H5) |
+| c | CSMD v1 corrige H6 | groupe | les etiquettes permutees (H6) |
+| d | v2, quatre corpus | groupe | l'apport reel des corpus ajoutes |
+
+Augmentation : `none`, ou les trois ensemble (swap, back-translation par pivot francais,
+generation de paires identiques et non reliees). Le sweep v1 n'a jamais mesure `none`, et
+traitait swap et back_translation comme deux conditions alors qu'elles etaient emboitees.
+
+Sans les barreaux a et b, un gain mesure en d serait inattribuable : il pourrait venir des
+nouveaux corpus comme de la simple disparition d'un defaut.
+
+Backbone : `deberta-v3-base`, tete de sortie `sigmoid` (correction C3), fp32. Voir
+`docs/serveur-entrainement-renard.md`.
+
 ## Metrique du resultat vise, instrumentation
 
 Le test externe et les sanity checks tournent dans la CI a chaque entrainement, pas
