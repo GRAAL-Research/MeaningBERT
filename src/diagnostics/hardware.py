@@ -157,25 +157,62 @@ def detect(index: int = 0) -> DeviceCapability:
     )
 
 
+def parse_arch(arch: str) -> Optional[tuple[int, int]]:
+    """Parse an ``sm_XY`` tag into ``(major, minor)``, or ``None`` if it is not one.
+
+    ``torch.cuda.get_arch_list()`` also returns entries like ``compute_90`` and
+    ``sm_90a``; only plain ``sm_`` cubin tags are compatibility-checked here.
+    """
+    if not arch.startswith("sm_"):
+        return None
+    digits = arch[3:]
+    if not digits.isdigit() or len(digits) < 2:
+        return None
+    return int(digits[:-1]), int(digits[-1])
+
+
+def compatible_archs(device: DeviceCapability, arch_list: list[str]) -> list[str]:
+    """Which entries of *arch_list* can actually run on *device*.
+
+    CUDA cubins are binary compatible **upwards within a major generation**: code built
+    for ``sm_X.y`` runs on ``sm_X.z`` whenever ``z >= y``. So a wheel that ships ``sm_60``
+    but not ``sm_61`` still runs on a Pascal GP104, which is what the cu126 build of
+    PyTorch 2.14 does. Requiring an exact tag match would reject a working environment,
+    which is a worse failure than the one this check exists to catch.
+    """
+    target = (device.major, device.minor)
+    usable = []
+    for arch in arch_list:
+        parsed = parse_arch(arch)
+        if parsed and parsed[0] == target[0] and parsed[1] <= target[1]:
+            usable.append(arch)
+    return usable
+
+
 def assert_arch_compiled(device: DeviceCapability, arch_list: list[str]) -> None:
-    """Fail if the installed torch has no kernels for this device.
+    """Fail if the installed torch has no kernels that can run on this device.
 
     This is the failure that wastes the most time: torch imports, ``cuda.is_available()``
     returns True, and the first real kernel launch dies with "no kernel image is available
     for execution on the device". PyTorch drops old architectures from its wheels over
     time, and Pascal is on the way out, so the check belongs in every environment probe.
 
+    The check honours CUDA's binary compatibility rule rather than demanding an exact tag;
+    see :func:`compatible_archs`.
+
     Args:
         device: Detected device.
         arch_list: Output of :func:`torch.cuda.get_arch_list`.
 
     Raises:
-        RuntimeError: If *device*'s architecture is absent from *arch_list*.
+        RuntimeError: If no entry of *arch_list* can run on *device*.
     """
-    if device.arch not in arch_list:
+    if not compatible_archs(device, arch_list):
         raise RuntimeError(
-            f"this torch build has no {device.arch} kernels for {device.name}; "
-            f"it was compiled for {', '.join(arch_list)}. Install a build that still ships "
-            f"{device.arch}: the cu126 channel keeps Pascal, cu128 dropped part of it, and "
-            f"PyTorch 2.15 removes it entirely."
+            f"this torch build has no kernels that can run on {device.name} ({device.arch}); "
+            f"it was compiled for {', '.join(arch_list) or 'nothing'}. CUDA cubins run upwards "
+            f"within a major generation, so this device needs an sm_{device.major}x entry with "
+            f"a minor version of {device.minor} or less. Install a build that still ships one: "
+            f"the cu126 channel keeps Pascal, cu128 dropped part of it, and PyTorch 2.15 "
+            f"removes it entirely."
         )

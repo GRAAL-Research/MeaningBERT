@@ -28,6 +28,7 @@ from typing import Any
 
 from diagnostics.hardware import (
     assert_arch_compiled,
+    compatible_archs,
     blocked_features,
     describe,
     detect,
@@ -105,11 +106,15 @@ def verify(index: int, skip_throughput: bool = False) -> tuple[bool, dict[str, A
     report["arch_list"] = arch_list
     _check("device detected", True, f"{device.name}, {device.arch}, {device.total_memory_gb:.1f} GB")
 
+    label = f"the wheel has kernels that run on {device.arch}"
     try:
         assert_arch_compiled(device, arch_list)
-        _check(f"the wheel has {device.arch} kernels", True, f"compiled for {len(arch_list)} architectures")
+        usable = compatible_archs(device, arch_list)
+        exact = " (exact match)" if device.arch in usable else " (via CUDA's upward binary compatibility)"
+        report["compatible_archs"] = usable
+        _check(label, True, f"{', '.join(usable)}{exact}")
     except RuntimeError as error:
-        _check(f"the wheel has {device.arch} kernels", False, str(error))
+        _check(label, False, str(error))
         return False, report
 
     try:

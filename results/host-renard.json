@@ -23,7 +23,7 @@
     "torch_cuda": "",
     "cpu_count": "12",
     "memory_gb": "62",
-    "disk_free": "361G",
+    "disk_free": "388G",
     "errors": []
   },
   "verdict": {

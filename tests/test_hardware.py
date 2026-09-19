@@ -12,8 +12,10 @@ from diagnostics.hardware import (
     TRITON_MIN_CAPABILITY,
     DeviceCapability,
     assert_arch_compiled,
+    compatible_archs,
     blocked_features,
     describe,
+    parse_arch,
     recommended_attention_backends,
     recommended_compile_backend,
     recommended_precision,
@@ -145,13 +147,39 @@ def test_volta_blocks_only_bf16_and_flash():
 # --- arch compiled into the wheel ----------------------------------------------------
 
 
-def test_a_wheel_containing_the_arch_passes():
+def test_a_wheel_containing_the_exact_arch_passes():
     assert_arch_compiled(P5000, ["sm_50", "sm_61", "sm_70", "sm_80"])
 
 
-def test_a_wheel_missing_the_arch_fails_with_an_actionable_message():
-    with pytest.raises(RuntimeError, match="no sm_61 kernels"):
+def test_a_lower_minor_of_the_same_major_passes():
+    """Verified on renard: torch 2.14.0+cu126 ships sm_60 and no sm_61, and a real
+    forward/backward runs on the sm_61 P5000. CUDA cubins run upwards within a major."""
+    assert_arch_compiled(P5000, ["sm_50", "sm_60", "sm_70", "sm_75", "sm_80", "sm_86", "sm_90"])
+
+
+def test_only_the_usable_entries_are_reported_as_compatible():
+    """sm_50 is Maxwell, a different major generation, so it does not run on Pascal."""
+    usable = compatible_archs(P5000, ["sm_50", "sm_60", "sm_61", "sm_70", "sm_80"])
+    assert usable == ["sm_60", "sm_61"]
+
+
+def test_a_higher_minor_of_the_same_major_does_not_count():
+    """sm_62 code cannot run on an sm_61 device; compatibility only goes upwards."""
+    assert compatible_archs(P5000, ["sm_62"]) == []
+
+
+def test_a_different_major_never_counts():
+    assert compatible_archs(P5000, ["sm_75", "sm_80", "sm_90"]) == []
+
+
+def test_a_wheel_with_no_usable_arch_fails_with_an_actionable_message():
+    with pytest.raises(RuntimeError, match="no kernels that can run"):
         assert_arch_compiled(P5000, ["sm_75", "sm_80", "sm_90"])
+
+
+def test_that_message_states_the_minor_version_needed():
+    with pytest.raises(RuntimeError, match="minor version of 1 or less"):
+        assert_arch_compiled(P5000, ["sm_80"])
 
 
 def test_that_message_points_at_the_channel_that_still_ships_pascal():
@@ -162,6 +190,18 @@ def test_that_message_points_at_the_channel_that_still_ships_pascal():
 def test_an_empty_arch_list_is_a_failure_not_a_pass():
     with pytest.raises(RuntimeError):
         assert_arch_compiled(P5000, [])
+
+
+def test_non_cubin_entries_are_ignored_rather_than_crashing():
+    """get_arch_list also returns compute_XX and sm_90a; neither is a plain cubin tag."""
+    assert compatible_archs(P5000, ["compute_90", "sm_90a", "garbage", "sm_60"]) == ["sm_60"]
+
+
+def test_parse_arch_rejects_what_is_not_an_sm_tag():
+    assert parse_arch("compute_80") is None
+    assert parse_arch("sm_") is None
+    assert parse_arch("sm_9") is None
+    assert parse_arch("sm_80") == (8, 0)
 
 
 # --- description ---------------------------------------------------------------------

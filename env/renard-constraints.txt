@@ -28,3 +28,13 @@ python-dotenv>=1.0
 
 pytest>=8
 pytest-cov>=5
+
+# Dependances des metriques de comparaison de src/training/metrics/ : sans elles,
+# tests/test_implemented_metrics.py et tests/test_utils_masking.py ne se collectent
+# meme pas. Elles ne servent pas a l'entrainement, mais la suite doit passer en entier.
+nltk>=3.9
+sentence-transformers>=3.0
+textstat>=0.7
+sacremoses>=0.1
+rake-nltk>=1.0
+rouge-score>=0.1

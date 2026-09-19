@@ -19,7 +19,7 @@ PYTHONPATH=src python src/diagnostics/probe_training_host.py --host renard --gpu
 | torch CUDA | n/a |
 | CPU | 12 coeurs |
 | RAM | 62 Go |
-| Disque libre | 361G |
+| Disque libre | 388G |
 
 ## GPU
 
