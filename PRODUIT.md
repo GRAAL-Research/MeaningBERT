@@ -63,6 +63,7 @@ Verrouilles. Tout ce qui suit est explicitement hors portee et part en v3 ou v4.
 | H2 | Les scores de SimpEval, SALSA, SimpleText et PLABA sont harmonisables sur une echelle 0-100 commune sans detruire le signal. | Le corpus fusionne est plus bruite que CSMD seul et la metrique se degrade. | Ablation : entrainer sur CSMD seul vs CSMD + chaque corpus, un a un. |
 | H3 | Les 60 phrases partagees entre SimpEval2022 et SynthSimpliEval suffisent comme point d'ancrage inter-corpus. | L'harmonisation repose sur une normalisation arbitraire par corpus. | Mesurer l'accord sur les paires communes avant de fixer le mapping. |
 | H4 | Les licences des cinq corpus permettent une rediffusion dans CSMD v2. | On ne peut pas republier le corpus, seulement les loaders. | Verification licence par licence en phase 1. |
+| H6 | ~~Les etiquettes de CSMD correspondent a leurs paires.~~ **REFUTEE le 2026-09-19.** Voir `docs/H6-etiquettes-permutees-csmd.md`. | - | 360 lignes sur 1355, soit 26,6 %, portent l'etiquette d'une autre paire. Plafond de Pearson impose : 0,826. Le sweep plafonne a 0,802, soit 97 % de la borne. Corrigee par `src/data/corrections.py`. |
 | H5 | ~~Les splits du corpus d'entrainement isolent correctement le test.~~ **REFUTEE le 2026-09-19.** Voir `docs/H5-fuite-par-phrase-source.md`. | - | 91,1 % des lignes de test ont leur phrase source en train, mediane sur les 10 folds. Le Pearson de 0,80 est gonfle. Corrige par `src/data/splits.py`. |
 
 ## Metrique du resultat vise, instrumentation
@@ -73,6 +74,15 @@ entrainement non mesure.
 
 ## Journal
 
+- 2026-09-19 : **H6, le resultat central du chantier.** Les 360 paires que CSMD partage
+  avec SimpDA_2022 portent exactement le meme multiensemble d'etiquettes (360/360, ecart
+  max 0,000000) mais correlent a 0,009 : les etiquettes sont permutees entre les paires.
+  26,6 % des lignes annotees de CSMD sont donc fausses. Le plafond de Pearson qui en
+  decoule est 0,826, et le sweep plafonne a 0,802 : les modeles saturaient la borne, ce qui
+  explique pourquoi le Pearson ne bougeait pas de 44 M a 900 M de parametres. La cible de
+  0,914 etait inatteignable sur ce corpus quel que soit le volume ajoute. Corrige par
+  `src/data/corrections.py` : l'accord inter-protocole passe de 0,309 a 0,806, a marges du
+  corpus rigoureusement inchangees.
 - 2026-09-19 : H5 ajoutee et refutee dans la foulee. Le decoupage du corpus
   d'entrainement fuit par phrase source : 2042 lignes pour 493 phrases sources, et 91,1 %
   des lignes de test ont leur phrase source en train. `validate_datasets.py` ne voyait
