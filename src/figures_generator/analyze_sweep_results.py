@@ -20,9 +20,19 @@ from statistics import mean, stdev
 import wandb
 
 try:  # PYTHONPATH=src.
-    from figures_generator.compression_report import is_usable_run
+    from figures_generator.compression_report import (
+        compression_ratio,
+        is_usable_run,
+        label_reference_caption,
+        label_reference_line,
+    )
 except ImportError:  # pragma: no cover - script run from inside ``src/figures_generator``.
-    from compression_report import is_usable_run  # type: ignore[no-redef]
+    from compression_report import (  # type: ignore[no-redef]
+        compression_ratio,
+        is_usable_run,
+        label_reference_caption,
+        label_reference_line,
+    )
 
 AUGMENTATION_LABELS: dict[str, str] = {
     "none": "No augmentation",
@@ -183,6 +193,10 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
     """Compute mean +/- std for each (checkpoint, augmentation) group."""
     metrics_to_summarize = [
         ("test/rmse", "RMSE", "low"),
+        # C5: the predicted moments sit next to the RMSE, because a RMSE alone hides the
+        # amplitude compression that produced it.
+        ("test/mean_score", "Pred mean", "high"),
+        ("test/st_dev_score", "Pred std", "high"),
         ("test/R2", "R2", "high"),
         ("test/pearson_corr", "Pearson", "high"),
         ("train/test/identical_sentences_ratio_equals", "Identical =100%", "high"),
@@ -220,6 +234,10 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
                 row[f"{label}_std"] = None
                 row[label] = "n/a"
 
+        # C5: one number saying how much narrower the predictions are than the labels.
+        pred_std_mean = row.get("Pred std_mean")
+        row["Compression"] = f"{compression_ratio(pred_std_mean):.2f}x" if pred_std_mean is not None else "n/a"
+
         rows.append(row)
 
     return rows
@@ -232,6 +250,9 @@ def print_summary(rows: list[dict]) -> None:
         "Augmentation",
         "N_folds",
         "RMSE",
+        "Pred mean",
+        "Pred std",
+        "Compression",
         "R2",
         "Pearson",
         "Identical =100%",
@@ -249,6 +270,9 @@ def print_summary(rows: list[dict]) -> None:
         line = " | ".join(f"{str(row.get(col, 'n/a')):>20s}" for col in display_cols)
         print(line)
 
+    print()
+    print(label_reference_line())
+
 
 def save_csv(rows: list[dict], output_path: str) -> None:
     """Save summary rows to CSV."""
@@ -259,6 +283,9 @@ def save_csv(rows: list[dict], output_path: str) -> None:
         "Augmentation",
         "N_folds",
         "RMSE",
+        "Pred mean",
+        "Pred std",
+        "Compression",
         "R2",
         "Pearson",
         "Identical =100%",
@@ -279,6 +306,8 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     """Generate a LaTeX table from summary rows."""
     metric_cols = [
         ("RMSE", "low"),
+        ("Pred mean", None),
+        ("Pred std", None),
         ("R2", "high"),
         ("Pearson", "high"),
         ("Identical =100%", "high"),
@@ -288,6 +317,9 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     # Find best values per metric
     best: dict[str, float | None] = {}
     for col, direction in metric_cols:
+        # The predicted moments have no best value: they are read against the labels.
+        if direction is None:
+            continue
         means = [r.get(f"{col}_mean") for r in rows if r.get(f"{col}_mean") is not None]
         if means:
             best[col] = min(means) if direction == "low" else max(means)
@@ -298,7 +330,7 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     lines: list[str] = []
     lines.append(r"\begin{table}[htbp]")
     lines.append(r"\centering")
-    lines.append(r"\caption{Checkpoint sweep results (mean $\pm$ std across folds).}")
+    lines.append(r"\caption{Checkpoint sweep results (mean $\pm$ std across folds). " + label_reference_caption() + "}")
     lines.append(r"\label{tab:checkpoint-sweep}")
     lines.append(r"\resizebox{\textwidth}{!}{")
     lines.append(r"\begin{tabular}{" + alignment + "}")

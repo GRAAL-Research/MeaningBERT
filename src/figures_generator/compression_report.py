@@ -161,6 +161,25 @@ def format_mean_std(values: Sequence[float], digits: int = 2) -> str:
     return f"{mean(usable):.{digits}f} +/- {stdev(usable):.{digits}f}"
 
 
+def latex_mean_std(values: Sequence[float], digits: int = 2) -> str:
+    """Format a list of per-fold values as a LaTeX ``mean $\\pm$ std`` cell.
+
+    Args:
+        values: The values to summarize.
+        digits: Number of decimals.
+
+    Returns:
+        ``"n/a"`` when the list is empty, the value alone when there is only one, and
+        ``"m $\\pm$ s"`` otherwise.
+    """
+    usable = [value for value in values if isinstance(value, (int, float)) and math.isfinite(value)]
+    if not usable:
+        return "n/a"
+    if len(usable) == 1:
+        return f"{usable[0]:.{digits}f}"
+    return f"{mean(usable):.{digits}f}" + r"$\pm$" + f"{stdev(usable):.{digits}f}"
+
+
 def label_reference_line(
     label_mean: float = DEFAULT_LABEL_MEAN,
     label_std: float = DEFAULT_LABEL_STD,
