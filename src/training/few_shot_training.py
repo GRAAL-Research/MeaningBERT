@@ -75,7 +75,25 @@ AUGMENTATION_HF_MAP: dict[str, str] = {
 }
 
 # Columns added during data augmentation that are not model inputs.
-COLUMNS_TO_REMOVE: list[str] = ["source"]
+# Every non-tensor column the Trainer would choke on. The v1 fold layout only carried
+# "source"; the v2 contract (src/data/CONTRACT.md) adds the provenance and scale columns,
+# and they must all be dropped after tokenisation. Only input_ids, attention_mask and
+# label survive.
+COLUMNS_TO_REMOVE: list[str] = [
+    "source",
+    "item_id",
+    "original",
+    "simplification",
+    "label_raw",
+    "scale",
+    "n_annotators",
+    "label_std",
+    "corpus",
+    "domain",
+    "system",
+    "split_hint",
+    "license",
+]
 
 
 def get_default_lr(checkpoint: str) -> float:
@@ -233,6 +251,16 @@ def create_parser() -> argparse.ArgumentParser:
         help="Root directory containing pre-generated datasets (from prepare_datasets.py).",
     )
     parser.add_argument(
+        "--variant_path",
+        type=str,
+        default=None,
+        help=(
+            "Path to one variant produced by src/data/build_corpus.py, holding train/dev/test/sanity "
+            "already split by source sentence and already augmented. Takes precedence over --data_dir. "
+            "This is the v2 path; --data_dir stays for the v1 fold layout."
+        ),
+    )
+    parser.add_argument(
         "--fold",
         type=int,
         default=None,
@@ -327,6 +355,7 @@ def main() -> None:
 
     seed: int = args.seed
     data_dir: Optional[str] = args.data_dir
+    variant_path: Optional[str] = args.variant_path
     fold: Optional[int] = args.fold
     data_augmentation: str = args.data_augmentation
     checkpoint: str = args.checkpoint
@@ -351,7 +380,22 @@ def main() -> None:
     holdout_identical_dataset: Optional[DatasetDict] = None
     holdout_unrelated_dataset: Optional[DatasetDict] = None
 
-    if data_dir is not None:
+    if variant_path is not None:
+        # v2 layout: one directory holding train/dev/test/sanity, already split by source
+        # sentence and already augmented. The sanity split is a genuine holdout here, which
+        # is what docs/H5-fuite-par-phrase-source.md shows v1 never had.
+        print(f"Loading v2 variant from disk: {variant_path}")
+        loaded = load_from_disk(variant_path)
+        csmd_dataset = DatasetDict({split: loaded[split] for split in ("train", "dev", "test")})
+        sanity = loaded["sanity"]
+        holdout_identical_dataset = DatasetDict({"test": sanity.filter(lambda r: r["source"] == "identical")})
+        holdout_unrelated_dataset = DatasetDict({"test": sanity.filter(lambda r: r["source"] == "unrelated")})
+        print(
+            f"  train={len(csmd_dataset['train'])} dev={len(csmd_dataset['dev'])} "
+            f"test={len(csmd_dataset['test'])} identical={len(holdout_identical_dataset['test'])} "
+            f"unrelated={len(holdout_unrelated_dataset['test'])}"
+        )
+    elif data_dir is not None:
         base_path = os.path.join(data_dir, "folds", f"fold_{fold}") if fold is not None else data_dir
         dataset_path = os.path.join(base_path, AUGMENTATION_DIR_MAP[data_augmentation])
         print(f"Loading dataset from disk: {dataset_path}")

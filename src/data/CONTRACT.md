@@ -26,7 +26,7 @@ incompatibles, et personne ne pourrait plus mesurer H2 (voir PRODUIT.md).
 | `n_annotators` | int | oui | Nombre d'annotateurs humains derriere `label_raw`. 0 si derive ou synthetique. |
 | `label_std` | float | oui | Ecart-type inter-annotateurs. `float("nan")` si inconnu ou si `n_annotators < 2`. |
 | `corpus` | str | oui | Identifiant du corpus source. Constante par loader. |
-| `source` | str | oui | `original`, `identical`, `unrelated` ou `back_translated`. |
+| `source` | str | oui | `original`, `identical`, `unrelated`, `swapped` ou `back_translated`. Les deux derniers sont produits par l'augmentation, jamais par un loader. |
 | `domain` | str | oui | `wiki`, `news`, `biomedical`, `scientific`, `mixed`. |
 | `system` | str | oui | Systeme ayant produit la simplification. `human` si humaine, `""` si inconnu. |
 | `split_hint` | str | oui | `train`, `dev`, `test` ou `""` si le corpus source n'impose pas de split. |

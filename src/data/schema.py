@@ -39,7 +39,7 @@ SCALES: Final[dict[str, ScaleSpec]] = {
     "error_count": ScaleSpec(0.0, math.inf, False),
 }
 
-SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "back_translated"})
+SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "swapped", "back_translated"})
 DOMAINS: Final[frozenset[str]] = frozenset({"wiki", "news", "biomedical", "scientific", "mixed"})
 SPLIT_HINTS: Final[frozenset[str]] = frozenset({"train", "dev", "test", ""})
 
