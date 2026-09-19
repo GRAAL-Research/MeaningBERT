@@ -81,6 +81,12 @@ class RunResult:
         return LABEL_STD * math.sqrt(max(0.0, 1.0 - min(1.0, abs(self.pearson)) ** 2))
 
 
+def _int_or_zero(value: float) -> int:
+    """Integer of *value*, or 0 when it is NaN. ``int(nan)`` raises, and a crash in the
+    reporting layer over a missing row count would hide every result that did survive."""
+    return 0 if not math.isfinite(value) else int(value)
+
+
 def _number(mapping: dict, *keys: str) -> float:
     for key in keys:
         value = mapping.get(key)
@@ -98,6 +104,12 @@ def load_run(path: str) -> Optional[RunResult]:
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
     except (OSError, json.JSONDecodeError):
+        return None
+
+    # results/ also holds diagnostics: host probes, the calibration audit, the leakage
+    # audit. They are JSON and they are not runs. A run is identified by carrying test
+    # metrics, not by living in the right directory.
+    if not isinstance(payload, dict) or not isinstance(payload.get("test"), dict):
         return None
 
     variant = os.path.splitext(os.path.basename(path))[0]
@@ -126,7 +138,7 @@ def load_run(path: str) -> Optional[RunResult]:
             unrelated, "test/unrelated_sentences_ratio_5", "test/unrelated_sentences_ratio_5".replace("/", "_")
         ),
         epochs=_number(payload, "epochs_trained"),
-        train_rows=int(_number(payload.get("rows", {}), "train") or 0),
+        train_rows=_int_or_zero(_number(payload.get("rows", {}), "train")),
         diverged=bool(_number(test, "test_diverged", "test/diverged") == 1.0),
     )
 

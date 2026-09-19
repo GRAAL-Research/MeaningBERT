@@ -249,3 +249,46 @@ def test_the_report_names_the_best_configuration_by_objective():
 def test_the_report_survives_a_partial_experiment():
     """Half the runs finished; the table must still render."""
     assert "a_none" in render([_run("a_none")])
+
+
+# --- the analyser must survive what actually lives in results/ ------------------------
+
+
+def test_a_diagnostic_json_is_not_mistaken_for_a_run(tmp_path):
+    """results/ also holds host probes and audits. A run carries test metrics; those do not."""
+    path = os.path.join(str(tmp_path), "host-renard.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({"probe": {"host": "renard"}, "verdict": {"bf16": False}}, handle)
+    assert load_run(path) is None
+
+
+def test_an_audit_json_is_not_mistaken_for_a_run(tmp_path):
+    path = os.path.join(str(tmp_path), "calibration_audit.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({"label_mean": 62.66, "n_runs": 80, "runs": []}, handle)
+    assert load_run(path) is None
+
+
+def test_a_json_list_at_the_top_level_does_not_crash_the_reader(tmp_path):
+    path = os.path.join(str(tmp_path), "whatever.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump([1, 2, 3], handle)
+    assert load_run(path) is None
+
+
+def test_a_run_missing_its_row_count_is_read_rather_than_crashing(tmp_path):
+    """int(nan) raises, and a crash in the reporting layer would hide every result that
+    did survive."""
+    path = os.path.join(str(tmp_path), "d_none.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump({"test": {"test_pearson_corr": 0.8, "test_rmse": 20.0}}, handle)
+    run = load_run(path)
+    assert run is not None
+    assert run.train_rows == 0
+
+
+def test_diagnostics_and_runs_can_share_a_directory(tmp_path):
+    _write(str(tmp_path), "d_none", {"test_pearson_corr": 0.8, "test_rmse": 20.0})
+    with open(os.path.join(str(tmp_path), "host-renard.json"), "w", encoding="utf-8") as handle:
+        json.dump({"probe": {}}, handle)
+    assert [r.variant for r in load_runs(str(tmp_path))] == ["d_none"]
