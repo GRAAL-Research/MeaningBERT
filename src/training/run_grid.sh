@@ -112,6 +112,18 @@ run_one() {
     [ -s "$json" ] && { echo "[DONE] $label"; return 0; }
     [ -d "$DATA/$variant" ] || { echo "[SKIP] $label : corpus absent"; return 0; }
 
+    # Une cellule qui a bloque trois fois ne bloquera pas moins la quatrieme. On la sort
+    # du chemin et on la signale, plutot que de brûler la carte en boucle : c'est ce qu'a
+    # fait bert/d_full sur le 1080 Ti, trois fois de suite, avec et sans chargeurs.
+    local stalls=0
+    [ -f "$log.stalled" ] && stalls=$(wc -l < "$log.stalled")
+    if [ "$stalls" -ge "${MAX_STALLS:-3}" ]; then
+        echo "[GIVE] $label : $stalls blocages, cellule abandonnee sur cette carte"
+        echo "       effacer $log.stalled pour reessayer, ou deplacer la cellule ailleurs."
+        failed+=("$label (bloque $stalls fois)")
+        return 1
+    fi
+
     local free_gb
     free_gb=$(df -BG --output=avail "$ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
     if [ -n "$free_gb" ] && [ "$free_gb" -lt "$MIN_FREE_GB" ]; then
