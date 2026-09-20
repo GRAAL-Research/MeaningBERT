@@ -43,6 +43,14 @@ REFERENCE_SEED="${REFERENCE_SEED:-42}"
 # 17 GB left. If the winner turns out to be a sweep seed, that one run is retrained.
 KEEP_BEST_MODEL="${KEEP_BEST_MODEL:-true}"
 KEEP_SWEEP_MODELS="${KEEP_SWEEP_MODELS:-false}"
+# Espace libre exige avant de demarrer un run, en Go. Un point de controle de
+# deberta-v3-large pese 5 Go et le Trainer en garde au moins deux avec load_best_model.
+# La nuit du 19 au 20 septembre, la partition de souris s'est remplie EN COURS de run : le
+# processus est mort sans rien ecrire, le menage de fin n'a jamais tourne, 18 Go de points
+# de controle orphelins sont restes, et le chien de garde a relance l'echec toutes les dix
+# minutes jusqu'au matin. Refuser de partir coute un run saute ; partir et manquer de
+# place coute la nuit.
+MIN_FREE_GB="${MIN_FREE_GB:-12}"
 VARIANTS="${VARIANTS:-c_none c_full d_none d_full}"
 # Deux workers sur la meme machine se disputent les coeurs : 6 chargeurs chacun sur
 # 12 coeurs sature la machine et ralentit les deux. Reglable par worker.
@@ -103,6 +111,16 @@ run_one() {
 
     [ -s "$json" ] && { echo "[DONE] $label"; return 0; }
     [ -d "$DATA/$variant" ] || { echo "[SKIP] $label : corpus absent"; return 0; }
+
+    local free_gb
+    free_gb=$(df -BG --output=avail "$ROOT" 2>/dev/null | tail -1 | tr -dc '0-9')
+    if [ -n "$free_gb" ] && [ "$free_gb" -lt "$MIN_FREE_GB" ]; then
+        echo "[HALT] $label : ${free_gb} Go libres, il en faut $MIN_FREE_GB"
+        echo "       un run qui remplit la partition meurt sans log et laisse ses points de"
+        echo "       controle derriere lui ; faire de la place, puis relancer le worker."
+        failed+=("$label (disque)")
+        return 1
+    fi
 
     echo "[RUN ] $label  micro=$micro x accum=$accum"
     local t0=$(date +%s)
