@@ -58,6 +58,19 @@ class RunResult:
     epochs: float
     train_rows: int
     diverged: bool
+    # Added for the comparison figures and tables. Defaults keep every existing caller
+    # working, including the tests that build a RunResult by hand.
+    #
+    # ``head`` is a factor of the grid, not a detail: the sigmoid maps to the OPEN interval
+    # (0, 100), so it can never output the two values that about half the training labels
+    # take. Two runs that differ only by their head are not the same experiment.
+    #
+    # The two mean scores are kept next to the ratios because a ratio hides the distance.
+    # "38 percent of identical pairs above 95" says nothing about whether the rest sit at
+    # 94 or at 60.
+    head: str = "unknown"
+    identical_mean: float = float("nan")
+    unrelated_mean: float = float("nan")
 
     @property
     def objective(self) -> float:
@@ -140,6 +153,9 @@ def load_run(path: str) -> Optional[RunResult]:
         epochs=_number(payload, "epochs_trained"),
         train_rows=_int_or_zero(_number(payload.get("rows", {}), "train")),
         diverged=bool(_number(test, "test_diverged", "test/diverged") == 1.0),
+        head=str(payload.get("output_head") or "unknown"),
+        identical_mean=_number(identical, "test/identical_sentences_mean_score"),
+        unrelated_mean=_number(unrelated, "test/unrelated_sentences_mean_score"),
     )
 
 
