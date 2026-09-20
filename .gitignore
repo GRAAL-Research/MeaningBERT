@@ -41,3 +41,6 @@ Thumbs.db
 # Docs
 docs/_build/
 datastore/raw/
+results/figures/
+results/tables/
+results/*.html
