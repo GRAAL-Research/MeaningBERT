@@ -27,7 +27,7 @@ CONF="${CONF:-$REPO/env/workers/$WORKER.env}"
 if [ -f "$CONF" ]; then set -a; . "$CONF"; set +a; fi
 GPU="${GPU:-0}"                     # index physique, celui que voit nvidia-smi -i
 # Une tranche se decrit par des LOTS separes par ";", chaque lot etant
-#   "<architectures>|<variantes>"   (variantes vide = les quatre de la grille).
+#   "<architectures>|<variantes>|<graines>"   (champ vide = le defaut de run_grid.sh).
 # Le lot existe parce que deberta-v3-large ne se partitionne pas par architecture : il
 # est seul et coute trois fois le reste, donc il se partitionne par rang de corpus. Le
 # rang d (512 jetons) va sur la carte de 16 Go, le rang c (209 jetons) ailleurs.
@@ -36,6 +36,8 @@ SLICES="${SLICES:-${ARCHS:+$ARCHS|}}"
 HEADS="${HEADS:-clamped}"
 NUM_WORKERS="${NUM_WORKERS:-6}"
 SAVE_TOTAL_LIMIT="${SAVE_TOTAL_LIMIT:-3}"
+# Sur un balayage de graines on ne garde pas dix copies des memes poids.
+KEEP_BEST_MODEL="${KEEP_BEST_MODEL:-true}"
 WAIT_FOR_GPU="${WAIT_FOR_GPU:-1}"   # attendre que la carte soit libre avant de demarrer
 
 cd "$REPO" || exit 1
@@ -69,16 +71,15 @@ status=0
 IFS=';' read -r -a lots <<< "$SLICES"
 for lot in "${lots[@]}"; do
     [ -z "${lot// }" ] && continue
-    archs="${lot%%|*}"
-    variants="${lot#*|}"
-    [ "$variants" = "$lot" ] && variants=""
+    IFS='|' read -r archs variants seeds <<< "$lot"
     echo
-    echo ">>> lot : archs=[$archs] variantes=[${variants:-defaut}]"
-    # VARIANTS s'exporte plutot que de se prefixer a la commande : la liste contient des
-    # espaces, et un prefixe non quote la ferait eclater en plusieurs mots.
+    echo ">>> lot : archs=[$archs] variantes=[${variants:-defaut}] graines=[${seeds:-defaut}]"
+    # VARIANTS et SEEDS s'exportent plutot que de se prefixer a la commande : les listes
+    # contiennent des espaces, et un prefixe non quote les ferait eclater en plusieurs mots.
     if [ -n "$variants" ]; then export VARIANTS="$variants"; else unset VARIANTS; fi
+    if [ -n "$seeds" ]; then export SEEDS="$seeds"; else unset SEEDS; fi
     CUDA_VISIBLE_DEVICES="$GPU" ARCHS="$archs" HEADS="$HEADS" NUM_WORKERS="$NUM_WORKERS" \
-        SAVE_TOTAL_LIMIT="$SAVE_TOTAL_LIMIT" \
+        SAVE_TOTAL_LIMIT="$SAVE_TOTAL_LIMIT" KEEP_BEST_MODEL="$KEEP_BEST_MODEL" \
         REPO="$REPO" VENV="$VENV" bash "$REPO/src/training/run_grid.sh"
     lot_status=$?
     [ $lot_status -ne 0 ] && status=$lot_status

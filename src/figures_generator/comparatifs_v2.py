@@ -99,6 +99,7 @@ def runs_to_frame(runs: Iterable[RunResult]) -> pd.DataFrame:
             {
                 "arch": run.arch,
                 "head": run.head,
+                "seed": run.seed,
                 "variant": run.variant,
                 "condition": run.condition,
                 "mode": run.mode,
@@ -136,6 +137,46 @@ def _ordered(values: pd.Series, preferred: list[str]) -> list[str]:
     silently disappears from a figure because it is not in the hard-coded list."""
     seen = list(dict.fromkeys(values.dropna().astype(str)))
     return [v for v in preferred if v in seen] + [v for v in seen if v not in preferred]
+
+
+
+#: Metrics aggregated across seeds. Everything else in a run is either constant across
+#: seeds (the corpus, the architecture) or not worth a standard deviation (the row counts).
+AGGREGATED = ["objective", "pearson", "rmse", "r2", "identical_mean", "identical_ratio_95",
+              "unrelated_mean", "unrelated_ratio_5", "pred_mean", "pred_std", "epochs"]
+
+
+def aggregate(frame: pd.DataFrame) -> pd.DataFrame:
+    """Mean, standard deviation and count per cell, over the seeds of that cell.
+
+    The article reports mean and standard deviation over seeds 42 to 51, and it has to:
+    the gaps measured on a single seed run from 0.007 to 0.014 in Pearson, which is the
+    order of an initialisation draw. A number without its spread cannot rank anything.
+
+    ``n`` is carried into every table because a mean over two seeds and a mean over ten
+    are not the same claim, and a half-finished sweep must say which one it is showing.
+    """
+    if frame.empty:
+        return frame
+    grouped = frame.groupby(["arch", "head", "variant"], observed=True)
+    out = grouped[AGGREGATED].agg(["mean", "std"])
+    out.columns = [f"{metric}_{stat}" for metric, stat in out.columns]
+    out["n"] = grouped.size()
+    return out.reset_index().dropna(subset=["pearson_mean"])
+
+
+def pm(mean: float, std: float, digits: int = 3, latex: bool = False) -> str:
+    """One cell as ``mean +/- std``, or just the mean when a single seed ran.
+
+    A standard deviation over one run is not zero, it is undefined; printing ``0.000``
+    would claim a reproducibility that was never measured.
+    """
+    if mean is None or (isinstance(mean, float) and math.isnan(mean)):
+        return "--"
+    if std is None or (isinstance(std, float) and math.isnan(std)):
+        return f"{mean:.{digits}f}"
+    sep = r" $\pm$ " if latex else " ± "
+    return f"{mean:.{digits}f}{sep}{std:.{digits}f}"
 
 
 def load_from_wandb(entity: str, prefix: str) -> list[RunResult]:
@@ -199,6 +240,7 @@ def _run_from_wandb(run) -> Optional[RunResult]:  # noqa: ANN001 - wandb's Run h
         train_rows=0,
         diverged=number("test_diverged") == 1.0,
         head=str(config.get("output_head") or "unknown"),
+        seed=int(config.get("seed") or -1),
         identical_mean=number("test/identical_sentences_mean_score"),
         unrelated_mean=number("test/unrelated_sentences_mean_score"),
     )
@@ -338,13 +380,13 @@ def figure_corpus_and_augmentation(frame: pd.DataFrame, path: str, head: str = "
     subset["corpus"] = subset["condition"].map({"c": "v1 corrected (c)", "d": "v2 corpora (d)"})
 
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
-    sns.barplot(data=subset, x="corpus", y="pearson", hue="mode", palette=PALETTE_MODE, ax=axes[0], errorbar=None)
+    sns.barplot(data=subset, x="corpus", y="pearson", hue="mode", palette=PALETTE_MODE, ax=axes[0], errorbar="sd", capsize=0.12)
     axes[0].axhline(TARGET_PEARSON, color="#a03030", linestyle="--", linewidth=1.1)
     axes[0].set_ylim(0.7, max(0.95, float(subset["pearson"].max()) + 0.03))
     axes[0].set_ylabel("Pearson $r$")
     axes[0].set_title("Correlation")
 
-    sns.barplot(data=subset, x="corpus", y="rmse", hue="mode", palette=PALETTE_MODE, ax=axes[1], errorbar=None)
+    sns.barplot(data=subset, x="corpus", y="rmse", hue="mode", palette=PALETTE_MODE, ax=axes[1], errorbar="sd", capsize=0.12)
     sns.pointplot(
         data=subset, x="corpus", y="rmse_floor", color="#33333a", linestyles="", markers="_",
         markersize=28, ax=axes[1],
@@ -469,6 +511,54 @@ def table_grid(frame: pd.DataFrame, path: str, head: str = "clamped") -> Optiona
                     _cell(row["r2"]),
                     _cell(row["identical_ratio_95"], 1, bold=row["identical_ratio_95"] == best["identical_ratio_95"]),
                     _cell(row["unrelated_ratio_5"], 1, bold=row["unrelated_ratio_5"] == best["unrelated_ratio_5"]),
+                ]
+            )
+            + r" \\"
+        )
+    lines += [r"\bottomrule", r"\end{tabular}}", r"\end{table}", ""]
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines))
+    return path
+
+
+def table_seeds(frame: pd.DataFrame, path: str, head: str = "clamped") -> Optional[str]:
+    """The table the article publishes: mean and standard deviation over seeds.
+
+    Returns ``None`` while every cell still holds a single seed. A table of means over one
+    run each would look like a multi-seed result and is not one; better no table than a
+    table that overstates what was measured.
+    """
+    agg = aggregate(frame[(frame["head"] == head) & frame["variant"].isin(GRID_VARIANTS)])
+    if agg.empty or int(agg["n"].max()) < 2:
+        return None
+
+    lines = [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{The v2 grid with the " + head + r" head, mean $\pm$ standard deviation over "
+        r"seeds 42 to 51, the protocol of the original article. $n$ is the number of seeds that "
+        r"finished for that cell; a cell with $n = 1$ carries no standard deviation because a "
+        r"spread over one run is undefined, not zero.}",
+        r"\label{tab:v2-seeds-" + head + "}",
+        r"\resizebox{\textwidth}{!}{",
+        r"\begin{tabular}{l l c c c c c}",
+        r"\toprule",
+        r"Architecture & Variant & $n$ & Objective & Pearson $r$ & RMSE & Identical $>95$ (\%) \\",
+        r"\midrule",
+    ]
+    previous = None
+    for _, row in agg.sort_values(["arch", "variant"]).iterrows():
+        if previous is not None and row["arch"] != previous:
+            lines.append(r"\midrule")
+        previous = row["arch"]
+        lines.append(
+            " & ".join(
+                [
+                    _tex(str(row["arch"])), _tex(str(row["variant"])), str(int(row["n"])),
+                    pm(row["objective_mean"], row["objective_std"], 3, latex=True),
+                    pm(row["pearson_mean"], row["pearson_std"], 3, latex=True),
+                    pm(row["rmse_mean"], row["rmse_std"], 2, latex=True),
+                    pm(row["identical_ratio_95_mean"], row["identical_ratio_95_std"], 1, latex=True),
                 ]
             )
             + r" \\"
@@ -675,6 +765,34 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
         parts.append(f"<figure>{svg}</figure>")
         if table:
             parts.append(table)
+    agg = aggregate(grid)
+    if not agg.empty and int(agg["n"].max()) >= 2:
+        rows = []
+        for _, row in agg.sort_values(["arch", "variant"]).iterrows():
+            rows.append(
+                "<tr><td>" + "</td><td>".join([
+                    str(row["arch"]), str(row["variant"]), str(int(row["n"])),
+                    pm(row["objective_mean"], row["objective_std"], 3),
+                    pm(row["pearson_mean"], row["pearson_std"], 3),
+                    pm(row["rmse_mean"], row["rmse_std"], 2),
+                    pm(row["identical_mean_mean"], row["identical_mean_std"], 2),
+                    pm(row["identical_ratio_95_mean"], row["identical_ratio_95_std"], 1),
+                ]) + "</td></tr>"
+            )
+        parts.append("<h2><span class='num'>5</span>Moyennes sur les graines</h2>")
+        parts.append(
+            "<p class='sub'>Protocole de l'article original : graines 42 a 51.</p>"
+            "<div class='key'><b>Comment lire.</b> n est le nombre de graines terminees pour "
+            "cette cellule. Une cellule a n = 1 ne porte pas d'ecart-type : une dispersion sur "
+            "un seul tirage n'est pas nulle, elle est indefinie. Tant que deux cellules se "
+            "chevauchent a un ecart-type, l'article ne peut pas les departager.</div>"
+        )
+        parts.append(
+            "<div class='wrap'><table><thead><tr>"
+            "<th>Architecture</th><th>Variante</th><th>n</th><th>Objectif</th><th>Pearson</th>"
+            "<th>RMSE</th><th>Identiques moy.</th><th>Identiques &gt;95 (%)</th>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>"
+        )
     parts.append(
         "<p class='meta'>Les conditions a et b n'apparaissent pas dans la grille : ce sont les "
         "diagnostics de la fuite par phrase source (H5) et des etiquettes permutees (H6), et leur "
@@ -774,6 +892,7 @@ def main(
     tables = [
         table_head_effect(frame, os.path.join(tables_dir, "v2-tete-de-sortie.tex")),
         table_grid(frame, os.path.join(tables_dir, "v2-grille.tex")),
+        table_seeds(frame, os.path.join(tables_dir, "v2-graines.tex")),
     ]
 
     frame.to_csv(os.path.join(tables_dir, "v2-runs.csv"), index=False)

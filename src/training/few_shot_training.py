@@ -315,6 +315,17 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
+        "--keep_best_model",
+        default="true",
+        choices=["true", "false"],
+        help=(
+            "Whether to save the best model and upload it as a wandb artifact. A seed sweep "
+            "needs the metrics, not ten copies of the same architecture: at 1.7 GB for "
+            "deberta-v3-large, nine extra seeds on two cells fill 30 GB and a 227 GB disk "
+            "with 17 GB left dies halfway through. The results JSON is written either way."
+        ),
+    )
+    parser.add_argument(
         "--save_total_limit",
         type=int,
         default=3,
@@ -412,6 +423,7 @@ def main() -> None:
     use_fp16: bool = args.fp16
     num_workers: int = args.dataloader_num_workers
     save_total_limit: int = args.save_total_limit
+    keep_best_model: bool = args.keep_best_model == "true"
     es_patience: int = args.early_stopping_patience
     collapse_patience: int = args.collapse_patience
     collapse_std_threshold: float = args.collapse_std_threshold
@@ -694,46 +706,49 @@ def main() -> None:
         os.environ.get("MEANINGBERT_MODEL_DIR", "models"),
         f"{checkpoint_short_name}_{variant_tag}_{output_head}_seed{seed}{fold_str}",
     )
-    os.makedirs(best_model_dir, exist_ok=True)
-    # Stamp the output head into the config BEFORE saving. The head is applied outside the
-    # model, so a checkpoint trained with `sigmoid` emits raw logits, not a 0-100 score.
-    # Published as-is, `scores.logits.tolist()` from the model card would return values
-    # like -2.3. The config is the only thing that travels with the weights, so it has to
-    # carry the answer; `meaningbert.scorer` reads it back.
-    trainer.model.config.meaningbert_output_head = output_head
-    trainer.model.config.meaningbert_score_range = [0.0, 100.0]
-    trainer.save_model(best_model_dir)
-    tokenizer.save_pretrained(best_model_dir)
+    if not keep_best_model:
+        print(f"Skipping the model save: --keep_best_model=false. Metrics are in {results_json}.")
+    if keep_best_model:
+        os.makedirs(best_model_dir, exist_ok=True)
+        # Stamp the output head into the config BEFORE saving. The head is applied outside the
+        # model, so a checkpoint trained with `sigmoid` emits raw logits, not a 0-100 score.
+        # Published as-is, `scores.logits.tolist()` from the model card would return values
+        # like -2.3. The config is the only thing that travels with the weights, so it has to
+        # carry the answer; `meaningbert.scorer` reads it back.
+        trainer.model.config.meaningbert_output_head = output_head
+        trainer.model.config.meaningbert_score_range = [0.0, 100.0]
+        trainer.save_model(best_model_dir)
+        tokenizer.save_pretrained(best_model_dir)
 
-    artifact_name = f"meaningbert-{checkpoint_short_name}-{variant_tag}-{output_head}-seed{seed}{fold_str}"
-    artifact = wandb.Artifact(
-        name=artifact_name,
-        type="model",
-        description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
-        metadata=_sanitize_for_json(
-            {
-                "checkpoint": checkpoint,
-                "seed": seed,
-                "fold": fold,
-                "learning_rate": lr,
-                "freeze_layers": num_freeze,
-                "effective_batch_size": effective_batch,
-                "early_stopping_patience": es_patience,
-                "collapse_patience": collapse_patience,
-                "collapse_stop_reason": collapse_reason,
-                "output_head": output_head,
-                "data_augmentation": data_augmentation,
-                "best_checkpoint_path": trainer.state.best_model_checkpoint,
-                "best_eval_loss": trainer.state.best_metric,
-                "test_results": test_results,
-                "holdout_identical_results": identical_results,
-                "holdout_unrelated_results": unrelated_results,
-            }
-        ),
-    )
-    artifact.add_dir(best_model_dir)
-    wandb.log_artifact(artifact)
-    print(f"Model artifact logged to wandb: {artifact_name}")
+        artifact_name = f"meaningbert-{checkpoint_short_name}-{variant_tag}-{output_head}-seed{seed}{fold_str}"
+        artifact = wandb.Artifact(
+            name=artifact_name,
+            type="model",
+            description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
+            metadata=_sanitize_for_json(
+                {
+                    "checkpoint": checkpoint,
+                    "seed": seed,
+                    "fold": fold,
+                    "learning_rate": lr,
+                    "freeze_layers": num_freeze,
+                    "effective_batch_size": effective_batch,
+                    "early_stopping_patience": es_patience,
+                    "collapse_patience": collapse_patience,
+                    "collapse_stop_reason": collapse_reason,
+                    "output_head": output_head,
+                    "data_augmentation": data_augmentation,
+                    "best_checkpoint_path": trainer.state.best_model_checkpoint,
+                    "best_eval_loss": trainer.state.best_metric,
+                    "test_results": test_results,
+                    "holdout_identical_results": identical_results,
+                    "holdout_unrelated_results": unrelated_results,
+                }
+            ),
+        )
+        artifact.add_dir(best_model_dir)
+        wandb.log_artifact(artifact)
+        print(f"Model artifact logged to wandb: {artifact_name}")
 
     # Clean up intermediate checkpoints to save disk space
     output_dir = f"meaning_bert_train_{checkpoint_short_name}"

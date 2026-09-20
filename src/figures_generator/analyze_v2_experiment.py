@@ -69,6 +69,10 @@ class RunResult:
     # "38 percent of identical pairs above 95" says nothing about whether the rest sit at
     # 94 or at 60.
     head: str = "unknown"
+    #: The seed is a factor of the protocol, not a nuisance: the article reports mean and
+    #: standard deviation over seeds 42 to 51, so a run that cannot name its seed cannot
+    #: be aggregated with its siblings.
+    seed: int = -1
     identical_mean: float = float("nan")
     unrelated_mean: float = float("nan")
 
@@ -154,6 +158,7 @@ def load_run(path: str) -> Optional[RunResult]:
         train_rows=_int_or_zero(_number(payload.get("rows", {}), "train")),
         diverged=bool(_number(test, "test_diverged", "test/diverged") == 1.0),
         head=str(payload.get("output_head") or "unknown"),
+        seed=_int_or_zero(_number(payload, "seed")),
         identical_mean=_number(identical, "test/identical_sentences_mean_score"),
         unrelated_mean=_number(unrelated, "test/unrelated_sentences_mean_score"),
     )

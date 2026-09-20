@@ -28,6 +28,21 @@ PATIENCE="${PATIENCE:-3}"
 EFFECTIVE_BATCH="${EFFECTIVE_BATCH:-32}"
 HEADS="${HEADS:-clamped sigmoid}"
 SEED="${SEED:-42}"
+# Seeds to run for every cell. The original article reports mean and standard deviation
+# over seeds 42 to 51; a single seed cannot separate a real effect from an initialisation
+# draw, and the gaps measured on the grid sit at 0.007 to 0.014.
+SEEDS="${SEEDS:-$SEED}"
+#: The seed whose results keep the flat layout. The grid ran on it first and a hundred
+#: finished files already live at <tag>-<head>/<variant>.json; moving them while the
+#: workers are still writing into that directory would race with them for no gain. Every
+#: other seed gets its own subdirectory, and the seed travels inside the JSON anyway, so
+#: no reader has to infer it from a path.
+REFERENCE_SEED="${REFERENCE_SEED:-42}"
+# The reference seed publishes its weights; the sweep seeds only report metrics. At
+# 1.7 GB for deberta-v3-large, nine extra seeds on two cells are 30 GB, and souris has
+# 17 GB left. If the winner turns out to be a sweep seed, that one run is retrained.
+KEEP_BEST_MODEL="${KEEP_BEST_MODEL:-true}"
+KEEP_SWEEP_MODELS="${KEEP_SWEEP_MODELS:-false}"
 VARIANTS="${VARIANTS:-c_none c_full d_none d_full}"
 # Deux workers sur la meme machine se disputent les coeurs : 6 chargeurs chacun sur
 # 12 coeurs sature la machine et ralentit les deux. Reglable par worker.
@@ -76,24 +91,27 @@ started=$(date +%s)
 declare -a failed=()
 
 run_one() {
-    local tag="$1" checkpoint="$2" variant="$3" micro="$4" head="$5"
+    local tag="$1" checkpoint="$2" variant="$3" micro="$4" head="$5" seed="$6"
     local dir="$ROOT/$tag-$head" accum=$(( EFFECTIVE_BATCH / micro ))
+    [ "$seed" != "$REFERENCE_SEED" ] && dir="$dir/seed$seed"
     [ "$accum" -lt 1 ] && accum=1
     mkdir -p "$dir"
     local json="$dir/$variant.json" log="$dir/$variant.log"
-    local HEAD="$head"
+    local HEAD="$head" label="$tag-$head/$variant (seed $seed)"
+    local keep="$KEEP_BEST_MODEL"
+    [ "$seed" != "$REFERENCE_SEED" ] && keep="$KEEP_SWEEP_MODELS"
 
-    [ -s "$json" ] && { echo "[DONE] $tag-$head/$variant"; return 0; }
-    [ -d "$DATA/$variant" ] || { echo "[SKIP] $tag-$head/$variant : corpus absent"; return 0; }
+    [ -s "$json" ] && { echo "[DONE] $label"; return 0; }
+    [ -d "$DATA/$variant" ] || { echo "[SKIP] $label : corpus absent"; return 0; }
 
-    echo "[RUN ] $tag-$head/$variant  micro=$micro x accum=$accum"
+    echo "[RUN ] $label  micro=$micro x accum=$accum"
     local t0=$(date +%s)
     WANDB_PROJECT="meaningbert-v2-$tag-$head" "$VENV/bin/python" "$REPO/src/training/few_shot_training.py" \
         --variant_path "$DATA/$variant" --checkpoint "$checkpoint" --output_head "$HEAD" \
         --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
         --per_device_train_batch_size "$micro" --gradient_accumulation_steps "$accum" \
         --dataloader_num_workers "$NUM_WORKERS" --save_total_limit "$SAVE_TOTAL_LIMIT" \
-        --seed "$SEED" --results_json "$json" > "$log" 2>&1
+        --keep_best_model "$keep" --seed "$seed" --results_json "$json" > "$log" 2>&1
     local status=$?
 
     # Only an out-of-memory kill earns another try: changing the micro-batch changes the
@@ -114,22 +132,23 @@ run_one() {
             --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
             --per_device_train_batch_size "$retry" --gradient_accumulation_steps "$accum" \
             --dataloader_num_workers "$NUM_WORKERS" --save_total_limit "$SAVE_TOTAL_LIMIT" \
-        --seed "$SEED" --results_json "$json" > "$log" 2>&1
+        --keep_best_model "$keep" --seed "$seed" --results_json "$json" > "$log" 2>&1
         status=$?
     done
 
     local dt=$(( $(date +%s) - t0 ))
     if [ $status -eq 0 ]; then
-        echo "[ OK ] $tag-$head/$variant en $((dt / 60)) min $((dt % 60)) s"
+        echo "[ OK ] $label en $((dt / 60)) min $((dt % 60)) s"
     else
-        echo "[FAIL] $tag-$head/$variant (code $status), voir $log"
+        echo "[FAIL] $label (code $status), voir $log"
         tail -6 "$log" | sed 's/^/       /'
-        failed+=("$tag-$head/$variant")
+        failed+=("$label")
     fi
 }
 
 echo "Grille : architecture x corpus x augmentation x tete de sortie"
 echo "variantes : $VARIANTS"
+echo "graines   : $SEEDS"
 echo "tetes     : $HEADS"
 echo
 echo "La tete compte parce que le domaine est [0, 100] FERME : un score nul existe et"
@@ -145,7 +164,19 @@ while IFS='|' read -r tag checkpoint micro_c micro_d; do
     for head in $HEADS; do
         for variant in $VARIANTS; do
             case "$variant" in d_*) micro="$micro_d" ;; *) micro="$micro_c" ;; esac
-            run_one "$tag" "$checkpoint" "$variant" "$micro" "$head"
+            # A worker on a small card can state the micro-batch it knows will fit. The
+            # OOM fallback would find it anyway, but it pays one failed start per run to
+            # get there, and a nine-seed sweep pays it nine times.
+            case "$variant" in
+                d_*) micro="${MICRO_D_OVERRIDE:-$micro}" ;;
+                *)   micro="${MICRO_C_OVERRIDE:-$micro}" ;;
+            esac
+            # Seeds innermost: a cell finishes all its seeds before the next cell starts,
+            # so a sweep interrupted halfway leaves complete error bars on the cells it
+            # did reach instead of one seed everywhere and a standard deviation nowhere.
+            for seed in $SEEDS; do
+                run_one "$tag" "$checkpoint" "$variant" "$micro" "$head" "$seed"
+            done
         done
     done
 done <<< "$ALL_ARCHS"
