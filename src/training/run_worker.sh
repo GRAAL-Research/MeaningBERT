@@ -35,6 +35,7 @@ SLICES="${SLICES:-${ARCHS:+$ARCHS|}}"
 [ -n "$SLICES" ] || { echo "SLICES ou ARCHS doit decrire la tranche" >&2; exit 2; }
 HEADS="${HEADS:-clamped}"
 NUM_WORKERS="${NUM_WORKERS:-6}"
+SAVE_TOTAL_LIMIT="${SAVE_TOTAL_LIMIT:-3}"
 WAIT_FOR_GPU="${WAIT_FOR_GPU:-1}"   # attendre que la carte soit libre avant de demarrer
 
 cd "$REPO" || exit 1
@@ -77,6 +78,7 @@ for lot in "${lots[@]}"; do
     # espaces, et un prefixe non quote la ferait eclater en plusieurs mots.
     if [ -n "$variants" ]; then export VARIANTS="$variants"; else unset VARIANTS; fi
     CUDA_VISIBLE_DEVICES="$GPU" ARCHS="$archs" HEADS="$HEADS" NUM_WORKERS="$NUM_WORKERS" \
+        SAVE_TOTAL_LIMIT="$SAVE_TOTAL_LIMIT" \
         REPO="$REPO" VENV="$VENV" bash "$REPO/src/training/run_grid.sh"
     lot_status=$?
     [ $lot_status -ne 0 ] && status=$lot_status

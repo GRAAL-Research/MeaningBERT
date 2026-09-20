@@ -32,6 +32,10 @@ VARIANTS="${VARIANTS:-c_none c_full d_none d_full}"
 # Deux workers sur la meme machine se disputent les coeurs : 6 chargeurs chacun sur
 # 12 coeurs sature la machine et ralentit les deux. Reglable par worker.
 NUM_WORKERS="${NUM_WORKERS:-6}"
+# Un point de contrele de deberta-v3-large pese 5 Go. Sur un disque etroit, en garder
+# trois remplit la partition et tous les runs suivants meurent en une seconde avec un
+# log vide. Le plafond se regle par worker, la ou vit la contrainte.
+SAVE_TOTAL_LIMIT="${SAVE_TOTAL_LIMIT:-3}"
 
 # tag|checkpoint|micro-batch for c|micro-batch for d
 #
@@ -88,22 +92,31 @@ run_one() {
         --variant_path "$DATA/$variant" --checkpoint "$checkpoint" --output_head "$HEAD" \
         --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
         --per_device_train_batch_size "$micro" --gradient_accumulation_steps "$accum" \
-        --dataloader_num_workers "$NUM_WORKERS" --seed "$SEED" --results_json "$json" > "$log" 2>&1
+        --dataloader_num_workers "$NUM_WORKERS" --save_total_limit "$SAVE_TOTAL_LIMIT" \
+        --seed "$SEED" --results_json "$json" > "$log" 2>&1
     local status=$?
 
-    # Only an out-of-memory kill earns a second try: halving the micro-batch changes the
-    # memory, not the effective batch. Any other failure is a bug and must surface.
-    if [ $status -ne 0 ] && grep -qi "out of memory" "$log"; then
-        local retry=$(( micro / 4 )); [ "$retry" -lt 1 ] && retry=1
-        echo "       OOM a $micro, nouvelle tentative a $retry"
+    # Only an out-of-memory kill earns another try: changing the micro-batch changes the
+    # memory, not the effective batch, so the result stays comparable. Any other failure is
+    # a bug and must surface.
+    #
+    # On DESCEND PAR MOITIES et non d'un coup au quart. Un quart saute la taille qui aurait
+    # tenu : sur deberta-v3-large a 512 jetons, 8 ne rentre pas dans 12 Go mais 4 oui, et
+    # tomber directement a 2 double le nombre de passes pour rien. Un OOM se declare dans
+    # les premieres secondes, donc une tentative de trop ne coute presque rien.
+    local retry=$micro
+    while [ $status -ne 0 ] && [ "$retry" -gt 1 ] && grep -qi "out of memory" "$log"; do
+        retry=$(( retry / 2 ))
         accum=$(( EFFECTIVE_BATCH / retry )); [ "$accum" -lt 1 ] && accum=1
+        echo "       OOM, nouvelle tentative a micro=$retry x accum=$accum"
         WANDB_PROJECT="meaningbert-v2-$tag-$head" "$VENV/bin/python" "$REPO/src/training/few_shot_training.py" \
             --variant_path "$DATA/$variant" --checkpoint "$checkpoint" --output_head "$HEAD" \
             --num_epochs "$EPOCHS" --early_stopping_patience "$PATIENCE" \
             --per_device_train_batch_size "$retry" --gradient_accumulation_steps "$accum" \
-            --dataloader_num_workers "$NUM_WORKERS" --seed "$SEED" --results_json "$json" > "$log" 2>&1
+            --dataloader_num_workers "$NUM_WORKERS" --save_total_limit "$SAVE_TOTAL_LIMIT" \
+        --seed "$SEED" --results_json "$json" > "$log" 2>&1
         status=$?
-    fi
+    done
 
     local dt=$(( $(date +%s) - t0 ))
     if [ $status -eq 0 ]; then

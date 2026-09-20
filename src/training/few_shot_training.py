@@ -315,6 +315,18 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
+        "--save_total_limit",
+        type=int,
+        default=3,
+        help=(
+            "How many intermediate checkpoints Trainer keeps on disk. A deberta-v3-large "
+            "checkpoint weighs about 5 GB, so three of them plus the best one fill a small "
+            "disk and every later run dies instantly with an empty log. Lower it on a host "
+            "with a small disk; it changes nothing to the training itself, because the best "
+            "model is saved separately and the intermediate checkpoints are deleted at the end."
+        ),
+    )
+    parser.add_argument(
         "--max_length",
         type=int,
         default=DEFAULT_MAX_LENGTH,
@@ -399,6 +411,7 @@ def main() -> None:
     use_bf16: bool = args.bf16
     use_fp16: bool = args.fp16
     num_workers: int = args.dataloader_num_workers
+    save_total_limit: int = args.save_total_limit
     es_patience: int = args.early_stopping_patience
     collapse_patience: int = args.collapse_patience
     collapse_std_threshold: float = args.collapse_std_threshold
@@ -515,7 +528,7 @@ def main() -> None:
         per_device_eval_batch_size=batch_size * 2,
         gradient_accumulation_steps=grad_accum,
         num_train_epochs=num_epochs,
-        save_total_limit=3,
+        save_total_limit=save_total_limit,
         save_strategy="epoch",
         load_best_model_at_end=True,
         seed=seed,
@@ -537,7 +550,16 @@ def main() -> None:
         model_dtype = torch.float16
     else:
         model_dtype = torch.float32
-    model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=1, torch_dtype=model_dtype)
+    # ignore_mismatched_sizes discards the pretrained classification head when its shape
+    # does not match num_labels=1. A checkpoint already fine-tuned for classification carries
+    # one, and it has the wrong width: MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli ships a
+    # three-class NLI head, so loading it into a one-output regression head raises
+    # "size mismatch for bias: copying a param with shape torch.Size([3])". The head is
+    # exactly the part we mean to replace and retrain, so dropping it is the intent, not a
+    # workaround. The encoder, which is what the checkpoint is chosen for, loads untouched.
+    model = AutoModelForSequenceClassification.from_pretrained(
+        checkpoint, num_labels=1, torch_dtype=model_dtype, ignore_mismatched_sizes=True
+    )
 
     # Sync model pad_token_id with tokenizer (needed for decoder-based models).
     if model.config.pad_token_id is None:
