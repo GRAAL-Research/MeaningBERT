@@ -32,27 +32,30 @@ STALL_MINUTES="${STALL_MINUTES:-20}"
 
 stall_check() {
     local pid log age
+    # Un blocage, une ligne. Un entrainement compte un processus maitre et ses chargeurs,
+    # tous derriere le meme journal ; les compter un par un faisait monter le compteur de
+    # cinq d'un coup et declenchait l'abandon des la premiere occurrence au lieu de la
+    # troisieme. On enregistre le journal, puis on tue tous ses processus.
+    local -A stales=()
     for pid in $(pgrep -f "few_shot_training.py" 2>/dev/null); do
-        # Le journal du run est le fichier vers lequel sa sortie est redirigee. On le
-        # retrouve par le descripteur 1 du processus plutot que de deviner son chemin.
         log=$(readlink -f "/proc/$pid/fd/1" 2>/dev/null) || continue
         case "$log" in *.log) ;; *) continue ;; esac
         [ -f "$log" ] || continue
         age=$(( ($(date +%s) - $(stat -c %Y "$log")) / 60 ))
-        if [ "$age" -ge "$STALL_MINUTES" ]; then
-            {
-                echo "--- $(date '+%F %T') : run fige, $age min sans ecriture dans $log"
-                echo "    pid $pid tue ; le worker enchaine sur la suite de sa tranche"
-            } >> "$LOG"
-            # Trace laissee a cote du journal : run_grid.sh la lit avant de relancer la
-            # cellule, et cesse d'y revenir au bout de trois blocages. Sans ce compteur,
-            # une cellule qui bloque a tous les coups serait tuee et relancee toutes les
-            # vingt minutes jusqu'a la fin des temps.
-            date '+%F %T' >> "$log.stalled"
-            kill -9 "$pid" 2>/dev/null
-        fi
+        [ "$age" -ge "$STALL_MINUTES" ] && stales["$log"]="$age"
+    done
+    for log in "${!stales[@]}"; do
+        {
+            echo "--- $(date '+%F %T') : run fige, ${stales[$log]} min sans ecriture dans $log"
+            echo "    le worker enchaine sur la suite de sa tranche"
+        } >> "$LOG"
+        date '+%F %T' >> "$log.stalled"
+        for pid in $(pgrep -f "few_shot_training.py" 2>/dev/null); do
+            [ "$(readlink -f "/proc/$pid/fd/1" 2>/dev/null)" = "$log" ] && kill -9 "$pid" 2>/dev/null
+        done
     done
 }
+
 stall_check
 
 # Un seul processus par worker. On cible le nom du worker et pas le nom du script, sinon
