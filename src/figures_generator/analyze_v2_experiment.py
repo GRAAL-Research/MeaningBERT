@@ -36,8 +36,21 @@ CONDITION_LABELS: dict[str, str] = {
 }
 MODE_LABELS: dict[str, str] = {"none": "no augmentation", "full": "swap + BT + generated"}
 
-#: Spread of the merged CSMD labels, used to turn a correlation into the RMSE floor.
-LABEL_STD: float = 37.01
+#: Spread of the TEST labels, per corpus rung, used to turn a correlation into the RMSE
+#: floor. Measured on 2026-09-21 directly on the split each run is scored against:
+#:
+#:     rang c : 556 lignes, moyenne 60.17, ecart-type 33.55
+#:     rang d : 1652 lignes, moyenne 74.78, ecart-type 27.33
+#:
+#: Une seule constante, 37.01, servait pour les deux. Elle venait du corpus fusionne de v1
+#: et ne decrit ni l'un ni l'autre des jeux de test de v2. Le plancher etait donc surestime
+#: partout, au point que plusieurs runs affichaient une RMSE INFERIEURE a leur plancher, ce
+#: qui est impossible par construction et aurait du alerter plus tot. Corollaire pratique :
+#: la cible "RMSE < 15" n'exige pas la meme correlation sur les deux rangs, 0.894 sur le
+#: rang c et 0.836 sur le rang d.
+LABEL_STD_BY_CONDITION: dict[str, float] = {"a": 33.55, "b": 33.55, "c": 33.55, "d": 27.33}
+#: Fallback for a condition the table does not know, and for old runs.
+LABEL_STD: float = 33.55
 
 
 @dataclass
@@ -95,7 +108,8 @@ class RunResult:
         """RMSE the best affine rescaling of these predictions would reach."""
         if not math.isfinite(self.pearson):
             return float("nan")
-        return LABEL_STD * math.sqrt(max(0.0, 1.0 - min(1.0, abs(self.pearson)) ** 2))
+        spread = LABEL_STD_BY_CONDITION.get(self.condition, LABEL_STD)
+        return spread * math.sqrt(max(0.0, 1.0 - min(1.0, abs(self.pearson)) ** 2))
 
 
 def _int_or_zero(value: float) -> int:

@@ -8,7 +8,14 @@ import pytest
 
 from data.build_corpus import CONDITIONS, _v1_row_split, build_condition
 from data.schema import build
-from figures_generator.analyze_v2_experiment import LABEL_STD, RunResult, load_run, load_runs, render
+from figures_generator.analyze_v2_experiment import (
+    LABEL_STD,
+    LABEL_STD_BY_CONDITION,
+    RunResult,
+    load_run,
+    load_runs,
+    render,
+)
 
 
 def _dataset(rows):
@@ -112,7 +119,23 @@ def _run(variant="d_full", pearson=0.85, rmse=20.0, arch="deberta-v3-base", **ov
 
 def test_the_rmse_floor_follows_the_closed_form():
     run = _run(pearson=0.8)
-    assert run.rmse_floor == pytest.approx(LABEL_STD * math.sqrt(1 - 0.64), abs=1e-6)
+    spread = LABEL_STD_BY_CONDITION["d"]
+    assert run.rmse_floor == pytest.approx(spread * math.sqrt(1 - 0.64), abs=1e-6)
+
+
+def test_the_floor_uses_the_spread_of_the_rung_it_was_measured_on():
+    """The two rungs are scored on different test sets, so they have different floors.
+
+    Rang c holds 556 rows with a spread of 33.55; rang d holds 1652 with 27.33. A single
+    constant for both overstated the floor on the d rung by six points, enough to show
+    runs sitting BELOW a floor they cannot go below.
+    """
+    c_run = _run(variant="c_none", pearson=0.8)
+    d_run = _run(variant="d_none", pearson=0.8)
+    assert c_run.rmse_floor > d_run.rmse_floor
+    assert c_run.rmse_floor / d_run.rmse_floor == pytest.approx(
+        LABEL_STD_BY_CONDITION["c"] / LABEL_STD_BY_CONDITION["d"], abs=1e-9
+    )
 
 
 def test_a_perfect_correlation_leaves_no_floor():
