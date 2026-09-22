@@ -95,11 +95,12 @@ def sanity(scorer: MeaningBERTScorer, rows, kind: str) -> dict:
 @click.option("--results-json", required=True, help="Where the run-shaped JSON goes.")
 @click.option("--batch-size", default=32, show_default=True)
 @click.option("--max-length", default=256, show_default=True, help="Same bound the grid trains under.")
+@click.option("--suites", default=None, help="Full-coverage evaluation suites from build_eval_suites.py.")
 @click.option("--symmetrize/--no-symmetrize", default=False,
               help="Score the pair in both directions and average. Makes meaning(A,B) = meaning(B,A) "
                    "EXACTLY, by construction, on any checkpoint. Costs one extra forward pass.")
 def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int, max_length: int,
-         symmetrize: bool) -> None:
+         suites: Optional[str], symmetrize: bool) -> None:
     """Score *checkpoint* on *variant_path* and write a run-shaped JSON."""
     data = load_from_disk(variant_path)
     scorer = MeaningBERTScorer(checkpoint, batch_size=batch_size)
@@ -110,20 +111,13 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
 
     test = data["test"]
 
-    def score(a, b):
-        """Score a pair, symmetrised on demand.
+    # The scorer symmetrises on its own; the evaluator drives its flag rather than
+    # averaging a second time. --no-symmetrize is what measures the raw violation, which
+    # the article reports as a diagnostic on the state of the art.
+    scorer.symmetric = symmetrize
 
-        Averaging the two directions makes the invariant hold exactly rather than
-        approximately. The property is logical, not statistical: the position of a sentence
-        in the call carries no meaning, so a model that disagrees with itself when the
-        arguments are swapped is simply wrong, and no amount of training data guarantees it
-        will stop. Enforcing it outside the model costs one forward pass and removes the
-        failure mode entirely.
-        """
-        direct = np.array(scorer.score(a, b), dtype=float)
-        if not symmetrize:
-            return direct
-        return (direct + np.array(scorer.score(b, a), dtype=float)) / 2.0
+    def score(a, b):
+        return np.array(scorer.score(a, b), dtype=float)
 
     pred = score(test["original"], test["simplification"])
     gold = np.array(test["label"], dtype=float)
@@ -195,8 +189,17 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
         "pearson_between_directions": float(stats.pearsonr(pred, mirrored)[0]),
     }
 
-    if "sanity" in data:
+    # Suites a couverture complete si elles ont ete construites, sinon le split sanity
+    # historique, 216 lignes figees heritees de v1 et jamais regenerees.
+    if suites and os.path.isdir(suites):
+        built = load_from_disk(suites)
+        payload["suite_source"] = suites
+        payload["identical"] = sanity(scorer, built["identical"], "identical")
+        payload["unrelated"] = sanity(scorer, built["unrelated"], "unrelated")
+        payload["suite_sizes"] = {k: len(built[k]) for k in built}
+    elif "sanity" in data:
         s = data["sanity"]
+        payload["suite_source"] = "sanity (216 lignes heritees de v1)"
         payload["identical"] = sanity(scorer, s.filter(lambda r: r["source"] == "identical"), "identical")
         payload["unrelated"] = sanity(scorer, s.filter(lambda r: r["source"] == "unrelated"), "unrelated")
 
