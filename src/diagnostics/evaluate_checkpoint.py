@@ -134,6 +134,27 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
                            "rmse": m["test_rmse"], "R2": m["test_R2"]}
     payload["by_corpus"] = by_corpus
 
+    # Ventilation par source. Le split de test ne contient pas que des paires annotees :
+    # il contient aussi des paires identiques et des paires sans rapport, etiquetees
+    # exactement 100 et exactement 0. Ce sont les deux extremites de l'echelle et les deux
+    # cas les plus faciles du jeu. Tant qu'elles sont comptees dans le Pearson global,
+    # celui-ci est gonfle par des points que n'importe quel modele place correctement.
+    sources = np.array(test["source"])
+    by_source = {}
+    for name in sorted(set(sources.tolist())):
+        mask = sources == name
+        if mask.sum() < 3:
+            continue
+        m = metrics(gold[mask], pred[mask], "test")
+        by_source[name] = {"n": int(mask.sum()), "pearson": m["test_pearson_corr"], "rmse": m["test_rmse"]}
+    only = sources == "original"
+    if only.sum() >= 3:
+        m = metrics(gold[only], pred[only], "test")
+        by_source["_sans_les_paires_triviales"] = {
+            "n": int(only.sum()), "pearson": m["test_pearson_corr"], "rmse": m["test_rmse"]
+        }
+    payload["by_source"] = by_source
+
     if "sanity" in data:
         s = data["sanity"]
         payload["identical"] = sanity(scorer, s.filter(lambda r: r["source"] == "identical"), "identical")
@@ -157,6 +178,10 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
         print("\npar corpus :")
         for name, m in payload["by_corpus"].items():
             print(f"  {name:14} n={m['n']:5d}  Pearson {m['pearson']:.3f}  RMSE {m['rmse']:6.2f}")
+    if payload.get("by_source"):
+        print("\npar source :")
+        for name, m in payload["by_source"].items():
+            print(f"  {name:28} n={m['n']:5d}  Pearson {m['pearson']:.3f}  RMSE {m['rmse']:6.2f}")
     print(f"\necrit dans {results_json}")
 
 
