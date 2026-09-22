@@ -52,7 +52,10 @@ ARCH_ORDER = [
 #: Grid variants, and the two diagnostics that only exist on the reference architecture.
 VARIANT_ORDER = ["a_none", "a_full", "b_none", "b_full", "c_none", "c_full", "d_none", "d_full"]
 GRID_VARIANTS = ["c_none", "c_full", "d_none", "d_full"]
-HEAD_ORDER = ["sigmoid", "clamped"]
+#: "linear" is the published v1 model, whose head IS its logit. It shows up as soon as
+#: an evaluation of the published weights lands in results/, and a figure that colours
+#: by head must know about it or it raises on a missing palette key.
+HEAD_ORDER = ["linear", "sigmoid", "clamped"]
 
 #: Targets of PRODUIT.md, drawn on every figure that carries the metric they bound.
 TARGET_PEARSON = 0.914
@@ -84,7 +87,7 @@ def set_theme() -> None:
 
 
 #: Colour-blind safe, and stable across figures so a reader learns the mapping once.
-PALETTE_HEAD = {"sigmoid": "#b0879b", "clamped": "#2f6f8f"}
+PALETTE_HEAD = {"linear": "#8a8f98", "sigmoid": "#b0879b", "clamped": "#2f6f8f"}
 PALETTE_MODE = {"none": "#7c9cb0", "full": "#c08552"}
 
 
