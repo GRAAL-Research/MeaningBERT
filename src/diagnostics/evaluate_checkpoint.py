@@ -95,7 +95,11 @@ def sanity(scorer: MeaningBERTScorer, rows, kind: str) -> dict:
 @click.option("--results-json", required=True, help="Where the run-shaped JSON goes.")
 @click.option("--batch-size", default=32, show_default=True)
 @click.option("--max-length", default=256, show_default=True, help="Same bound the grid trains under.")
-def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int, max_length: int) -> None:
+@click.option("--symmetrize/--no-symmetrize", default=False,
+              help="Score the pair in both directions and average. Makes meaning(A,B) = meaning(B,A) "
+                   "EXACTLY, by construction, on any checkpoint. Costs one extra forward pass.")
+def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int, max_length: int,
+         symmetrize: bool) -> None:
     """Score *checkpoint* on *variant_path* and write a run-shaped JSON."""
     data = load_from_disk(variant_path)
     scorer = MeaningBERTScorer(checkpoint, batch_size=batch_size)
@@ -105,13 +109,30 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
     print(f"variante    : {variant_path}  (test={len(data['test'])})")
 
     test = data["test"]
-    pred = np.array(scorer.score(test["original"], test["simplification"]), dtype=float)
+
+    def score(a, b):
+        """Score a pair, symmetrised on demand.
+
+        Averaging the two directions makes the invariant hold exactly rather than
+        approximately. The property is logical, not statistical: the position of a sentence
+        in the call carries no meaning, so a model that disagrees with itself when the
+        arguments are swapped is simply wrong, and no amount of training data guarantees it
+        will stop. Enforcing it outside the model costs one forward pass and removes the
+        failure mode entirely.
+        """
+        direct = np.array(scorer.score(a, b), dtype=float)
+        if not symmetrize:
+            return direct
+        return (direct + np.array(scorer.score(b, a), dtype=float)) / 2.0
+
+    pred = score(test["original"], test["simplification"])
     gold = np.array(test["label"], dtype=float)
     payload = {
         "run_name": f"evaluated_{os.path.basename(checkpoint)}_{os.path.basename(variant_path)}",
         "checkpoint": checkpoint,
         "variant_path": os.path.abspath(variant_path),
         "output_head": scorer.head,
+        "symmetrized": symmetrize,
         "seed": -1,
         "num_epochs": 0,
         "epochs_trained": 0.0,
@@ -155,6 +176,25 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
         }
     payload["by_source"] = by_source
 
+    # Symetrie. meaning(A, B) et meaning(B, A) doivent donner le MEME nombre : la position
+    # d'une phrase dans l'appel ne porte aucune information semantique. Ce n'est pas une
+    # variance a tolerer, c'est un invariant logique, et toute deviation est un defaut du
+    # modele. Rien dans l'entrainement ne l'impose : le modele voit une paire ordonnee et
+    # rien ne lui interdit de traiter les deux positions differemment.
+    mirrored = score(test["simplification"], test["original"])
+    delta = np.abs(pred - mirrored)
+    payload["symmetry"] = {
+        "n": int(len(delta)),
+        "mean_abs_delta": float(delta.mean()),
+        "median_abs_delta": float(np.median(delta)),
+        "max_abs_delta": float(delta.max()),
+        "share_above_1": float(100.0 * np.mean(delta > 1.0)),
+        "share_above_5": float(100.0 * np.mean(delta > 5.0)),
+        "share_above_10": float(100.0 * np.mean(delta > 10.0)),
+        "share_exact": float(100.0 * np.mean(delta < 0.05)),
+        "pearson_between_directions": float(stats.pearsonr(pred, mirrored)[0]),
+    }
+
     if "sanity" in data:
         s = data["sanity"]
         payload["identical"] = sanity(scorer, s.filter(lambda r: r["source"] == "identical"), "identical")
@@ -178,6 +218,14 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
         print("\npar corpus :")
         for name, m in payload["by_corpus"].items():
             print(f"  {name:14} n={m['n']:5d}  Pearson {m['pearson']:.3f}  RMSE {m['rmse']:6.2f}")
+    if payload.get("symmetry"):
+        sy = payload["symmetry"]
+        print(f"\nsymetrie meaning(A,B) contre meaning(B,A), sur {sy['n']} paires :")
+        print(f"  ecart absolu moyen {sy['mean_abs_delta']:.2f}, median {sy['median_abs_delta']:.2f}, "
+              f"max {sy['max_abs_delta']:.2f}")
+        print(f"  identiques a 0,05 pres : {sy['share_exact']:.1f} %   "
+              f"ecart > 1 : {sy['share_above_1']:.1f} %   > 5 : {sy['share_above_5']:.1f} %   "
+              f"> 10 : {sy['share_above_10']:.1f} %")
     if payload.get("by_source"):
         print("\npar source :")
         for name, m in payload["by_source"].items():
