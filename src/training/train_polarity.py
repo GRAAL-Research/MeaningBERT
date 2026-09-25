@@ -161,6 +161,33 @@ def head_reuse_plan(id2label: Optional[dict]) -> tuple[bool, Optional[list[int]]
     return True, [by_name[name] for name in CLASS_NAMES]
 
 
+def output_layer(model: Any) -> Any:
+    """Return the final linear layer of a sequence-classification head.
+
+    The head is not the same object across families, and the difference is invisible until
+    it raises. ``DebertaV2ForSequenceClassification.classifier`` IS the linear layer, so it
+    carries ``weight`` directly. ``RobertaForSequenceClassification.classifier`` is a
+    ``RobertaClassificationHead``, a dense layer plus a projection, and the logits come out
+    of ``out_proj``. Reaching for ``classifier.weight`` on a RoBERTa model raises, and
+    ``roberta-large-mnli`` is precisely the checkpoint that needs its rows permuted.
+
+    Args:
+        model: A loaded sequence-classification model.
+
+    Returns:
+        The module whose ``weight`` rows are the classes.
+
+    Raises:
+        AttributeError: If no linear layer can be found, rather than permuting something
+            that is not the head.
+    """
+    head = model.classifier
+    for candidate in (head, getattr(head, "out_proj", None)):
+        if candidate is not None and hasattr(candidate, "weight") and candidate.weight.dim() == 2:
+            return candidate
+    raise AttributeError(f"no output linear layer found on {type(head).__name__}")
+
+
 @click.command()
 @click.option("--corpus", required=True, help="Directory produced by build_polarity_corpus.py.")
 @click.option("--checkpoint", default="microsoft/deberta-v3-large", show_default=True)
@@ -242,11 +269,12 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         # starting off a head that is right about everything except which class is which.
         import torch
 
+        layer = output_layer(model)
         with torch.no_grad():
-            index = torch.tensor(permutation, device=model.classifier.weight.device)
-            model.classifier.weight.copy_(model.classifier.weight[index])
-            if model.classifier.bias is not None:
-                model.classifier.bias.copy_(model.classifier.bias[index])
+            index = torch.tensor(permutation, device=layer.weight.device)
+            layer.weight.copy_(layer.weight[index])
+            if layer.bias is not None:
+                layer.bias.copy_(layer.bias[index])
     model.config.id2label = {index: name for index, name in enumerate(CLASS_NAMES)}
     model.config.label2id = {name: index for index, name in enumerate(CLASS_NAMES)}
 

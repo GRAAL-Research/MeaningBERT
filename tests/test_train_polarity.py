@@ -170,3 +170,56 @@ def test_a_duplicated_class_name_is_refused_rather_than_guessed():
 
 def test_the_case_of_the_published_labels_does_not_matter():
     assert head_reuse_plan({0: "ENTAILMENT", 1: "Neutral", 2: " contradiction "})[1] == [0, 1, 2]
+
+
+# --- finding the head, which is not the same object across families ------------------
+
+from training.train_polarity import output_layer  # noqa: E402
+
+
+class _Linear:
+    def __init__(self, rows=3, cols=8):
+        self.weight = type("W", (), {"dim": lambda self: 2, "shape": (rows, cols)})()
+
+
+class _DebertaLike:
+    """classifier IS the linear layer, as in DebertaV2ForSequenceClassification."""
+
+    def __init__(self):
+        self.classifier = _Linear()
+
+
+class _RobertaLike:
+    """classifier is a head module whose logits come out of out_proj."""
+
+    class _Head:
+        def __init__(self):
+            self.out_proj = _Linear()
+
+    def __init__(self):
+        self.classifier = self._Head()
+
+
+class _Opaque:
+    class _Head:
+        pass
+
+    def __init__(self):
+        self.classifier = self._Head()
+
+
+def test_a_deberta_head_is_its_own_linear_layer():
+    model = _DebertaLike()
+    assert output_layer(model) is model.classifier
+
+
+def test_a_roberta_head_hides_its_linear_layer_in_out_proj():
+    # Reaching for classifier.weight here raises, and roberta-large-mnli is precisely the
+    # checkpoint whose rows need permuting.
+    model = _RobertaLike()
+    assert output_layer(model) is model.classifier.out_proj
+
+
+def test_an_unrecognised_head_raises_instead_of_permuting_the_wrong_tensor():
+    with pytest.raises(AttributeError, match="no output linear layer"):
+        output_layer(_Opaque())
