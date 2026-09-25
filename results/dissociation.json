@@ -1,0 +1,68 @@
+[
+  {
+    "n_entailment": 600,
+    "n_contradiction": 600,
+    "mean_entailment": 67.33557470798492,
+    "mean_contradiction": 69.1805344470342,
+    "amplitude_points": -1.844959739049287,
+    "amplitude_share": -0.01844959739049287,
+    "auc": 0.4800611111111111,
+    "checkpoint": "davebulaval/MeaningBERT",
+    "suite": "SICK"
+  },
+  {
+    "n_entailment": 97,
+    "n_contradiction": 117,
+    "mean_entailment": 73.10936571888088,
+    "mean_contradiction": 74.46680932982355,
+    "amplitude_points": -1.357443610942667,
+    "amplitude_share": -0.013574436109426671,
+    "auc": 0.4872676006696625,
+    "checkpoint": "davebulaval/MeaningBERT",
+    "suite": "NaN-NLI (negation)"
+  },
+  {
+    "n_entailment": 501,
+    "n_contradiction": 501,
+    "mean_entailment": 69.00539362787487,
+    "mean_contradiction": 64.04632805159943,
+    "amplitude_points": 4.959065576275435,
+    "amplitude_share": 0.04959065576275435,
+    "auc": 0.5796032685128745,
+    "checkpoint": "davebulaval/MeaningBERT",
+    "suite": "MoNLI (entail vs neutral, NOT contradiction)"
+  },
+  {
+    "n_entailment": 600,
+    "n_contradiction": 600,
+    "mean_entailment": 83.66647216161093,
+    "mean_contradiction": 51.71497065226237,
+    "amplitude_points": 31.951501509348553,
+    "amplitude_share": 0.3195150150934855,
+    "auc": 0.9787611111111111,
+    "checkpoint": "davebulaval/MeaningBERT/large",
+    "suite": "SICK"
+  },
+  {
+    "n_entailment": 97,
+    "n_contradiction": 117,
+    "mean_entailment": 86.0726486677976,
+    "mean_contradiction": 67.95678114279723,
+    "amplitude_points": 18.11586752500037,
+    "amplitude_share": 0.18115867525000368,
+    "auc": 0.7960172702440743,
+    "checkpoint": "davebulaval/MeaningBERT/large",
+    "suite": "NaN-NLI (negation)"
+  },
+  {
+    "n_entailment": 501,
+    "n_contradiction": 501,
+    "mean_entailment": 69.29730049483553,
+    "mean_contradiction": 70.7636812251961,
+    "amplitude_points": -1.4663807303605694,
+    "amplitude_share": -0.014663807303605694,
+    "auc": 0.47032481942303017,
+    "checkpoint": "davebulaval/MeaningBERT/large",
+    "suite": "MoNLI (entail vs neutral, NOT contradiction)"
+  }
+]
