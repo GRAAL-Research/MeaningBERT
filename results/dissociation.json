@@ -64,5 +64,38 @@
     "auc": 0.47032481942303017,
     "checkpoint": "davebulaval/MeaningBERT/large",
     "suite": "MoNLI (entail vs neutral, NOT contradiction)"
+  },
+  {
+    "n_entailment": 600,
+    "n_contradiction": 600,
+    "mean_entailment": 61.543678855896,
+    "mean_contradiction": 66.99575591087341,
+    "amplitude_points": -5.452077054977416,
+    "amplitude_share": -0.05452077054977415,
+    "auc": 0.404,
+    "checkpoint": "v2 base (bert-base-uncased/d_full, seed 44)",
+    "suite": "SICK"
+  },
+  {
+    "n_entailment": 97,
+    "n_contradiction": 117,
+    "mean_entailment": 89.88540704471549,
+    "mean_contradiction": 89.62114154783069,
+    "amplitude_points": 0.2642654968848035,
+    "amplitude_share": 0.002642654968848035,
+    "auc": 0.5274473521896202,
+    "checkpoint": "v2 base (bert-base-uncased/d_full, seed 44)",
+    "suite": "NaN-NLI (negation)"
+  },
+  {
+    "n_entailment": 501,
+    "n_contradiction": 501,
+    "mean_entailment": 83.55633160406482,
+    "mean_contradiction": 84.14762198472927,
+    "amplitude_points": -0.5912903806644465,
+    "amplitude_share": -0.005912903806644465,
+    "auc": 0.487233118593153,
+    "checkpoint": "v2 base (bert-base-uncased/d_full, seed 44)",
+    "suite": "MoNLI (entail vs neutral, NOT contradiction)"
   }
 ]

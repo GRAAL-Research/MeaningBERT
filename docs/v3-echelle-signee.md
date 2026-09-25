@@ -103,18 +103,35 @@ entrainement.
 `src/diagnostics/dissociation.py`, sur les modeles publies, sans aucun entrainement.
 Amplitude consommee entre accord et contradiction, en part de l'echelle :
 
-| | v1 publie | v2 `large` |
-|---|---|---|
-| SICK | **-1,8 %** (AUC 0,480) | **32,0 %** (AUC 0,979) |
-| NaN-NLI, negation | **-1,4 %** (AUC 0,487) | **18,1 %** (AUC 0,796) |
-| MoNLI, implication contre neutre | 5,0 % | -1,5 % |
+| | v1 publie | v2 `base` | v2 `large` |
+|---|---|---|---|
+| SICK | **-1,8 %** (AUC 0,480) | **-5,5 %** (AUC 0,404) | **32,0 %** (AUC 0,979) |
+| NaN-NLI, negation | **-1,4 %** (AUC 0,487) | **0,3 %** (AUC 0,527) | **18,1 %** (AUC 0,796) |
+| MoNLI, implication contre neutre | 5,0 % | -0,6 % | -1,5 % |
 
 Le modele en production est au hasard et son amplitude est negative : il note la
-contradiction legerement plus haut que l'accord. La v2 separe deja, sans avoir jamais vu
-une etiquette de polarite, ce qui est un resultat a part entiere : la v3 part de 32 % et
-non de zero, et sa cible devient les 67 % des modeles NLI bidirectionnels.
+contradiction legerement plus haut que l'accord. La v2 `large` separe deja, sans avoir
+jamais vu une etiquette de polarite.
 
-MoNLI recule pour les deux, et c'est attendu : il oppose implication et NEUTRE. Une phrase
+### Le controle qui tranche : ce n'est pas le corpus
+
+`base` et `large` sont entraines sur **le meme corpus**, avec **la meme recette**, a la
+meme rung `d_full`. Ils ne different que par l'encodeur. Et `base` est au hasard, voire
+sous le hasard : -5,5 % d'amplitude sur SICK avec une AUC de 0,404, c'est-a-dire qu'il
+classe la contradiction **au-dessus** de l'accord six fois sur dix.
+
+Donc les 32 % de `large` ne viennent pas du corpus v2. Ils viennent du pre-entrainement de
+`deberta-v3-large`, que le fine-tuning sur la preservation du sens n'a pas efface. C'est un
+resultat negatif et il coute cher a ignorer : **aucune quantite de donnees de preservation
+du sens ne fera apparaitre la polarite.** Une paire qui se contredit et une paire qui se
+paraphrase mal recoivent la meme etiquette basse dans le corpus v2 ; rien dans la cible ne
+distingue les deux, donc rien ne peut l'apprendre.
+
+La tete polarite de l'experience 3 n'est donc pas une optimisation, c'est la seule voie.
+La v3 part de 32 % sur son plus gros modele et de zero sur le petit, et sa cible reste les
+67 % des modeles NLI bidirectionnels.
+
+MoNLI recule pour les trois, et c'est attendu : il oppose implication et NEUTRE. Une phrase
 neutre partage le sens, donc une metrique de preservation a raison de ne pas la punir.
 
 ## Ce que la v3 doit demontrer
@@ -129,10 +146,10 @@ que le 32 % ne donne pas, et c'est ce qui justifie la version.
 
 ## Les experiences, dans l'ordre
 
-1. **Diagnostic de dissociation sur l'existant.** MeaningBERT v1, v2 `large`, et le modele
-   NLI de taille base. Quelle fraction de leur amplitude consomment-ils sur les paires de
-   contradiction de SICK, MoNLI et NaN-NLI ? Aucune graine, aucun GPU-jour. On attend un
-   echec, et il faut le chiffrer avant de le corriger.
+1. **Diagnostic de dissociation sur l'existant.** FAIT le 2026-09-25 sur v1, v2 `base` et
+   v2 `large`. Chiffre ci-dessus, et il a change le plan : le controle `base` contre
+   `large` montre que la polarite ne vient pas du corpus, donc l'experience 3 est
+   obligatoire et non optionnelle.
 2. **Chargeurs et contrat.** Comme en v2 : un chargeur par corpus, une seule harmonisation.
    La nouveaute est qu'il y a deux cibles et non une, donc le contrat doit porter
    `polarity_raw` a cote de `label_raw`.
