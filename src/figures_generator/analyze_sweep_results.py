@@ -324,7 +324,6 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
         if means:
             best[col] = min(means) if direction == "low" else max(means)
 
-    n_cols = 3 + len(metric_cols)  # checkpoint, aug, n_folds + metrics
     alignment = "l l c " + " ".join(["c"] * len(metric_cols))
 
     lines: list[str] = []

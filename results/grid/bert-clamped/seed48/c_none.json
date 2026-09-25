@@ -1,0 +1,56 @@
+{
+  "run_name": "bert-base-uncased_seed48_lr5e-05_bs32_freeze0_c_none_headclamped",
+  "checkpoint": "bert-base-uncased",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_none",
+  "output_head": "clamped",
+  "seed": 48,
+  "num_epochs": 10,
+  "epochs_trained": 6.0,
+  "rows": {
+    "train": 1111,
+    "dev": 159,
+    "test": 556
+  },
+  "test": {
+    "test_loss": 0.04263246804475784,
+    "test_rmse": 20.64763116178489,
+    "test_R2": 0.621,
+    "test_pearson_corr": 0.7896963528804184,
+    "test_pearson_pvalue": 1.2036618960468384e-119,
+    "test_mean_score": 61.11876531985166,
+    "test_st_dev_score": 28.06122013196794,
+    "test_diverged": 0.0,
+    "test_runtime": 3.2024,
+    "test_samples_per_second": 173.618,
+    "test_steps_per_second": 2.81,
+    "epoch": 6.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 0.03182510659098625,
+    "test/identical_sentences_rmse": 17.839591837703967,
+    "test/identical_sentences_mean_score": 83.09106671368635,
+    "test/identical_sentences_st_dev_score": 5.686740019982271,
+    "test/identical_sentences_ratio_equals": 0.0,
+    "test/identical_sentences_ratio_95": 0.0,
+    "test/identical_sentences_ratio_99": 0.0,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 0.7567,
+    "test/identical_sentences_samples_per_second": 142.721,
+    "test/identical_sentences_steps_per_second": 2.643,
+    "epoch": 6.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.0,
+    "test/unrelated_sentences_rmse": 0.0,
+    "test/unrelated_sentences_mean_score": 0.0,
+    "test/unrelated_sentences_st_dev_score": 0.0,
+    "test/unrelated_sentences_ratio_equals": 100.0,
+    "test/unrelated_sentences_ratio_1": 100.0,
+    "test/unrelated_sentences_ratio_5": 100.0,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 0.6792,
+    "test/unrelated_sentences_samples_per_second": 159.014,
+    "test/unrelated_sentences_steps_per_second": 2.945,
+    "epoch": 6.0
+  }
+}

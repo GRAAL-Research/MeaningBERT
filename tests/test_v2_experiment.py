@@ -9,7 +9,6 @@ import pytest
 from data.build_corpus import CONDITIONS, _v1_row_split, build_condition
 from data.schema import build
 from figures_generator.analyze_v2_experiment import (
-    LABEL_STD,
     LABEL_STD_BY_CONDITION,
     RunResult,
     load_run,
@@ -188,9 +187,15 @@ def test_a_missing_metric_becomes_nan_not_zero(tmp_path):
     assert math.isnan(run.pearson)
 
 
-def test_a_string_valued_metric_does_not_crash_the_reader(tmp_path):
+def test_a_string_valued_metric_becomes_nan_rather_than_a_number(tmp_path):
+    """wandb hands back the string "NaN" for a collapsed run. Not crashing is not enough:
+    a reader that turned it into 0.0 would report a perfectly bad score as a real one, and
+    this test would still have passed when it only checked that the call returned."""
     path = _write(str(tmp_path), "a_none", {"test_pearson_corr": "NaN", "test_rmse": 40.0})
-    assert load_run(path) is not None
+    run = load_run(path)
+    assert run is not None
+    assert math.isnan(run.pearson)
+    assert run.rmse == pytest.approx(40.0)
 
 
 def test_runs_are_ordered_by_rung_then_by_augmentation(tmp_path):

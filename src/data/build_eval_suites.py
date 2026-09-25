@@ -32,9 +32,9 @@ import click
 from datasets import Dataset, DatasetDict, load_from_disk
 
 try:  # PYTHONPATH=src.
-    from data.augment import generate_identical, generate_unrelated
+    from data.augment import generate_unrelated
 except ImportError:  # pragma: no cover
-    from augment import generate_identical, generate_unrelated  # type: ignore
+    from augment import generate_unrelated  # type: ignore
 
 
 def _generated_only(before: Dataset, after: Dataset, source: str) -> Dataset:

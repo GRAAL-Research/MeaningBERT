@@ -106,7 +106,7 @@ Amplitude consommee entre accord et contradiction, en part de l'echelle :
 | | v1 publie | v2 `base` | v2 `large` |
 |---|---|---|---|
 | SICK | **-1,8 %** (AUC 0,480) | **-5,5 %** (AUC 0,404) | **32,0 %** (AUC 0,979) |
-| NaN-NLI, negation | **-1,4 %** (AUC 0,487) | **0,3 %** (AUC 0,527) | **18,1 %** (AUC 0,796) |
+| NaN-NLI, negation | **-1,4 %** (AUC 0,487) | **0,3 %** (AUC 0,528) | **18,1 %** (AUC 0,798) |
 | MoNLI, implication contre neutre | 5,0 % | -0,6 % | -1,5 % |
 
 Le modele en production est au hasard et son amplitude est negative : il note la

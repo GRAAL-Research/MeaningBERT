@@ -115,7 +115,11 @@ def test_paws_stops_on_a_label_it_has_not_verified():
 
 
 def test_paws_validates_against_the_contract():
-    validate(build(paws._rows(_PAWS, "train"), corpus="paws"))
+    dataset = build(paws._rows(_PAWS, "train"), corpus="paws")
+    validate(dataset)
+    assert set(dataset["polarity_scheme"]) == {"paraphrase2"}
+    assert set(dataset["scale"]) == {"none"}
+    assert all(math.isnan(value) for value in dataset["label_raw"])
 
 
 # --- MoNLI: two classes, and the assumption that it stays that way -------------------
@@ -149,7 +153,11 @@ def test_a_contradiction_appearing_in_monli_stops_the_load():
 
 
 def test_monli_validates_against_the_contract():
-    validate(build(monli._rows(_MONLI, "train"), corpus="monli"))
+    dataset = build(monli._rows(_MONLI, "train"), corpus="monli")
+    validate(dataset)
+    assert set(dataset["polarity_scheme"]) == {"nli3"}
+    assert set(dataset["scale"]) == {"none"}
+    assert all(math.isnan(value) for value in dataset["label_raw"])
 
 
 # --- NaN-NLI: a probe that must not leak into training -------------------------------
@@ -187,4 +195,8 @@ def test_nan_nli_stops_on_a_label_it_has_not_verified():
 
 
 def test_nan_nli_validates_against_the_contract():
-    validate(build(nan_nli._rows(_NAN_NLI), corpus="nan_nli"))
+    dataset = build(nan_nli._rows(_NAN_NLI), corpus="nan_nli")
+    validate(dataset)
+    assert set(dataset["polarity_scheme"]) == {"nli3"}
+    assert set(dataset["scale"]) == {"none"}
+    assert all(math.isnan(value) for value in dataset["label_raw"])

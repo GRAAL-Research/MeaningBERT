@@ -35,6 +35,7 @@ from typing import Optional
 
 import click
 import numpy as np
+from scipy.stats import rankdata
 
 try:  # PYTHONPATH=src.
     from meaningbert.scorer import MeaningBERTScorer
@@ -63,13 +64,23 @@ SUITES = [
 
 
 def amplitude(entail: np.ndarray, contra: np.ndarray) -> dict:
-    """Separation between the two classes, plus the ranking check."""
+    """Separation between the two classes, plus the ranking check.
+
+    The AUC uses **mid-ranks**, which is not a refinement here but a correctness
+    requirement. A clamped output head saturates at exactly 0 and exactly 100, so ties
+    between the two classes are not an edge case, they are the common case. Ordinal ranks
+    (``argsort().argsort()``) break those ties by position in the array rather than
+    declaring them undecided: two classes with identical scores on every pair came out at
+    an AUC of 0.0 instead of 0.5, and simply swapping the two arguments moved the answer
+    from 0.17 to 0.85. Mid-ranks give a tie its due half-credit, which is what the
+    Mann-Whitney identity assumes.
+    """
     gap = float(entail.mean() - contra.mean())
     # AUC by the rank identity: the share of (entailment, contradiction) couples the metric
-    # orders correctly. Computed from ranks so it costs one sort instead of n*m comparisons.
-    both = np.concatenate([entail, contra])
-    ranks = both.argsort().argsort() + 1
+    # orders correctly, counting a tie as half a couple. Computed from ranks so it costs
+    # one sort instead of n*m comparisons.
     n_e, n_c = len(entail), len(contra)
+    ranks = rankdata(np.concatenate([entail, contra]))
     auc = float((ranks[:n_e].sum() - n_e * (n_e + 1) / 2) / (n_e * n_c)) if n_e and n_c else float("nan")
     return {
         "n_entailment": n_e,

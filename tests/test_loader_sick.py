@@ -7,6 +7,7 @@ about the join staying honest and the label encoding staying the one that was ve
 
 from __future__ import annotations
 
+import logging
 import math
 
 import pytest
@@ -116,12 +117,19 @@ def test_the_validation_split_becomes_the_contract_dev_hint():
 # --- the guard on the bridge ---------------------------------------------------------
 
 
-def test_a_clean_join_passes_the_guard():
-    check_join_loss(0, 9840)
+def test_a_clean_join_passes_the_guard_and_says_nothing(caplog):
+    with caplog.at_level(logging.WARNING):
+        check_join_loss(0, 9840)
+    assert caplog.records == []
 
 
-def test_losing_a_handful_of_pairs_is_tolerated():
-    check_join_loss(50, 9840)
+def test_losing_a_handful_of_pairs_is_tolerated_but_never_silent(caplog):
+    # Tolerated is not the same as unreported. Without this, deleting the warning branch
+    # would leave both guard tests green and the loss would vanish from the logs.
+    with caplog.at_level(logging.WARNING):
+        check_join_loss(50, 9840)
+    assert len(caplog.records) == 1
+    assert "50/9840" in caplog.records[0].getMessage()
 
 
 def test_losing_a_large_share_of_the_bridge_is_refused():

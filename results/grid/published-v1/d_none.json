@@ -1,0 +1,68 @@
+{
+  "run_name": "evaluated_MeaningBERT_d_none",
+  "checkpoint": "davebulaval/MeaningBERT",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/d_none",
+  "output_head": "linear",
+  "seed": -1,
+  "num_epochs": 0,
+  "epochs_trained": 0.0,
+  "evaluation_only": true,
+  "rows": {
+    "train": 3089,
+    "dev": 441,
+    "test": 1652,
+    "sanity": 216
+  },
+  "test": {
+    "test_loss": 0.06694454450571878,
+    "test_rmse": 25.87364383029935,
+    "test_R2": 0.103,
+    "test_pearson_corr": 0.5285361125410157,
+    "test_pearson_pvalue": 1.5552301531489669e-119,
+    "test_mean_score": 73.1703941754221,
+    "test_st_dev_score": 25.80641130395562,
+    "test_diverged": 0.0
+  },
+  "by_corpus": {
+    "csmd": {
+      "n": 732,
+      "pearson": 0.8698568215875987,
+      "rmse": 15.827301638669239,
+      "R2": 0.737
+    },
+    "plaba": {
+      "n": 204,
+      "pearson": 0.08722495401183789,
+      "rmse": 35.07207719340862,
+      "R2": -4.804
+    },
+    "simpeval": {
+      "n": 530,
+      "pearson": 0.05697462955283446,
+      "rmse": 26.70610713152241,
+      "R2": -0.609
+    },
+    "simpletext": {
+      "n": 186,
+      "pearson": 0.1685782325857623,
+      "rmse": 39.731656619773936,
+      "R2": -1.496
+    }
+  },
+  "identical": {
+    "test/identical_sentences_rmse": 7.1521962625462,
+    "test/identical_sentences_mean_score": 93.76681769335711,
+    "test/identical_sentences_st_dev_score": 3.523679269637823,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_ratio_95": 0.0,
+    "test/identical_sentences_ratio_equals": 0.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_rmse": 1.0154986690699654,
+    "test/unrelated_sentences_mean_score": 0.17033429278267753,
+    "test/unrelated_sentences_st_dev_score": 1.0057784810419306,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_ratio_5": 98.14814814814815,
+    "test/unrelated_sentences_ratio_equals": 96.29629629629629
+  }
+}

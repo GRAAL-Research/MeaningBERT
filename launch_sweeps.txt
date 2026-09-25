@@ -1,0 +1,7 @@
+cd ~/projects/MeaningBERT/src/training
+nohup bash sweep_gpu0.sh > sweep_gpu0.log 2>&1 &
+nohup bash sweep_gpu1.sh > sweep_gpu1.log 2>&1 &
+nohup bash sweep_gpu2.sh > sweep_gpu2.log 2>&1 &
+
+# Suivi
+tail -f sweep_gpu0.log sweep_gpu1.log sweep_gpu2.log

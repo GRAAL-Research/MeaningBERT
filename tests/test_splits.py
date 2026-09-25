@@ -5,7 +5,7 @@ wall. See ``docs/H5-fuite-par-phrase-source.md``.
 """
 
 import pytest
-from datasets import Dataset, DatasetDict
+from datasets import DatasetDict
 
 from data.schema import build
 from data.splits import (

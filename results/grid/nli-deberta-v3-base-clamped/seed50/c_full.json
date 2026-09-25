@@ -1,0 +1,56 @@
+{
+  "run_name": "MoritzLaurer_DeBERTa-v3-base-mnli-fever-anli_seed50_lr2e-05_bs32_freeze0_c_full_headclamped",
+  "checkpoint": "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_full",
+  "output_head": "clamped",
+  "seed": 50,
+  "num_epochs": 10,
+  "epochs_trained": 7.0,
+  "rows": {
+    "train": 8087,
+    "dev": 159,
+    "test": 556
+  },
+  "test": {
+    "test_loss": 0.04941121116280556,
+    "test_rmse": 22.228633140299245,
+    "test_R2": 0.56,
+    "test_pearson_corr": 0.7896827846488699,
+    "test_pearson_pvalue": 1.222815846956687e-119,
+    "test_mean_score": 63.63097412294621,
+    "test_st_dev_score": 34.165128085608856,
+    "test_diverged": 0.0,
+    "test_runtime": 3.6114,
+    "test_samples_per_second": 153.959,
+    "test_steps_per_second": 4.984,
+    "epoch": 7.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 0.0,
+    "test/identical_sentences_rmse": 0.0,
+    "test/identical_sentences_mean_score": 100.0,
+    "test/identical_sentences_st_dev_score": 0.0,
+    "test/identical_sentences_ratio_equals": 100.0,
+    "test/identical_sentences_ratio_95": 100.0,
+    "test/identical_sentences_ratio_99": 100.0,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 0.9267,
+    "test/identical_sentences_samples_per_second": 116.543,
+    "test/identical_sentences_steps_per_second": 4.316,
+    "epoch": 7.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.0,
+    "test/unrelated_sentences_rmse": 0.0,
+    "test/unrelated_sentences_mean_score": 0.0,
+    "test/unrelated_sentences_st_dev_score": 0.0,
+    "test/unrelated_sentences_ratio_equals": 100.0,
+    "test/unrelated_sentences_ratio_1": 100.0,
+    "test/unrelated_sentences_ratio_5": 100.0,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 0.7807,
+    "test/unrelated_sentences_samples_per_second": 138.33,
+    "test/unrelated_sentences_steps_per_second": 5.123,
+    "epoch": 7.0
+  }
+}

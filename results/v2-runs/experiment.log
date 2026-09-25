@@ -1,0 +1,13 @@
+GPU              : 1
+checkpoint       : microsoft/deberta-v3-base
+output head      : sigmoid   (correction C3)
+epochs / patience: 10 / 3
+effective batch  : 32 (micro-batch adapte par variante)
+variants         : a_none b_none c_none d_none a_full b_full c_full d_full
+
+[DONE] a_none : deja termine, resultat conserve
+[RUN ] b_none  micro-batch=32  -> /home/dabea241/MeaningBERT/results/v2-runs/b_none.log
+[ OK ] b_none en 7 min 38 s
+[RUN ] c_none  micro-batch=32  -> /home/dabea241/MeaningBERT/results/v2-runs/c_none.log
+[ OK ] c_none en 7 min 38 s
+[RUN ] d_none  micro-batch=8  -> /home/dabea241/MeaningBERT/results/v2-runs/d_none.log

@@ -1,0 +1,33 @@
+{
+  "os": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2026-09-25T11:51:14.044127Z",
+  "args": [
+    "--source",
+    "local",
+    "--wandb-upload"
+  ],
+  "program": "/home/david.beauchemin/Travail/articles/MeaningBERT/src/figures_generator/comparatifs_v2.py",
+  "codePath": "src/figures_generator/comparatifs_v2.py",
+  "codePathLocal": "src/figures_generator/comparatifs_v2.py",
+  "git": {
+    "remote": "git@github.com:GRAAL-Research/MeaningBERT.git",
+    "commit": "f2fe66ab17e1a86bafe6a50b1db3d6d13dfb102e"
+  },
+  "email": "david.beauchemin.5@ulaval.ca",
+  "root": "/home/david.beauchemin/Travail/articles/MeaningBERT",
+  "host": "UBU-FW13-012",
+  "executable": "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/bin/python",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "disk": {
+    "/": {
+      "total": "980650221568",
+      "used": "556002181120"
+    }
+  },
+  "memory": {
+    "total": "32894971904"
+  },
+  "writerId": "a570ahvra9jpjwcpqxuvoa9c3wrcqsm5"
+}

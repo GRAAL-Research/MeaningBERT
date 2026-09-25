@@ -1,0 +1,56 @@
+{
+  "run_name": "cross-encoder_stsb-roberta-base_seed45_lr5e-05_bs32_freeze0_c_full_headclamped",
+  "checkpoint": "cross-encoder/stsb-roberta-base",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_full",
+  "output_head": "clamped",
+  "seed": 45,
+  "num_epochs": 10,
+  "epochs_trained": 5.0,
+  "rows": {
+    "train": 8087,
+    "dev": 159,
+    "test": 556
+  },
+  "test": {
+    "test_loss": 0.051401734352111816,
+    "test_rmse": 22.671950027301367,
+    "test_R2": 0.543,
+    "test_pearson_corr": 0.7772791217112598,
+    "test_pearson_pvalue": 1.41576678640091e-113,
+    "test_mean_score": 63.86786355217584,
+    "test_st_dev_score": 33.509840413257365,
+    "test_diverged": 0.0,
+    "test_runtime": 2.7523,
+    "test_samples_per_second": 202.013,
+    "test_steps_per_second": 3.27,
+    "epoch": 5.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 0.0,
+    "test/identical_sentences_rmse": 0.0,
+    "test/identical_sentences_mean_score": 100.0,
+    "test/identical_sentences_st_dev_score": 0.0,
+    "test/identical_sentences_ratio_equals": 100.0,
+    "test/identical_sentences_ratio_95": 100.0,
+    "test/identical_sentences_ratio_99": 100.0,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 0.7965,
+    "test/identical_sentences_samples_per_second": 135.596,
+    "test/identical_sentences_steps_per_second": 2.511,
+    "epoch": 5.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.0,
+    "test/unrelated_sentences_rmse": 0.0,
+    "test/unrelated_sentences_mean_score": 0.0,
+    "test/unrelated_sentences_st_dev_score": 0.0,
+    "test/unrelated_sentences_ratio_equals": 100.0,
+    "test/unrelated_sentences_ratio_1": 100.0,
+    "test/unrelated_sentences_ratio_5": 100.0,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 0.6844,
+    "test/unrelated_sentences_samples_per_second": 157.802,
+    "test/unrelated_sentences_steps_per_second": 2.922,
+    "epoch": 5.0
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "run_name": "microsoft_deberta-v3-large_seed43_lr2e-05_bs32_freeze0_d_full_headclamped",
+  "checkpoint": "microsoft/deberta-v3-large",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/d_full",
+  "output_head": "clamped",
+  "seed": 43,
+  "num_epochs": 10,
+  "epochs_trained": 5.0,
+  "rows": {
+    "train": 23418,
+    "dev": 441,
+    "test": 1652
+  },
+  "test": {
+    "test_loss": 0.02766742743551731,
+    "test_rmse": 16.633527484277987,
+    "test_R2": 0.629,
+    "test_pearson_corr": 0.8099356526125332,
+    "test_pearson_pvalue": 0.0,
+    "test_mean_score": 78.74658800701252,
+    "test_st_dev_score": 24.17804965000969,
+    "test_diverged": 0.0,
+    "test_runtime": 81.2705,
+    "test_samples_per_second": 20.327,
+    "test_steps_per_second": 1.28,
+    "epoch": 5.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 0.001612101448699832,
+    "test/identical_sentences_rmse": 4.015098213324957,
+    "test/identical_sentences_mean_score": 96.76793713039822,
+    "test/identical_sentences_st_dev_score": 2.3821803604233596,
+    "test/identical_sentences_ratio_equals": 18.51851851851852,
+    "test/identical_sentences_ratio_95": 71.29629629629629,
+    "test/identical_sentences_ratio_99": 18.51851851851852,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 2.4806,
+    "test/identical_sentences_samples_per_second": 43.538,
+    "test/identical_sentences_steps_per_second": 2.822,
+    "epoch": 5.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.0,
+    "test/unrelated_sentences_rmse": 0.0,
+    "test/unrelated_sentences_mean_score": 0.0,
+    "test/unrelated_sentences_st_dev_score": 0.0,
+    "test/unrelated_sentences_ratio_equals": 100.0,
+    "test/unrelated_sentences_ratio_1": 100.0,
+    "test/unrelated_sentences_ratio_5": 100.0,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 2.0373,
+    "test/unrelated_sentences_samples_per_second": 53.012,
+    "test/unrelated_sentences_steps_per_second": 3.436,
+    "epoch": 5.0
+  }
+}

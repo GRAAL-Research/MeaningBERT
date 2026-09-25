@@ -1,0 +1,56 @@
+{
+  "run_name": "microsoft_deberta-v3-base_seed45_lr2e-05_bs32_freeze0_c_full_headclamped",
+  "checkpoint": "microsoft/deberta-v3-base",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_full",
+  "output_head": "clamped",
+  "seed": 45,
+  "num_epochs": 10,
+  "epochs_trained": 6.0,
+  "rows": {
+    "train": 8087,
+    "dev": 159,
+    "test": 556
+  },
+  "test": {
+    "test_loss": 0.050704311579465866,
+    "test_rmse": 22.517617407099525,
+    "test_R2": 0.549,
+    "test_pearson_corr": 0.7862702180694415,
+    "test_pearson_pvalue": 6.250514282918637e-118,
+    "test_mean_score": 65.11858994497669,
+    "test_st_dev_score": 33.676271020584,
+    "test_diverged": 0.0,
+    "test_runtime": 3.3919,
+    "test_samples_per_second": 163.919,
+    "test_steps_per_second": 5.307,
+    "epoch": 6.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 9.54318352341943e-07,
+    "test/identical_sentences_rmse": 0.09768891769407494,
+    "test/identical_sentences_mean_score": 99.99059987951208,
+    "test/identical_sentences_st_dev_score": 0.09723560240494394,
+    "test/identical_sentences_ratio_equals": 99.07407407407408,
+    "test/identical_sentences_ratio_95": 100.0,
+    "test/identical_sentences_ratio_99": 99.07407407407408,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 0.6543,
+    "test/identical_sentences_samples_per_second": 165.062,
+    "test/identical_sentences_steps_per_second": 6.113,
+    "epoch": 6.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.0,
+    "test/unrelated_sentences_rmse": 0.0,
+    "test/unrelated_sentences_mean_score": 0.0,
+    "test/unrelated_sentences_st_dev_score": 0.0,
+    "test/unrelated_sentences_ratio_equals": 100.0,
+    "test/unrelated_sentences_ratio_1": 100.0,
+    "test/unrelated_sentences_ratio_5": 100.0,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 0.5122,
+    "test/unrelated_sentences_samples_per_second": 210.858,
+    "test/unrelated_sentences_steps_per_second": 7.81,
+    "epoch": 6.0
+  }
+}

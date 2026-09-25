@@ -1,0 +1,56 @@
+{
+  "run_name": "bert-base-uncased_seed50_lr5e-05_bs32_freeze0_c_none_headclamped",
+  "checkpoint": "bert-base-uncased",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_none",
+  "output_head": "clamped",
+  "seed": 50,
+  "num_epochs": 10,
+  "epochs_trained": 5.0,
+  "rows": {
+    "train": 1111,
+    "dev": 159,
+    "test": 556
+  },
+  "test": {
+    "test_loss": 0.04240429028868675,
+    "test_rmse": 20.59230318845242,
+    "test_R2": 0.623,
+    "test_pearson_corr": 0.8052667771983569,
+    "test_pearson_pvalue": 7.252474196373838e-128,
+    "test_mean_score": 63.02385104645928,
+    "test_st_dev_score": 31.564794731102776,
+    "test_diverged": 0.0,
+    "test_runtime": 3.1152,
+    "test_samples_per_second": 178.478,
+    "test_steps_per_second": 2.889,
+    "epoch": 5.0
+  },
+  "identical": {
+    "test/identical_sentences_loss": 0.013866561464965343,
+    "test/identical_sentences_rmse": 11.775634473351014,
+    "test/identical_sentences_mean_score": 91.91325869383635,
+    "test/identical_sentences_st_dev_score": 8.55980036549682,
+    "test/identical_sentences_ratio_equals": 25.925925925925924,
+    "test/identical_sentences_ratio_95": 41.66666666666667,
+    "test/identical_sentences_ratio_99": 25.925925925925924,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_runtime": 0.7844,
+    "test/identical_sentences_samples_per_second": 137.678,
+    "test/identical_sentences_steps_per_second": 2.55,
+    "epoch": 5.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_loss": 0.000716411683242768,
+    "test/unrelated_sentences_rmse": 2.6765868272173683,
+    "test/unrelated_sentences_mean_score": 0.3694763713412815,
+    "test/unrelated_sentences_st_dev_score": 2.650962891979822,
+    "test/unrelated_sentences_ratio_equals": 97.22222222222221,
+    "test/unrelated_sentences_ratio_1": 97.22222222222221,
+    "test/unrelated_sentences_ratio_5": 98.14814814814815,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_runtime": 0.6705,
+    "test/unrelated_sentences_samples_per_second": 161.075,
+    "test/unrelated_sentences_steps_per_second": 2.983,
+    "epoch": 5.0
+  }
+}

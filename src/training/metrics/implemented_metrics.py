@@ -2,15 +2,21 @@ from typing import List
 
 import numpy as np
 from evaluate import load
-from sentence_transformers import SentenceTransformer, util
-from textstat import textstat
 
 
 class SentenceBertWrapper:
     def __init__(self, model_name: str = "sentence-t5-xxl"):
+        # Imported here rather than at module level: sentence-transformers pulls a large
+        # dependency tree that only this one comparison baseline needs. At module level it
+        # made the whole module unimportable without it, which took sigmoid() -- a pure
+        # four-line function -- down with it, and with it the only test file covering it.
+        from sentence_transformers import SentenceTransformer
+
         self.model = SentenceTransformer(model_name)
 
     def compute(self, prediction: str, reference: str) -> float:
+        from sentence_transformers import util
+
         sentence_embedding_prediction = self.model.encode(prediction, convert_to_tensor=True)
         sentence_embedding_reference = self.model.encode(reference, convert_to_tensor=True)
 
@@ -38,6 +44,10 @@ class FKBLEU:
         self.ibleu = IBLEU(alpha=alpha)
 
     def compute(self, source: List[str], prediction: List[str], reference: List[str]) -> float:
+        # Imported here for the same reason as sentence-transformers above: an optional
+        # comparison baseline must not decide whether this module can be imported.
+        from textstat import textstat
+
         # I: input original -> source
         # R: reference -> reference (ground truth)
         # O: Output simplification -> prediction

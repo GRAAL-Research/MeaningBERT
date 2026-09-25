@@ -133,13 +133,13 @@ def back_translate_dataset(  # pylint: disable=too-many-arguments,too-many-posit
     if exclude_fingerprints:
         keep_orig, keep_simp, keep_labels = [], [], []
         n_dropped = 0
-        for o, s, l in zip(aug_orig, aug_simp, aug_labels):
+        for o, s, label in zip(aug_orig, aug_simp, aug_labels):
             if f"{o}|||{s}" in exclude_fingerprints:
                 n_dropped += 1
             else:
                 keep_orig.append(o)
                 keep_simp.append(s)
-                keep_labels.append(l)
+                keep_labels.append(label)
         if n_dropped > 0:
             print(f"  Dropped {n_dropped} bt pairs colliding with dev/test")
         aug_orig, aug_simp, aug_labels = keep_orig, keep_simp, keep_labels

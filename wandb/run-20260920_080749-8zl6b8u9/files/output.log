@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/src/figures_generator/comparatifs_v2.py", line 783, in <module>
+    main()
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/click/core.py", line 1485, in __call__
+    return self.main(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/click/core.py", line 1406, in main
+    rv = self.invoke(ctx)
+         ^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/click/core.py", line 1269, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/click/core.py", line 824, in invoke
+    return callback(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/src/figures_generator/comparatifs_v2.py", line 778, in main
+    url = upload_to_wandb(frame, figures, entity, wandb_project)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/src/figures_generator/comparatifs_v2.py", line 702, in upload_to_wandb
+    payload[f"figure/{os.path.splitext(os.path.basename(path))[0]}"] = wandb.Image(path)
+                                                                       ^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/wandb/sdk/data_types/image.py", line 184, in __init__
+    self._initialize_from_path(data_or_path)
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/wandb/sdk/data_types/image.py", line 286, in _initialize_from_path
+    self._image = pil_image.open(path)
+                  ^^^^^^^^^^^^^^^^^^^^
+  File "/home/david.beauchemin/Travail/articles/MeaningBERT/.venv/lib/python3.12/site-packages/PIL/Image.py", line 3715, in open
+    raise UnidentifiedImageError(msg)
+PIL.UnidentifiedImageError: cannot identify image file 'results/figures/v2-tete-de-sortie.pdf'

@@ -1,0 +1,44 @@
+_wandb:
+    value:
+        cli_version: 0.30.0
+        e:
+            9dk12aq3mnmeptkrkzmnaok96qx8xrg5:
+                args:
+                    - --source
+                    - local
+                    - --wandb-upload
+                codePath: src/figures_generator/comparatifs_v2.py
+                codePathLocal: src/figures_generator/comparatifs_v2.py
+                cpu_count: 8
+                cpu_count_logical: 16
+                disk:
+                    /:
+                        total: "980650221568"
+                        used: "540842192896"
+                email: david.beauchemin.5@ulaval.ca
+                executable: /home/david.beauchemin/Travail/articles/MeaningBERT/.venv/bin/python
+                git:
+                    commit: fc2028b26b4187835542c4c1a6a11a8f69c9e7d3
+                    remote: git@github.com:GRAAL-Research/MeaningBERT.git
+                host: UBU-FW13-012
+                memory:
+                    total: "32894971904"
+                os: Linux-7.0.0-31-generic-x86_64-with-glibc2.39
+                program: /home/david.beauchemin/Travail/articles/MeaningBERT/src/figures_generator/comparatifs_v2.py
+                python: CPython 3.12.3
+                root: /home/david.beauchemin/Travail/articles/MeaningBERT
+                startedAt: "2026-09-22T12:45:36.815371Z"
+                writerId: 9dk12aq3mnmeptkrkzmnaok96qx8xrg5
+        m: []
+        python_version: 3.12.3
+        t:
+            "3":
+                - 2
+                - 13
+                - 78
+            "4": 3.12.3
+            "5": 0.30.0
+            "10":
+                - 20
+            "12": 0.30.0
+            "13": linux-x86_64

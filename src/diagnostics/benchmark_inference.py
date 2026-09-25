@@ -22,7 +22,6 @@ import time
 from typing import Optional
 
 import click
-import numpy as np
 
 try:  # PYTHONPATH=src.
     from meaningbert.scorer import MeaningBERTScorer

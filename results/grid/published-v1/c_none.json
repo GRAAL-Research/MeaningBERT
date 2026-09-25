@@ -1,0 +1,42 @@
+{
+  "run_name": "evaluated_MeaningBERT_c_none",
+  "checkpoint": "davebulaval/MeaningBERT",
+  "variant_path": "/home/dabea241/MeaningBERT/data/v2/c_none",
+  "output_head": "linear",
+  "seed": -1,
+  "num_epochs": 0,
+  "epochs_trained": 0.0,
+  "evaluation_only": true,
+  "rows": {
+    "train": 1111,
+    "dev": 159,
+    "test": 556,
+    "sanity": 216
+  },
+  "test": {
+    "test_loss": 0.029065830939237293,
+    "test_rmse": 17.048704038500194,
+    "test_R2": 0.741,
+    "test_pearson_corr": 0.8694047978943433,
+    "test_pearson_pvalue": 9.208406141058706e-172,
+    "test_mean_score": 61.726211412133075,
+    "test_st_dev_score": 32.90415563582807,
+    "test_diverged": 0.0
+  },
+  "identical": {
+    "test/identical_sentences_rmse": 7.1521962625462,
+    "test/identical_sentences_mean_score": 93.76681769335711,
+    "test/identical_sentences_st_dev_score": 3.523679269637823,
+    "test/identical_sentences_diverged": 0.0,
+    "test/identical_sentences_ratio_95": 0.0,
+    "test/identical_sentences_ratio_equals": 0.0
+  },
+  "unrelated": {
+    "test/unrelated_sentences_rmse": 1.0154986690699654,
+    "test/unrelated_sentences_mean_score": 0.17033429278267753,
+    "test/unrelated_sentences_st_dev_score": 1.0057784810419306,
+    "test/unrelated_sentences_diverged": 0.0,
+    "test/unrelated_sentences_ratio_5": 98.14814814814815,
+    "test/unrelated_sentences_ratio_equals": 96.29629629629629
+  }
+}
