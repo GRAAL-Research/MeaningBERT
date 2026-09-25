@@ -1,0 +1,34 @@
+{
+  "corpus": "vitaminc",
+  "n_rows": 488904,
+  "n_unique_originals": 239815,
+  "scale": "none",
+  "label_raw_min": null,
+  "label_raw_max": null,
+  "label_raw_mean": null,
+  "n_annotators_median": 1,
+  "pct_with_std": 0.0,
+  "polarity_scheme": "fact3",
+  "polarity_classes": {
+    "SUPPORTS": 244862,
+    "REFUTES": 174751,
+    "NOT ENOUGH INFO": 69291
+  },
+  "domains": {
+    "wiki": 488904
+  },
+  "systems": {
+    "vitaminc-real": 325724,
+    "vitaminc-synthetic": 163180
+  },
+  "split_hints": {
+    "train": 370653,
+    "dev": 63054,
+    "test": 55197
+  },
+  "license": "CC-BY-SA-3.0",
+  "license_allows_redistribution": true,
+  "source_url": "https://huggingface.co/datasets/tals/vitaminc",
+  "retrieval_date": "2026-09-25",
+  "notes": "LE GROS DU SIGNAL DE POLARITE. Paires reclamation-evidence construites sur de vraies revisions Wikipedia. Ce qui en fait le bon corpus et pas seulement le plus gros : les paires sont CONTRASTIVES ET MINIMALES. Une phrase a ete editee, et la reclamation que la revision precedente soutenait est refutee par la suivante ; les deux evidences different d'une date, d'un nombre, d'un nom. C'est exactement la perturbation que LexFlip montre invisible aux metriques actuelles, a une echelle qu'aucune sonde construite a la main n'atteint. N'ANNOTE QUE LA POLARITE : aucun jugement humain sur la part de sens partagee, donc scale='none' et label_raw=NaN sur toutes les lignes. Declarer l'absence est le point : un defaut a 0.0 se lirait « aucun sens preserve », l'oppose de « pas mesure », et empoisonnerait la tete magnitude avec un demi-million de zeros confiants. DIRECTION DE LA PAIRE : l'evidence est la premisse et la reclamation l'hypothese, donc original=evidence et simplification=claim. Inverser poserait une autre question, celle de savoir si l'evidence decoule de la reclamation, qui n'est pas ce a quoi les annotateurs ont repondu. ESPACE D'ETIQUETTES : chaines SUPPORTS / REFUTES / NOT ENOUGH INFO, verifiees dans les donnees le 2026-09-25 ; pas d'encodage entier a retourner ici, le controle porte sur le fait que rien d'autre n'apparaisse, et une etiquette inconnue arrete le chargement au lieu de sauter la ligne. REVISION_TYPE : 'real' pour les vraies editions Wikipedia, 'synthetic' pour celles ecrites par des annotateurs contre une page inchangee. Les deux sont gardees et la distinction est portee dans 'system', pour qu'une experience ulterieure puisse tester si la moitie synthetique se comporte differemment sans recharger quoi que ce soit. LIGNES ECARTEES : celles dont l'evidence ou la reclamation est vide apres strip ; le contrat interdit un texte vide et une evidence vide ne porte aucun verdict dont on puisse apprendre. LICENCE : CC BY-SA 3.0 declaree, heritee de Wikipedia. Redistribuable, mais partage a l'identique, donc tout corpus fusionne bati dessus doit sortir sous une licence compatible ; voir docs/v3-echelle-signee.md pour laquelle et pourquoi."
+}

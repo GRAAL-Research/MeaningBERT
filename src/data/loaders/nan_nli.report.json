@@ -1,0 +1,31 @@
+{
+  "corpus": "nan_nli",
+  "n_rows": 258,
+  "n_unique_originals": 48,
+  "scale": "none",
+  "label_raw_min": null,
+  "label_raw_max": null,
+  "label_raw_mean": null,
+  "n_annotators_median": 1,
+  "pct_with_std": 0.0,
+  "polarity_scheme": "nli3",
+  "polarity_classes": {
+    "contradiction": 117,
+    "entailment": 97,
+    "neutral": 44
+  },
+  "domains": {
+    "mixed": 258
+  },
+  "systems": {
+    "human": 258
+  },
+  "split_hints": {
+    "": 258
+  },
+  "license": "CC-BY-SA-4.0",
+  "license_allows_redistribution": true,
+  "source_url": "https://huggingface.co/datasets/joey234/nan-nli",
+  "retrieval_date": "2026-09-25",
+  "notes": "NEGATION SOUS-CLAUSALE, ECRITE A LA MAIN, MINUSCULE. 258 paires ecrites par des linguistes pour cibler la negation qui porte SOUS le niveau de la clause : « Not all people have had the opportunities you have had » contre « Some people have not had the opportunities you have had ». La negation porte sur un quantificateur et non sur la proposition entiere, et c'est la que cassent les modeles qui ont seulement appris que le mot « not » veut dire contradiction. Trop petit pour entrainer, et pas destine a l'etre : c'est une sonde, deja l'une des trois suites de src/diagnostics/dissociation.py, ou le modele v1 publie obtient une amplitude de -1,4 % et le v2 large 18,1 %. SON UNIQUE SPLIT PUBLIE S'APPELLE 'train', ET LE LOADER NE PROPAGE PAS CE NOM. Le corpus n'impose aucun decoupage : c'est un jeu diagnostique unique fait a la main, et le nom 'train' est un artefact de televersement. Le porter laisserait discretement la sonde entrer dans les donnees d'entrainement, et la sonde ne mesurerait plus rien. Le split_hint du contrat vaut '' exactement pour ce cas, donc c'est ce qui est emis, et la decision appartient a harmonize.py. ESPACE D'ETIQUETTES : les trois classes sont presentes, verifiees dans les donnees le 2026-09-25, 117 contradiction, 97 entailment, 44 neutral. LICENCE : CC BY-SA 4.0, redistribuable avec partage a l'identique."
+}

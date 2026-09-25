@@ -1,0 +1,33 @@
+{
+  "corpus": "sick",
+  "n_rows": 9840,
+  "n_unique_originals": 5013,
+  "scale": "likert5",
+  "label_raw_min": 1.0,
+  "label_raw_max": 5.0,
+  "label_raw_mean": 3.525575203252033,
+  "n_annotators_median": 10,
+  "pct_with_std": 0.0,
+  "polarity_scheme": "nli3",
+  "polarity_classes": {
+    "neutral": 5595,
+    "entailment": 2821,
+    "contradiction": 1424
+  },
+  "domains": {
+    "mixed": 9840
+  },
+  "systems": {
+    "human": 9840
+  },
+  "split_hints": {
+    "test": 4906,
+    "train": 4439,
+    "dev": 495
+  },
+  "license": "unspecified (SemEval-2014 Task 1; mteb/sickr-sts published as CC BY-NC-SA 3.0)",
+  "license_allows_redistribution": false,
+  "source_url": "https://huggingface.co/datasets/yangwang825/sick + https://huggingface.co/datasets/mteb/sickr-sts",
+  "retrieval_date": "2026-09-25",
+  "notes": "LE PONT. Seul corpus de la campagne v3 annotant les DEUX cibles sur les MEMES paires : proximite continue 1-5 et etiquette d'inference a trois classes. C'est ici, et nulle part ailleurs, que la composition signe = magnitude x (1 - 2 p_contradiction) se calibre, parce que c'est le seul endroit ou on peut demander quelle proximite un humain a donnee a une paire qu'il a aussi appelee une contradiction. JOIN : aucune copie anglaise unique de SICK ne s'ouvre plus, la canonique embarque encore un script de chargement que HuggingFace a retire. Les deux moities survivent comme deux jeux distincts sur les memes paires, recousues ici sur la paire de phrases elle-meme. Couverture mesuree le 2026-09-25 : 4439/4439 train, 495/495 validation, 4906/4906 test, soit 100,0 % sur les trois splits, zero ligne perdue. check_join_loss() refuse un corpus ayant perdu plus de 1 % de ses lignes plutot que de retrecir en silence : un SICK plus petit biaiserait la calibration de toute la composition. CLE DE JOIN : les deux phrases strippees, DANS L'ORDRE. SICK publie A/B et B/A comme deux lignes distinctes aux etiquettes distinctes, donc normaliser l'ordre fusionnerait des lignes qui se contredisent. ENCODAGE DES ETIQUETTES, verifie dans les donnees et non lu sur une fiche : yangwang825/sick encode ses classes en 0, 1, 2 et aucune fiche ne dit laquelle est laquelle. Deux verifications independantes concordent : (1) la premiere paire du test, « A group of kids is playing in a yard ... » contre « A group of boys in a yard is playing ... », porte 1 et est manifestement neutre ; (2) les proportions collent a SICK publie, 1 vaut 50 % du train, 0 vaut 27 %, 2 vaut 14 %, contre l'ordre documente majorite-neutre puis implication puis contradiction. Donc 0 = entailment, 1 = neutral, 2 = contradiction. L'inversion est silencieuse et s'est DEJA produite sur ce projet, dans src/diagnostics/dissociation.py, ou elle n'a fait surface que comme une AUC de 0,021. ECART-TYPE : la proximite SICK est publiee comme moyenne sur 10 annotateurs, mais les notes individuelles ne sont dans aucune des deux copies, donc label_std est NaN ; la dispersion est irrecuperable ici et ne doit pas etre inventee. DOMAINE : 'mixed', legendes Flickr8k plus descriptions video SemEval, ni wiki ni news. LICENCE : aucune des deux moities ne declare de licence dans ses metadonnees ; la moitie proximite jointe ici est publiee en CC BY-NC-SA 3.0, la plus stricte des deux gouverne, redistribution a false par prudence."
+}

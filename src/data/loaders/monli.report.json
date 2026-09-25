@@ -1,0 +1,31 @@
+{
+  "corpus": "monli",
+  "n_rows": 1202,
+  "n_unique_originals": 641,
+  "scale": "none",
+  "label_raw_min": null,
+  "label_raw_max": null,
+  "label_raw_mean": null,
+  "n_annotators_median": 1,
+  "pct_with_std": 0.0,
+  "polarity_scheme": "nli3",
+  "polarity_classes": {
+    "entailment": 601,
+    "neutral": 601
+  },
+  "domains": {
+    "mixed": 1202
+  },
+  "systems": {
+    "human": 1202
+  },
+  "split_hints": {
+    "train": 1002,
+    "test": 200
+  },
+  "license": "unspecified (Geiger et al., MoNLI; derived from SNLI)",
+  "license_allows_redistribution": false,
+  "source_url": "https://huggingface.co/datasets/tasksource/monli",
+  "retrieval_date": "2026-09-25",
+  "notes": "LA SONDE LA PLUS FINE, ET LA MOINS CHERE. Paires minimales qui different d'une seule substitution lexicale, dans ou hors de la portee d'une negation. « There is a man not wearing a hat » implique « There is a man not wearing a sunhat », parce que la negation retourne le sens de l'implication : sous negation, le terme plus specifique decoule du plus general, et non l'inverse. Hors negation, la meme substitution donne le verdict oppose. La substitution change un mot ; une metrique pilotee par le recouvrement lexical repond le meme nombre sur les deux moities par construction, et n'a aucun moyen de reussir par accident. NE PORTE PAS DE CLASSE CONTRADICTION : ses deux etiquettes sont entailment et neutral, donc il oppose « decoule de » a « ne decoule pas de », question plus faible et plus facile que « nie ». C'est une propriete du corpus et non du schema, donc il declare nli3 et n'emet que deux de ses trois valeurs. C'est aussi pourquoi MoNLI est rapporte separement dans le diagnostic de dissociation au lieu d'etre moyenne avec SICK et NaN-NLI : une metrique de preservation du sens a RAISON de ne pas punir une paire neutre, qui partage son sens, donc une amplitude faible ici n'est pas l'echec qu'une amplitude faible sur SICK constitue. Une contradiction apparaissant en amont arrete le chargement : elle invaliderait ce traitement separe, donc l'hypothese est verifiee et non supposee. LICENCE : aucune dans les metadonnees. Derive de SNLI, dont les phrases viennent de legendes Flickr ; la derivation est publiee avec l'article de Geiger et al. Non tranchee, redistribution a false, ce qui ne coute rien puisque la fusion v3 sort sous la plus stricte de ses entrees."
+}
