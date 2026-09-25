@@ -34,8 +34,9 @@ checks. For more details, refer to our publicly available article.
 
 Correlation to human judgment is one way to evaluate the quality of a meaning preservation metric.
 However, it is inherently subjective, since it uses human judgment as a gold standard, and expensive since it requires
-a large dataset annotated by several humans. As an alternative, we designed two automated tests: evaluating meaning preservation between
-identical sentences (which should be 100% preserving) and between unrelated sentences (which should be 0% preserving).
+a large dataset annotated by several humans. As an alternative, we designed three automated tests: evaluating meaning
+preservation between identical sentences (which should be 100% preserving), between unrelated sentences (which should be
+0% preserving), and between the same pair given in both orders (which should return the same score twice).
 In these tests, the meaning preservation target value is not subjective and does not require human annotation to
 be measured. They represent a trivial and minimal threshold a good automatic meaning preservation metric should be able to
 achieve. Namely, a metric should be minimally able to return a perfect score (i.e., 100%) if two identical sentences are
@@ -57,6 +58,32 @@ irrelevant sentence mainly composed of irrelevant words (also known as word soup
 0, we check that the metric rating is lower or equal to a threshold value X∈[5, 1].
 Again, to account for computer floating-point inaccuracy, we round the ratings to the nearest integer and do not use
 a threshold value of 0%.
+
+### Symmetry
+
+Our third test evaluates a property of the metric rather than of a sentence pair. `meaning(A, B)` and `meaning(B, A)`
+ask the same question, how much of the meaning is shared, and the position of a sentence in the call carries no semantic
+information. The two calls should therefore return the same number. Unlike the two tests above, this one needs no
+generated data at all: it re-scores the evaluation pairs in the reverse order and measures the absolute difference,
+which has an expected value of exactly 0.
+
+A metric can pass the first two tests and fail this one. It is worth measuring because the failure is silent: two
+studies using the same metric, one calling `meaning(source, simplification)` and the other `meaning(simplification,
+source)`, would report different numbers with nothing signalling the discrepancy.
+
+Measured on 1652 test pairs, mean absolute difference between the two orders:
+
+| model | mean | median | pairs differing by more than 10 points |
+|---|---|---|---|
+| MeaningBERT v1, as published | 6.12 | 3.12 | **20.8 %** |
+| v2 trained without mirrored pairs | 7.79 | 4.88 | 31.1 % |
+| **v2 as released** | **1.48** | **0.74** | **0.6 %** |
+
+The property is taught, not enforced: the training corpus contains the mirror of every non-identical pair, with the
+label carried over unchanged. That brings the violation down by a factor of five, and it does not remove it. The scorer
+deliberately runs a single direction, the one you pass, rather than averaging both: averaging would make the property
+exact at twice the inference cost, and would hide in the wrapper a residual violation that belongs in the results. Pass
+your pairs in a consistent order.
 
 ## MeaningBERT v2: which checkpoint to use
 
@@ -120,15 +147,8 @@ The corpus and the training recipe account for **+0.314**; the larger encoder ad
 
 ### One property the metric does not guarantee
 
-`meaning(A, B)` and `meaning(B, A)` ask the same question, so they should return the same
-number. Mirrored training pairs bring the released model close: the two directions differ
-by 1.48 points on average, against 7.79 without them, and by more than 10 points on 0.6 %
-of pairs. Close, not exact. The published v1 model differs by 6.12 points on average and
-by more than 10 points on **20.8 %** of pairs.
-
-The scorer runs **one direction**, the one you pass. Averaging both would make the property
-exact at double the cost, and would hide a residual violation that belongs in the results
-rather than in the wrapper. Pass your pairs in a consistent order.
+See [Symmetry](#symmetry) above: the released model differs by 1.48 points on average between the two argument orders,
+against 6.12 for the published v1 model. The scorer runs one direction, the one you pass.
 
 ## Use MeaningBERT
 
