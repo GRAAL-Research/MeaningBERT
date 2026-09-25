@@ -27,7 +27,9 @@ htmlcov/
 coverage.xml
 
 # Model artifacts
-meaningbert
+# La regle nue "meaningbert" excluait src/meaningbert/, le module que le README
+# dit d'importer. Elle visait un dossier de sortie a la racine, pas le paquet.
+/meaningbert/
 *.ckpt
 mlruns/
 

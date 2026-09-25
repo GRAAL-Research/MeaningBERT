@@ -87,12 +87,13 @@ your pairs in a consistent order.
 
 ## MeaningBERT v2: which checkpoint to use
 
-Two checkpoints are released, trained on the same v2 corpus with the same recipe and
-differing only in their encoder. Every number below is measured on the same held-out test
-set of 1536 human-annotated pairs, with the control pairs reported separately rather than
-folded into the correlation.
+Two checkpoints, trained on the same v2 corpus with the same recipe and differing only in
+their encoder. **`large` is published; `base` is measured but not published yet**, which is
+why its column carries a single seed. Every number below is measured on the same held-out
+test set of 1536 human-annotated pairs, with the control pairs reported separately rather
+than folded into the correlation.
 
-| | **best** | **fastest** |
+| | **`large`** | **`base`** |
 |---|---|---|
 | encoder | `deberta-v3-large` | `bert-base-uncased` |
 | parameters | 435 M | 110 M |
@@ -116,21 +117,28 @@ against *itself* below 95 almost a third of the time, which is a failure mode a 
 on real input, not a second-decimal difference on a benchmark. If a wrong score on an
 identical pair matters for your use, the gap is not 0.067, it is disqualifying.
 
-Two caveats travel with the fast checkpoint. It was trained on **one seed** where the large
-one has ten, so its numbers carry no spread and may move by the ±0.016 seen elsewhere. And
-on GPU it is not meaningfully faster than the middle option below.
+Two caveats travel with `base`. It was trained on **one seed** where `large` has ten, so its
+numbers carry no spread and may move by the ±0.016 seen elsewhere. And on GPU it is not
+meaningfully faster than the third model below.
 
-### A middle option worth knowing about
+### A third model, measured but not shipped
+
+This one is **not released**, and is reported because it changes how the two published
+checkpoints should be read.
 
 `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`, fine-tuned on the same v2 corpus, reaches
 **0.679 ± 0.008** over 9 seeds with sanity checks statistically indistinguishable from the
 large model. It runs at **0.37 s per 100 pairs on GPU**, which is the same speed as
 `bert-base-uncased` (0.36 s), and 2.84 s on CPU against 1.99 s.
 
-So on a GPU there is no speed argument for the BERT checkpoint: the NLI-pretrained base
-model is as fast, correlates 0.042 higher, and passes the sanity checks. The BERT
-checkpoint is the right choice only on CPU, and only when 1.4 times the latency matters
-more than the identical-pair failures.
+So on a GPU there is no speed argument for a BERT encoder: an NLI-pretrained base model is
+as fast, correlates 0.042 higher, and passes the sanity checks. `base` earns its place on
+CPU, where it is 1.4 times faster, and there only if the identical-pair failures are
+acceptable for the use.
+
+The practical reading: at constant size, what the encoder was pretrained on matters more
+than which encoder it is. That is also why most of the v2 gain comes from the corpus rather
+than from scaling the model.
 
 ### Where the gain comes from
 
@@ -156,11 +164,11 @@ You can use MeaningBERT as a [model](https://huggingface.co/davebulaval/MeaningB
 inference using the following with HuggingFace
 
 ```python
-# Load model directly
+# Load model directly. subfolder="large" is the v2 checkpoint; without it you get v1.
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-tokenizer = AutoTokenizer.from_pretrained("davebulaval/MeaningBERT")
-model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT")
+tokenizer = AutoTokenizer.from_pretrained("davebulaval/MeaningBERT", subfolder="large")
+model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT", subfolder="large")
 ```
 
 or you can use MeaningBERT as a metric for evaluation (no retrain) using the following with HuggingFace
@@ -170,8 +178,8 @@ import torch
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-tokenizer = AutoTokenizer.from_pretrained("davebulaval/MeaningBERT")
-scorer = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT")
+tokenizer = AutoTokenizer.from_pretrained("davebulaval/MeaningBERT", subfolder="large")
+scorer = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT", subfolder="large")
 scorer.eval()
 
 documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "He wants to eat."]
@@ -185,7 +193,22 @@ with torch.no_grad():
     # We process the text
     scores = scorer(**tokenize_text)
 
-print(scores.logits.tolist())
+# The output head is applied OUTSIDE the model, so the logits are NOT the score.
+# config.meaningbert_output_head says which one: "clamped" for the v2 checkpoints.
+print((scores.logits.squeeze(-1).clamp(0, 1) * 100).tolist())
+```
+
+> **The v1 snippet does not carry over.** v1 was trained with a linear head whose logit *is* the score, so its model card
+> prints `scores.logits.tolist()` directly. The v2 checkpoints apply a bounded head outside the model: printing the raw
+> logits returns unit-scale values such as `0.83`, silently, with no error. Read `config.meaningbert_output_head` and map
+> accordingly, or use `meaningbert.scorer.MeaningBERTScorer`, which reads it for you and always returns 0-100.
+
+```python
+# The same thing, without having to know which head the checkpoint uses
+from meaningbert import MeaningBERTScorer
+
+scorer = MeaningBERTScorer("davebulaval/MeaningBERT", subfolder="large")
+print(scorer.score(documents, simplifications))
 ```
 or using our HuggingFace Metric module
 
@@ -225,11 +248,15 @@ model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningB
 | name | encoder | Pearson *r* | identical pairs above 95 | 100 pairs, GPU / CPU | weights |
 |---|---|---|---|---|---|
 | **`large`** (default) | `deberta-v3-large` | **0.704 ± 0.009** | **97.1 % ± 1.4** | 1.16 s / 9.49 s | 1740 MB |
-| `base` | `bert-base-uncased` | *coming* | *coming* | **0.36 s / 1.99 s** | **438 MB** |
+| `base`<sup>†</sup> | `bert-base-uncased` | 0.637 | 70.4 % | **0.36 s / 1.99 s** | **438 MB** |
 | `v1` | `bert-base-uncased` | 0.323 | 0 % | 0.36 s / 1.99 s | 438 MB |
 
-Load `base` when you score at volume or have no GPU, `large` when a wrong score costs you something. A name that is not
-published raises rather than falling back on another checkpoint, so a typo cannot silently swap the model under you.
+<sup>†</sup> `base` is **not published yet**: its figures come from a single seed, against ten for `large`, and loading it
+raises rather than falling back on another checkpoint. A name that does not exist raises too, so a typo cannot silently
+swap the model under you.
+
+Load `base` when you score at volume or have no GPU, `large` when a wrong score costs you something. On a GPU the speed
+argument is weak, see [A middle option worth knowing about](#a-middle-option-worth-knowing-about).
 
 The numbers are detailed in [MeaningBERT v2: which checkpoint to use](#meaningbert-v2-which-checkpoint-to-use).
 
