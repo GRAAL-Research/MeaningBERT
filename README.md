@@ -196,37 +196,42 @@ documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "H
 simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
                    "Whatever, whenever, this is a sentence."]
 
-# There are TWO variants, selected by the second argument of evaluate.load.
-# "best" is the default: deberta-v3-large, the accurate one.
+# Three checkpoints, named as the second argument of evaluate.load.
+# "large" is the default: deberta-v3-large, the recommended one.
 meaning_bert = evaluate.load("davebulaval/meaningbert")
-meaning_bert = evaluate.load("davebulaval/meaningbert", "best")  # the same thing, explicitly
+meaning_bert = evaluate.load("davebulaval/meaningbert", "large")  # the same thing
 
-# "fastest" is bert-base-uncased: 3.2x faster on GPU, 4.8x on CPU, a quarter of the memory.
-meaning_bert_fast = evaluate.load("davebulaval/meaningbert", "fastest")
+# "base" is bert-base-uncased: 3.2x faster on GPU, 4.8x on CPU, a quarter of the memory.
+meaning_bert_base = evaluate.load("davebulaval/meaningbert", "base")
+
+# "v1" is the model published with the 2023 article, unchanged.
+meaning_bert_v1 = evaluate.load("davebulaval/meaningbert", "v1")
 
 print(meaning_bert.compute(references=documents, predictions=simplifications))
 ```
 
-### Which variant to load
+### Which checkpoint to load
 
-`evaluate.load` accepts a variant name as its second argument, and the two variants do not
-return the same scores. An unknown name raises rather than falling back to the default: a
-typo that silently swapped the model would produce wrong numbers with nothing to show for
-it.
+The two v2 checkpoints are **subfolders of the same repository**,
+[davebulaval/MeaningBERT](https://huggingface.co/davebulaval/MeaningBERT), whose root is still the v1 model. Nothing
+already loading that repository changes behaviour.
 
-| | `best` (default) | `fastest` |
-|---|---|---|
-| encoder | `deberta-v3-large` | `bert-base-uncased` |
-| correlation with human judgment | **+0.067** | |
-| identical pairs scored above 95 | **97.1 %** | 70.4 % |
-| 100 pairs, GPU / CPU | 1.16 s / 9.49 s | **0.36 s / 1.99 s** |
-| weights | 1740 MB | **438 MB** |
+```python
+from transformers import AutoModelForSequenceClassification
 
-Load `fastest` when you score at volume or have no GPU. Load `best` when a wrong score
-costs you something: the small model rates a sentence against *itself* below 95 almost a
-third of the time, which no amount of averaging over a corpus will wash out.
+model = AutoModelForSequenceClassification.from_pretrained("davebulaval/MeaningBERT", subfolder="large")
+```
 
-The numbers above are detailed in [MeaningBERT v2: which checkpoint to use](#meaningbert-v2-which-checkpoint-to-use).
+| name | encoder | Pearson *r* | identical pairs above 95 | 100 pairs, GPU / CPU | weights |
+|---|---|---|---|---|---|
+| **`large`** (default) | `deberta-v3-large` | **0.704 ± 0.009** | **97.1 % ± 1.4** | 1.16 s / 9.49 s | 1740 MB |
+| `base` | `bert-base-uncased` | *coming* | *coming* | **0.36 s / 1.99 s** | **438 MB** |
+| `v1` | `bert-base-uncased` | 0.323 | 0 % | 0.36 s / 1.99 s | 438 MB |
+
+Load `base` when you score at volume or have no GPU, `large` when a wrong score costs you something. A name that is not
+published raises rather than falling back on another checkpoint, so a typo cannot silently swap the model under you.
+
+The numbers are detailed in [MeaningBERT v2: which checkpoint to use](#meaningbert-v2-which-checkpoint-to-use).
 
 
 ------------------
