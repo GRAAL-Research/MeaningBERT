@@ -97,8 +97,8 @@ def sanity(scorer: MeaningBERTScorer, rows, kind: str) -> dict:
 @click.option("--max-length", default=256, show_default=True, help="Same bound the grid trains under.")
 @click.option("--suites", default=None, help="Full-coverage evaluation suites from build_eval_suites.py.")
 @click.option("--symmetrize/--no-symmetrize", default=False,
-              help="Score the pair in both directions and average. Makes meaning(A,B) = meaning(B,A) "
-                   "EXACTLY, by construction, on any checkpoint. Costs one extra forward pass.")
+              help="DIAGNOSTIC ONLY: average the two directions, to measure what the asymmetry "
+                   "costs. The published scorer does not do this; it runs one direction.")
 def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int, max_length: int,
          suites: Optional[str], symmetrize: bool) -> None:
     """Score *checkpoint* on *variant_path* and write a run-shaped JSON."""
@@ -111,13 +111,15 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
 
     test = data["test"]
 
-    # The scorer symmetrises on its own; the evaluator drives its flag rather than
-    # averaging a second time. --no-symmetrize is what measures the raw violation, which
-    # the article reports as a diagnostic on the state of the art.
-    scorer.symmetric = symmetrize
-
+    # The published scorer runs ONE direction, which is the shipped behaviour and the one
+    # the article's numbers describe. Averaging the two directions lives here, in the
+    # diagnostic, because that is what it is: a way to quantify what the asymmetry costs,
+    # not a patch to apply on the way out.
     def score(a, b):
-        return np.array(scorer.score(a, b), dtype=float)
+        direct = np.array(scorer.score(a, b), dtype=float)
+        if not symmetrize:
+            return direct
+        return (direct + np.array(scorer.score(b, a), dtype=float)) / 2.0
 
     pred = score(test["original"], test["simplification"])
     gold = np.array(test["label"], dtype=float)

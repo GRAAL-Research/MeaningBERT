@@ -104,20 +104,11 @@ def main(checkpoints, devices, pairs: int, repeats: int, batch_size: int, json_o
             params = size["parameters"]
             print(f"{checkpoint:58} {device:5} {params / 1e6:6.1f} M parametres, "
                   f"{size['weights_mb']:7.0f} Mo de poids, pic VRAM {size['peak_vram_mb']:7.0f} Mo")
-            for symmetric in (False, True):
-                scorer.symmetric = symmetric
-                got = measure(scorer, pairs, repeats)
-                rows.append(
-                    {
-                        "checkpoint": checkpoint,
-                        "device": device,
-                        "symmetric": symmetric,
-                        **size,
-                        **{k: v for k, v in got.items() if k != "all_timings"},
-                    }
-                )
-                print(f"{checkpoint:58} {device:5} {'symetrique' if symmetric else 'brut':11} "
-                      f"{got['pairs_per_second']:8.1f} paires/s   {params / 1e6:6.1f} M parametres")
+            got = measure(scorer, pairs, repeats)
+            rows.append({"checkpoint": checkpoint, "device": device, **size,
+                         **{k: v for k, v in got.items() if k != "all_timings"}})
+            print(f"{checkpoint:58} {device:5} {got['pairs_per_second']:8.1f} paires/s   "
+                  f"{pairs / got['pairs_per_second']:6.2f} s pour {pairs} paires")
             del scorer
             if device == "cuda":
                 torch.cuda.empty_cache()
@@ -127,14 +118,16 @@ def main(checkpoints, devices, pairs: int, repeats: int, batch_size: int, json_o
             json.dump(rows, handle, indent=2)
         print(f"\necrit dans {json_out}")
 
-    base = next((r for r in rows if "davebulaval/MeaningBERT" in r["checkpoint"] and not r["symmetric"]), None)
+    base = next((r for r in rows if "bert-base-uncased" in r["checkpoint"]), None)
     if base:
-        print("\nrapport au modele publie, a materiel egal :")
+        print("\nrapport a bert-base-uncased, a materiel egal :")
         for r in rows:
-            if r["device"] != base["device"] or r is base:
+            if r is base:
                 continue
-            print(f"  {r['checkpoint'][:48]:48} {'symetrique' if r['symmetric'] else 'brut':11} "
-                  f"{base['pairs_per_second'] / r['pairs_per_second']:5.1f} fois plus lent")
+            ref = next((b for b in rows if b["device"] == r["device"] and "bert-base-uncased" in b["checkpoint"]), None)
+            if ref:
+                print(f"  {r['checkpoint'][:44]:44} {r['device']:5} "
+                      f"{ref['pairs_per_second'] / r['pairs_per_second']:5.1f} fois plus lent")
 
 
 if __name__ == "__main__":

@@ -58,6 +58,78 @@ irrelevant sentence mainly composed of irrelevant words (also known as word soup
 Again, to account for computer floating-point inaccuracy, we round the ratings to the nearest integer and do not use
 a threshold value of 0%.
 
+## MeaningBERT v2: which checkpoint to use
+
+Two checkpoints are released, trained on the same v2 corpus with the same recipe and
+differing only in their encoder. Every number below is measured on the same held-out test
+set of 1536 human-annotated pairs, with the control pairs reported separately rather than
+folded into the correlation.
+
+| | **best** | **fastest** |
+|---|---|---|
+| encoder | `deberta-v3-large` | `bert-base-uncased` |
+| parameters | 435 M | 110 M |
+| Pearson *r* | **0.704 ± 0.009** (10 seeds) | 0.637 (1 seed) |
+| RMSE | 18.20 ± 0.56 | 20.23 |
+| identical pairs scored above 95 | **97.1 % ± 1.4** | 70.4 % |
+| unrelated pairs scored below 5 | **99.2 % ± 0.4** | 97.2 % |
+| 100 pairs, GPU | 1.16 s | **0.36 s** |
+| 100 pairs, CPU | 9.49 s | **1.99 s** |
+| weights | 1740 MB | **438 MB** |
+| peak VRAM | 2181 MB | **514 MB** |
+
+### The delta, and what it costs
+
+The large encoder buys **+0.067 Pearson** and, more importantly, **+26.7 points on the
+identical-pair check**. It costs 3.2 times the inference time on GPU, 4.8 times on CPU,
+and 4 times the memory.
+
+The correlation gap is the smaller half of the story. `bert-base-uncased` scores a sentence
+against *itself* below 95 almost a third of the time, which is a failure mode a user meets
+on real input, not a second-decimal difference on a benchmark. If a wrong score on an
+identical pair matters for your use, the gap is not 0.067, it is disqualifying.
+
+Two caveats travel with the fast checkpoint. It was trained on **one seed** where the large
+one has ten, so its numbers carry no spread and may move by the ±0.016 seen elsewhere. And
+on GPU it is not meaningfully faster than the middle option below.
+
+### A middle option worth knowing about
+
+`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`, fine-tuned on the same v2 corpus, reaches
+**0.679 ± 0.008** over 9 seeds with sanity checks statistically indistinguishable from the
+large model. It runs at **0.37 s per 100 pairs on GPU**, which is the same speed as
+`bert-base-uncased` (0.36 s), and 2.84 s on CPU against 1.99 s.
+
+So on a GPU there is no speed argument for the BERT checkpoint: the NLI-pretrained base
+model is as fast, correlates 0.042 higher, and passes the sanity checks. The BERT
+checkpoint is the right choice only on CPU, and only when 1.4 times the latency matters
+more than the identical-pair failures.
+
+### Where the gain comes from
+
+Measured on the same test set, at constant recipe:
+
+| | Pearson |
+|---|---|
+| v1 as published: `bert-base` + v1 corpus + linear head | 0.323 |
+| `bert-base` + **v2 corpus** + clamped head + augmentation | 0.637 |
+| `deberta-v3-large`, same recipe | 0.704 |
+
+The corpus and the training recipe account for **+0.314**; the larger encoder adds
+**+0.067**. Scaling the model is the small lever here.
+
+### One property the metric does not guarantee
+
+`meaning(A, B)` and `meaning(B, A)` ask the same question, so they should return the same
+number. Mirrored training pairs bring the released model close: the two directions differ
+by 1.48 points on average, against 7.79 without them, and by more than 10 points on 0.6 %
+of pairs. Close, not exact. The published v1 model differs by 6.12 points on average and
+by more than 10 points on **20.8 %** of pairs.
+
+The scorer runs **one direction**, the one you pass. Averaging both would make the property
+exact at double the cost, and would hide a residual violation that belongs in the results
+rather than in the wrapper. Pass your pairs in a consistent order.
+
 ## Use MeaningBERT
 
 You can use MeaningBERT as a [model](https://huggingface.co/davebulaval/MeaningBERT) that you can retrain or use for

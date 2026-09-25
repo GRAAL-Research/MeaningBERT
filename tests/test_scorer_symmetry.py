@@ -1,66 +1,131 @@
-"""The scorer must return the same number whatever the order of the two sentences.
+"""The scorer scores one direction, and the asymmetry it leaves is a measured result.
 
-This is not a quality target, it is an invariant. ``meaning(A, B)`` and ``meaning(B, A)``
-ask the same question: how much of the meaning is shared. The position of a sentence in the
-call carries no semantic information, so a different answer is a defect.
+``meaning(A, B)`` and ``meaning(B, A)`` ask the same question, so they should return the
+same number. The corpus teaches that through mirrored training pairs, and it works: on the
+published configuration the two directions differ by 1.48 points on average, against 7.79
+without them.
 
-Measurement is what makes these tests necessary. On 1652 test pairs, the published v1 model
-disagrees with itself by 6.12 points on average and by more than 10 points on 20.8 percent
-of them; a v2 model trained without mirrored pairs is worse still, at 7.79. Training does
-not deliver the property, so the API enforces it.
+What the scorer does NOT do is average the two directions at inference. That would make the
+property exact, at double the cost, by patching outside the model what the model should
+hold on its own, and it would hide the residual violation instead of reporting it. These
+tests pin that decision: one call, one direction, one forward pass.
+
+The stubs below replace the tokenizer and the model, never ``score()`` itself. Stubbing the
+method under test would leave these tests passing whatever the scorer does.
 """
+
+import contextlib
 
 import pytest
 
+from meaningbert import scorer as scorer_module
 from meaningbert.scorer import MeaningBERTScorer
 
 
-class _Asymmetric(MeaningBERTScorer):
-    """A scorer whose underlying model is blatantly order-dependent.
+class _Recording:
+    """A tokenizer and model pair that records the calls and is blatantly order-dependent.
 
-    Built by hand rather than loaded, so the test needs neither weights nor a GPU. The
-    stub returns the length of the first argument, which makes the asymmetry both extreme
-    and trivially predictable.
+    The fake model returns the length of the FIRST sentence of each pair, so any averaging
+    of the two directions would show up immediately as a different number.
     """
 
-    def __init__(self, symmetric: bool = True) -> None:  # pylint: disable=super-init-not-called
-        self.symmetric = symmetric
-        self.batch_size = 32
+    def __init__(self) -> None:
+        self.batches: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
 
-    def _score_one_way(self, documents, simplifications):
-        return [float(len(d)) for d in documents]
+    def tokenizer(self, batch_a, batch_b, **_kwargs):
+        self.batches.append((tuple(batch_a), tuple(batch_b)))
+        return self
 
+    def to(self, _device):
+        # score() does ``model(**encoded)``, so this has to be a mapping, not the recorder.
+        return {"encoded": True}
 
-def test_the_stub_really_is_asymmetric():
-    """Guard the guard: a symmetric stub would make every other test pass for free."""
-    raw = _Asymmetric(symmetric=False)
-    assert raw.score(["aaa"], ["b"]) == [3.0]
-    assert raw.score(["b"], ["aaa"]) == [1.0]
-
-
-def test_swapping_the_arguments_does_not_change_the_score():
-    scorer = _Asymmetric()
-    assert scorer.score(["aaa"], ["b"]) == scorer.score(["b"], ["aaa"])
+    def __call__(self, **_kwargs):
+        lengths = [float(len(a)) for a in self.batches[-1][0]]
+        return type("Output", (), {"logits": lengths})()
 
 
-def test_the_symmetric_score_is_the_mean_of_the_two_directions():
-    """Not just equal, equal to the right thing.
+class _NoTorch:
+    """Just enough of torch for ``score()``: the no_grad context manager.
 
-    The mean is the only symmetrisation that leaves an already-symmetric model untouched;
-    min or max would shift every score of a model that has the property.
+    The head arithmetic is stubbed out separately, so this test needs no tensors and runs
+    on a machine without torch installed, which is where the rest of the suite runs.
     """
-    assert _Asymmetric().score(["aaa"], ["b"]) == [2.0]
+
+    @staticmethod
+    def no_grad():
+        return contextlib.nullcontext()
 
 
-def test_symmetry_can_be_turned_off_to_measure_the_violation():
-    """The article reports the raw violation as a diagnostic, so it must stay reachable."""
-    assert _Asymmetric(symmetric=False).score(["aaa"], ["b"]) == [3.0]
+@pytest.fixture(autouse=True)
+def _passthrough_head(monkeypatch):
+    """Replace the 0-100 mapping by identity.
+
+    What is under test is the direction and the batching, not the head arithmetic, which
+    has its own suite. Stubbing it keeps this file free of torch.
+    """
+    monkeypatch.setattr(scorer_module, "to_percent", lambda logits, head: _Scores(logits))
+
+
+class _Scores(list):
+    """A list that answers the two calls ``score()`` makes on a tensor."""
+
+    def cpu(self):
+        return self
+
+    def tolist(self):
+        return list(self)
+
+
+def _scorer(batch_size: int = 32) -> tuple[MeaningBERTScorer, _Recording]:
+    """A scorer wired to the fake pieces, without loading any weights."""
+    recorder = _Recording()
+    scorer = MeaningBERTScorer.__new__(MeaningBERTScorer)
+    scorer.batch_size = batch_size
+    scorer.device = "cpu"
+    scorer.max_length = 256
+    scorer.head = "linear"  # The head whose logit IS the score, so the stub passes through.
+    scorer._tokenizer = recorder.tokenizer  # noqa: SLF001
+    scorer._model = recorder  # noqa: SLF001
+    scorer._torch = _NoTorch  # noqa: SLF001
+    return scorer, recorder
+
+
+def test_the_score_depends_on_the_order_because_only_one_direction_is_run():
+    """The asymmetry is left visible on purpose; it is the article's diagnostic."""
+    scorer, _ = _scorer()
+    assert scorer.score(["aaa"], ["b"]) == [3.0]
+    assert scorer.score(["b"], ["aaa"]) == [1.0]
+
+
+def test_the_model_never_sees_the_mirrored_pair():
+    """The decisive test: no hidden second pass with the arguments swapped."""
+    scorer, recorder = _scorer()
+    scorer.score(["aaa", "bb"], ["c", "d"])
+    assert recorder.batches == [(("aaa", "bb"), ("c", "d"))]
+
+
+def test_a_long_input_is_batched_but_still_one_direction():
+    """Batching must not sneak the mirrored direction in as an extra batch."""
+    scorer, recorder = _scorer(batch_size=2)
+    scorer.score(["a", "bb", "ccc", "dddd", "e"], ["z"] * 5)
+    assert [b[0] for b in recorder.batches] == [("a", "bb"), ("ccc", "dddd"), ("e",)]
+
+
+def test_the_scorer_exposes_no_symmetry_switch():
+    """The published API has one behaviour, so there is no flag to get it wrong with."""
+    assert not hasattr(MeaningBERTScorer, "symmetric")
+    assert "symmetric" not in getattr(MeaningBERTScorer, "__dataclass_fields__", {})
 
 
 def test_mismatched_lengths_are_refused_before_any_forward_pass():
+    scorer, recorder = _scorer()
     with pytest.raises(ValueError):
-        _Asymmetric().score(["a", "b"], ["c"])
+        scorer.score(["a", "b"], ["c"])
+    assert recorder.batches == []
 
 
-def test_an_empty_input_returns_no_score_rather_than_failing():
-    assert _Asymmetric().score([], []) == []
+def test_an_empty_input_returns_no_score_and_runs_nothing():
+    scorer, recorder = _scorer()
+    assert scorer.score([], []) == []
+    assert recorder.batches == []
