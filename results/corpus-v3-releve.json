@@ -1,0 +1,140 @@
+[
+  {
+    "name": "tals/vitaminc",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 370653,
+      "validation": 63054,
+      "test": 55197
+    },
+    "columns": [
+      "FEVER_id",
+      "big_bench_canary",
+      "case_id",
+      "claim",
+      "evidence",
+      "label",
+      "page",
+      "revision_type",
+      "unique_id",
+      "wiki_revision_id"
+    ],
+    "licence": "non declaree",
+    "label_field": "label",
+    "label_space": "Value('string')",
+    "why": "450k contrastive claim-evidence pairs; the largest minimal-pair corpus there is"
+  },
+  {
+    "name": "nightingal3/fig-qa",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 9674,
+      "validation": 1094,
+      "test": 1146
+    },
+    "columns": [
+      "ending1",
+      "ending2",
+      "labels",
+      "startphrase",
+      "valid"
+    ],
+    "licence": "non declaree",
+    "label_field": "labels",
+    "label_space": "Value('int64')",
+    "why": "control: figurative pairs, to see whether the harness reads an unrelated schema"
+  },
+  {
+    "name": "EdinburghNLP/ACES",
+    "config": null,
+    "ok": false,
+    "error": "DatasetNotFoundError: Dataset 'EdinburghNLP/ACES' doesn't exist on the Hub or cannot be accessed.",
+    "why": "36k examples over 68 phenomena: negation, antonyms, numbers, entities, argument order"
+  },
+  {
+    "name": "google-research-datasets/paws",
+    "config": "labeled_final",
+    "ok": true,
+    "rows": {
+      "train": 49401,
+      "test": 8000,
+      "validation": 8000
+    },
+    "columns": [
+      "id",
+      "label",
+      "sentence1",
+      "sentence2"
+    ],
+    "licence": "non declaree",
+    "label_field": "label",
+    "label_space": [
+      "0",
+      "1"
+    ],
+    "why": "108k pairs with high lexical overlap that are NOT paraphrases"
+  },
+  {
+    "name": "sentence-transformers/stsb",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 5749,
+      "validation": 1500,
+      "test": 1379
+    },
+    "columns": [
+      "score",
+      "sentence1",
+      "sentence2"
+    ],
+    "licence": "non declaree",
+    "label_field": null,
+    "why": "continuous relatedness, the bridge between a magnitude head and a polarity head"
+  },
+  {
+    "name": "sick",
+    "config": null,
+    "ok": false,
+    "error": "RuntimeError: Dataset scripts are no longer supported, but found sick.py",
+    "why": "relatedness AND entailment on the same pairs; the natural bridge between the two heads"
+  },
+  {
+    "name": "pietrolesci/nan-nli",
+    "config": null,
+    "ok": false,
+    "error": "DatasetNotFoundError: Dataset 'pietrolesci/nan-nli' doesn't exist on the Hub or cannot be accessed.",
+    "why": "sub-clausal negation, targeted and small"
+  },
+  {
+    "name": "sagnikrayc/monli",
+    "config": null,
+    "ok": false,
+    "error": "DatasetNotFoundError: Dataset 'sagnikrayc/monli' doesn't exist on the Hub or cannot be accessed.",
+    "why": "downward monotonicity under negation"
+  },
+  {
+    "name": "lasha-nlp/CondaQA",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {},
+    "columns": [],
+    "licence": "non declaree",
+    "label_field": null,
+    "why": "negation scope in reading comprehension"
+  }
+]
