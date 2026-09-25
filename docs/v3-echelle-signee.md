@@ -170,18 +170,22 @@ la publication couterait beaucoup plus que la verification.
 | `sentence-transformers/stsb` | aucune | aucune permission par defaut |
 | `tasksource/monli` | aucune | aucune permission par defaut |
 
-**Le corpus fusionne unique de la v2 n'est pas reproductible ici.** BY-SA exige que le
-derive sorte sous les memes termes, et NC ajoute une restriction que BY-SA interdit
-d'ajouter. Melanger VitaminC avec ACES ou avec la moitie proximite de SICK produit un
-ensemble qu'aucune licence ne couvre.
+### Decision de David, 2026-09-25 : on garde les neuf
 
-Trois pistes, a trancher avant les chargeurs :
+Le cadre est academique, ce qui leve la contrainte qui comptait : la clause non commerciale
+d'ACES et de SICK-proximite n'empeche ni l'entrainement, ni la publication des resultats,
+ni celle des modeles.
 
-1. **Publier les chargeurs seulement**, aucun corpus fusionne. Reproductible par le code,
-   au prix de neuf sources qui peuvent bouger.
-2. **Fusionner uniquement le sous-ensemble compatible**, VitaminC plus NaN-NLI plus
-   CONDAQA, sous BY-SA, et garder ACES et SICK-proximite comme dependances a telecharger.
-   Le gros du volume reste redistribuable.
-3. **Remonter aux sources originales** pour les trois corpus sans licence declaree. SICK et
-   STS-B ont des licences a leur publication d'origine ; le silence du miroir HuggingFace
-   n'est pas la licence de l'oeuvre.
+Reste une seule chose a faire correctement, et elle ne coute rien : **publier le corpus
+fusionne sous CC BY-NC-SA 4.0**, la plus restrictive des licences d'entree. Elle absorbe
+BY-SA et BY-NC-SA sans contradiction, la ou un corpus annonce en BY-SA aurait promis plus
+de droits que ses sources n'en donnent. Les trois corpus qui ne declarent rien, SICK, STS-B
+et MoNLI, sont couverts par la meme prudence.
+
+La v2 avait publie son corpus en BY-SA. La v3 sera en BY-NC-SA, et c'est la seule
+consequence pratique du releve.
+
+Pourquoi la licence de sortie ne peut pas etre BY-SA : le partage a l'identique exige que
+le derive sorte sous les memes termes, et NC ajoute une restriction que BY-SA interdit
+d'ajouter. Un corpus melangeant les deux et annonce en BY-SA promettrait des droits que ses
+sources ne donnent pas. En BY-NC-SA, le probleme disparait.
