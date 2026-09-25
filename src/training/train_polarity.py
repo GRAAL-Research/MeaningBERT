@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Final
+from typing import Any, Final, Optional
 
 import click
 import numpy as np
@@ -115,6 +115,52 @@ def compute_metrics(eval_prediction) -> dict[str, float]:
     return {"accuracy": got["accuracy"], "macro_f1": got["macro_f1"]}
 
 
+def head_reuse_plan(id2label: Optional[dict]) -> tuple[bool, Optional[list[int]]]:
+    """Decide whether a checkpoint's existing classification head can be reused.
+
+    Starting from a head already trained on natural language inference is close to free and
+    directly on task, and the dissociation baseline says that is where polarity comes from.
+    But the head is only reusable if its class ORDER is ours, and the order is not a
+    convention anyone agreed on:
+
+    * ``MoritzLaurer/DeBERTa-v3-*-mnli-*`` publishes ``{0: entailment, 1: neutral,
+      2: contradiction}``, which is exactly ``POLARITY_CLASSES``;
+    * ``roberta-large-mnli`` publishes ``{0: CONTRADICTION, 1: NEUTRAL, 2: ENTAILMENT}``,
+      the reverse.
+
+    Both have three labels, so ``ignore_mismatched_sizes`` sees no mismatch and keeps the
+    head either way. On the reversed one that silently trains from a permuted head, which
+    is the same failure mode as the swapped SICK encoding: it does not crash, it just
+    makes every number slightly wrong for a reason nobody can see.
+
+    Args:
+        id2label: The checkpoint's mapping, or None.
+
+    Returns:
+        Whether the head is on our label space, and the permutation that puts the
+        checkpoint's classes into our order, or None when no reuse is possible.
+
+    Raises:
+        ValueError: If the checkpoint carries three labels that are recognisably an
+            inference label space but cannot be mapped onto ours. Guessing here is how a
+            permuted head gets shipped.
+    """
+    if not id2label or len(id2label) != len(CLASS_NAMES):
+        return False, None
+
+    names = {index: str(label).strip().lower() for index, label in id2label.items()}
+    if not set(names.values()) <= set(CLASS_NAMES):
+        # Not an inference label space at all, e.g. LABEL_0 / LABEL_1. Nothing to reuse and
+        # nothing to warn about.
+        return False, None
+
+    if len(set(names.values())) != len(CLASS_NAMES):
+        raise ValueError(f"checkpoint label space {id2label} is not a permutation of {list(CLASS_NAMES)}")
+
+    by_name = {label: index for index, label in names.items()}
+    return True, [by_name[name] for name in CLASS_NAMES]
+
+
 @click.command()
 @click.option("--corpus", required=True, help="Directory produced by build_polarity_corpus.py.")
 @click.option("--checkpoint", default="microsoft/deberta-v3-large", show_default=True)
@@ -177,13 +223,32 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
     dev = dev_full.shuffle(seed=seed).select(range(min(dev_sample, len(dev_full)))) if dev_sample else dev_full
     dev = prepare(dev)
 
+    from transformers import AutoConfig
+
+    config = AutoConfig.from_pretrained(checkpoint)
+    reusable, permutation = head_reuse_plan(getattr(config, "id2label", None))
+
     model = AutoModelForSequenceClassification.from_pretrained(
         checkpoint,
         num_labels=len(CLASS_NAMES),
-        # A checkpoint already fine-tuned for a different number of labels carries a head
-        # whose shape will not match. Replacing it is the intent, not an accident.
+        # A checkpoint fine-tuned for a different number of labels carries a head whose
+        # shape will not match. Replacing it is the intent, not an accident.
         ignore_mismatched_sizes=True,
     )
+
+    if reusable and permutation != list(range(len(CLASS_NAMES))):
+        # The head survived because the shapes agreed, but its rows are in the checkpoint's
+        # order and not ours. Permuting them costs two tensor copies and saves the run from
+        # starting off a head that is right about everything except which class is which.
+        import torch
+
+        with torch.no_grad():
+            index = torch.tensor(permutation, device=model.classifier.weight.device)
+            model.classifier.weight.copy_(model.classifier.weight[index])
+            if model.classifier.bias is not None:
+                model.classifier.bias.copy_(model.classifier.bias[index])
+    model.config.id2label = {index: name for index, name in enumerate(CLASS_NAMES)}
+    model.config.label2id = {name: index for index, name in enumerate(CLASS_NAMES)}
 
     trainer = Trainer(
         model=model,
@@ -223,6 +288,8 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         "epochs": epochs,
         "lr": lr,
         "train_rows": len(train),
+        "pretrained_head_reused": reusable,
+        "pretrained_head_permutation": permutation,
         # The full test split, never sampled: the dev sample is a speed decision for model
         # selection and must not leak into the reported numbers.
         "test": evaluate(splits["test"]),

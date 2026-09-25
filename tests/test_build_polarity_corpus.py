@@ -522,3 +522,59 @@ def test_the_group_check_covers_the_dev_against_test_wall():
     }
     with pytest.raises(BuildError, match="both dev and test"):
         assert_no_group_leakage(splits)
+
+
+# --- the generated sanity suite -------------------------------------------------------
+
+from data.build_polarity_corpus import build_sanity_suite  # noqa: E402
+
+
+def _suite(per_source=3, seed=42):
+    splits = {"test": _train([(left, right, "contradiction") for left, right in _TOPICS])}
+    return build_sanity_suite(splits, per_source=per_source, seed=seed)
+
+
+def test_the_sanity_suite_carries_its_three_generated_families():
+    got = collections.Counter(_suite()["source"])
+    assert set(got) == {"identical", "unrelated", "swapped"}
+
+
+def test_an_identical_pair_must_be_an_entailment():
+    rows = [row for row in _rows_of(_suite()) if row["source"] == "identical"]
+    assert rows
+    assert {row["polarity"] for row in rows} == {float(POLARITY_CLASSES["entailment"])}
+    assert all(row["original"] == row["simplification"] for row in rows)
+
+
+def test_an_unrelated_pair_must_be_neutral_and_never_a_contradiction():
+    # The check the whole signed scale lives on: a model reading "unrelated" as "opposed"
+    # answers -100 where the truth is 0.
+    rows = [row for row in _rows_of(_suite()) if row["source"] == "unrelated"]
+    assert rows
+    assert {row["polarity"] for row in rows} == {float(POLARITY_CLASSES["neutral"])}
+
+
+def test_a_mirrored_contradiction_must_still_be_a_contradiction():
+    rows = [row for row in _rows_of(_suite()) if row["source"] == "swapped"]
+    assert rows
+    assert {row["polarity"] for row in rows} == {float(POLARITY_CLASSES["contradiction"])}
+
+
+def test_the_suite_is_built_from_test_sentences_only():
+    # It inherits the wall that training was already cleaned against, instead of needing
+    # one of its own.
+    splits = {"test": _train([(left, right, "contradiction") for left, right in _TOPICS])}
+    known = set(splits["test"]["original"]) | set(splits["test"]["simplification"])
+    for row in _rows_of(build_sanity_suite(splits, per_source=5, seed=42)):
+        assert row["original"] in known
+        assert row["simplification"] in known
+
+
+def test_the_same_seed_gives_both_conditions_a_byte_identical_suite():
+    # _none and _full must be scored on the same suite, or the comparison means nothing.
+    assert _suite()["item_id"] == _suite()["item_id"]
+
+
+def test_the_suite_respects_its_per_source_quota():
+    got = collections.Counter(_suite(per_source=2)["source"])
+    assert all(count <= 2 for count in got.values())

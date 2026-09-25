@@ -120,3 +120,53 @@ def test_the_trainer_hook_notices_a_wrong_prediction():
     logits = np.array([[9.0, 0.0, 0.0], [9.0, 0.0, 0.0]])
     got = compute_metrics((logits, np.array([ENTAIL, CONTRA])))
     assert got["accuracy"] == pytest.approx(0.5)
+
+
+# --- reusing a pretrained NLI head, and refusing to reuse it wrong --------------------
+
+from training.train_polarity import head_reuse_plan  # noqa: E402
+
+
+def test_a_checkpoint_already_in_our_order_is_reused_untouched():
+    # MoritzLaurer's NLI models publish exactly this order, so the head is reused as is and
+    # the run starts from a model that already does the task.
+    reusable, permutation = head_reuse_plan({0: "entailment", 1: "neutral", 2: "contradiction"})
+    assert reusable
+    assert permutation == [0, 1, 2]
+
+
+def test_a_reversed_checkpoint_is_reused_but_permuted():
+    # roberta-large-mnli publishes the reverse. Three labels either way, so nothing
+    # mismatches and the head is silently kept: this is the same failure as the swapped
+    # SICK encoding, wrong without ever crashing.
+    reusable, permutation = head_reuse_plan({0: "CONTRADICTION", 1: "NEUTRAL", 2: "ENTAILMENT"})
+    assert reusable
+    assert permutation == [2, 1, 0]
+
+
+def test_the_permutation_maps_the_checkpoint_rows_into_our_order():
+    _, permutation = head_reuse_plan({0: "contradiction", 1: "neutral", 2: "entailment"})
+    reordered = [["row_contra"], ["row_neutral"], ["row_entail"]]
+    got = [reordered[index] for index in permutation]
+    assert got == [["row_entail"], ["row_neutral"], ["row_contra"]]
+
+
+def test_a_plain_encoder_has_nothing_to_reuse():
+    # bert-base-uncased and microsoft/deberta-v3-large publish LABEL_0 / LABEL_1: not an
+    # inference label space, so the head is replaced and nothing is warned about.
+    assert head_reuse_plan({0: "LABEL_0", 1: "LABEL_1"}) == (False, None)
+    assert head_reuse_plan({0: "LABEL_0"}) == (False, None)
+    assert head_reuse_plan(None) == (False, None)
+
+
+def test_a_three_class_head_that_is_not_an_inference_space_is_left_alone():
+    assert head_reuse_plan({0: "positive", 1: "negative", 2: "mixed"}) == (False, None)
+
+
+def test_a_duplicated_class_name_is_refused_rather_than_guessed():
+    with pytest.raises(ValueError, match="not a permutation"):
+        head_reuse_plan({0: "entailment", 1: "entailment", 2: "contradiction"})
+
+
+def test_the_case_of_the_published_labels_does_not_matter():
+    assert head_reuse_plan({0: "ENTAILMENT", 1: "Neutral", 2: " contradiction "})[1] == [0, 1, 2]

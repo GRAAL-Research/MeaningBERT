@@ -362,6 +362,60 @@ def augment_and_verify(splits: dict[str, Dataset], per_class: int, seed: int) ->
     return census
 
 
+def build_sanity_suite(splits: dict[str, Dataset], per_source: int = 1_500, seed: int = 42) -> Dataset:
+    """Build the generated pairs the model is scored on, kept OUT of the test split.
+
+    The v2 campaign scored two generated suites at test time, identical pairs that must
+    reach 100 and unrelated pairs that must reach 0, and they caught what the correlation
+    could not: every checkpoint of the first sweep failed the identical check outright
+    while reporting a Pearson of 0.80. The v3 head needs the same, translated into classes.
+
+    **Why a separate suite and not augmented test rows.** Two reasons, and both are fatal.
+    The ``_none`` and ``_full`` conditions have to be scored on exactly the same test split
+    or the comparison means nothing. And generated rows mixed into the test would measure
+    the model's ability to recognise our own generators, which is not a property anyone
+    wants reported as accuracy.
+
+    Three suites, each with a derivable answer:
+
+    * **identical**, ``(A, A)``, must be entailment. The trivial case.
+    * **unrelated**, two sentences with almost no shared tokens, must be **neutral**. This
+      is the one the signed scale lives or dies on: a model that reads "unrelated" as
+      "opposed" answers -100 where the truth is 0.
+    * **mirrored**, a test contradiction with its two sentences swapped, must still be a
+      contradiction, because that relation is symmetric.
+
+    Built from the TEST split's sentences, which training has already been cleaned
+    against, so the suite inherits that wall instead of needing its own.
+
+    Args:
+        splits: The built splits. Only ``test`` is read, and nothing is mutated.
+        per_source: Rows per suite.
+        seed: Draw seed, so both conditions get byte-identical suites.
+
+    Returns:
+        One dataset carrying the three suites, told apart by ``source``.
+    """
+    test = splits["test"]
+    ratio = max(per_source * _OVERSHOOT / max(len(test), 1), 0.0)
+    rng = random.Random(seed)
+    pieces: list[Dataset] = []
+
+    mirrored = _tagged(test, swap(test), "swapped").filter(is_symmetric_polarity)
+    for source, dataset in (
+        ("identical", _tagged(test, generate_identical(test, ratio=ratio, seed=seed), "identical")),
+        ("unrelated", _tagged(test, generate_unrelated(test, ratio=ratio, seed=seed), "unrelated")),
+        ("swapped", mirrored),
+    ):
+        if len(dataset) > per_source:
+            dataset = dataset.select(sorted(rng.sample(range(len(dataset)), per_source)))
+        pieces.append(dataset)
+        del source
+
+    columns = test.column_names
+    return concatenate_datasets([piece.select_columns(columns) for piece in pieces])
+
+
 def build(
     cap: Optional[int] = 50_000,
     seed: int = 42,
@@ -436,6 +490,10 @@ def build(
         probes[name] = unify(module.load())
         census["probes"][name] = len(probes[name])
 
+    sanity = build_sanity_suite(splits, seed=seed)
+    probes["sanity"] = sanity
+    census["sanity"] = dict(collections.Counter(sanity["source"]).most_common())
+
     for split, dataset in splits.items():
         counts = collections.Counter(dataset["polarity"])
         census[f"{split}_classes"] = {
@@ -485,6 +543,7 @@ def main(out: str, cap: int, seed: int, augment_per_class: int, eval_per_class: 
     if "augmentation" in census:
         click.echo(f"augmentation : {census['augmentation']}")
     click.echo(f"sondes tenues a l'ecart : {census['probes']}")
+    click.echo(f"suite de bon sens generee : {census['sanity']}")
     click.echo(f"corpus : {out}/corpus   sondes : {out}/probes   recensement : {out}/census.json")
 
 
