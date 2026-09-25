@@ -196,10 +196,37 @@ documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "H
 simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
                    "Whatever, whenever, this is a sentence."]
 
+# There are TWO variants, selected by the second argument of evaluate.load.
+# "best" is the default: deberta-v3-large, the accurate one.
 meaning_bert = evaluate.load("davebulaval/meaningbert")
+meaning_bert = evaluate.load("davebulaval/meaningbert", "best")  # the same thing, explicitly
+
+# "fastest" is bert-base-uncased: 3.2x faster on GPU, 4.8x on CPU, a quarter of the memory.
+meaning_bert_fast = evaluate.load("davebulaval/meaningbert", "fastest")
 
 print(meaning_bert.compute(references=documents, predictions=simplifications))
 ```
+
+### Which variant to load
+
+`evaluate.load` accepts a variant name as its second argument, and the two variants do not
+return the same scores. An unknown name raises rather than falling back to the default: a
+typo that silently swapped the model would produce wrong numbers with nothing to show for
+it.
+
+| | `best` (default) | `fastest` |
+|---|---|---|
+| encoder | `deberta-v3-large` | `bert-base-uncased` |
+| correlation with human judgment | **+0.067** | |
+| identical pairs scored above 95 | **97.1 %** | 70.4 % |
+| 100 pairs, GPU / CPU | 1.16 s / 9.49 s | **0.36 s / 1.99 s** |
+| weights | 1740 MB | **438 MB** |
+
+Load `fastest` when you score at volume or have no GPU. Load `best` when a wrong score
+costs you something: the small model rates a sentence against *itself* below 95 almost a
+third of the time, which no amount of averaging over a corpus will wash out.
+
+The numbers above are detailed in [MeaningBERT v2: which checkpoint to use](#meaningbert-v2-which-checkpoint-to-use).
 
 
 ------------------
