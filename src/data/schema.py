@@ -92,7 +92,32 @@ POLARITY_CLASSES: Final[dict[str, int]] = {"entailment": 0, "neutral": 1, "contr
 #: is running", and the reverse does not hold. Neutral is not symmetric either, since a
 #: pair that is neutral one way round can be an entailment the other way. Carrying a
 #: polarity label through a swap is therefore only sound for contradiction.
+#:
+#: Named in UNIFIED class names, not native ones. The distinction cost 50 000 rows once:
+#: the rule was applied to ``polarity_raw``, so it matched SICK's "contradiction" and
+#: silently missed VitaminC's "REFUTES", which is the same relation under a fact-checking
+#: name. Use :func:`is_symmetric_polarity`, which looks at the unified column first.
 SYMMETRIC_POLARITIES: Final[frozenset[str]] = frozenset({"contradiction"})
+
+
+def is_symmetric_polarity(row: dict) -> bool:
+    """Whether *row*'s polarity still holds once the two sentences are swapped.
+
+    Reads the unified ``polarity`` column when it is filled, and falls back to the native
+    ``polarity_raw`` when it is not. The fallback is what lets a raw loader output be
+    swapped before ``harmonize`` has run; the unified column is what makes the rule mean
+    the same thing across schemes.
+
+    Args:
+        row: A dataset row carrying at least ``polarity`` or ``polarity_raw``.
+
+    Returns:
+        True only for contradiction, under either naming.
+    """
+    unified = row.get("polarity", float("nan"))
+    if isinstance(unified, (int, float)) and not math.isnan(unified):
+        return int(unified) == POLARITY_CLASSES["contradiction"]
+    return row.get("polarity_raw", "") in SYMMETRIC_POLARITIES
 
 SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "swapped", "back_translated"})
 DOMAINS: Final[frozenset[str]] = frozenset({"wiki", "news", "biomedical", "scientific", "mixed"})

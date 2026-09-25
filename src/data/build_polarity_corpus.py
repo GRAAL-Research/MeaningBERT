@@ -31,8 +31,10 @@ from typing import Final, Optional
 import click
 from datasets import Dataset, DatasetDict, concatenate_datasets
 
+from data.augment import generate_identical, generate_unrelated, swap
 from data.loaders import monli, nan_nli, sick, vitaminc
-from data.schema import POLARITY_CLASSES
+from data.schema import POLARITY_CLASSES, is_symmetric_polarity
+from data.splits import group_key
 
 #: Corpora the polarity head learns from.
 TRAINING_CORPORA: Final[dict] = {"vitaminc": vitaminc, "sick": sick}
@@ -55,6 +57,31 @@ POLARITY_MAP: Final[dict[str, dict[str, str]]] = {
 
 #: Split hints a training corpus may carry. A row with an empty hint has no home here.
 SPLITS: Final[tuple[str, ...]] = ("train", "dev", "test")
+
+
+#: Which augmentation feeds which class. Each augmented row's polarity is DERIVED, never
+#: copied, which is the rule the whole thing rests on:
+#:
+#: * a mirrored contradiction is still a contradiction, because if A denies B then B denies
+#:   A. Mirrored entailments and neutrals are dropped rather than kept: the relation does
+#:   not survive the swap, and these corpora carry no magnitude label either, so the row
+#:   would arrive with no target at all.
+#: * two sentences drawn at random and kept only when they barely overlap are neutral. This
+#:   is the most valuable of the three, because it teaches the distinction the whole signed
+#:   scale rests on: unrelated scores 0, it does not score -100.
+#: * a sentence entails itself. Weak on its own, and included for a mechanical reason: it
+#:   is the only lever that grows the entailment class, and without it mirroring alone
+#:   would take contradiction from 50 641 to 101 282 against 51 274 entailments, teaching
+#:   the head to over-predict the one class whose sign flips the score.
+#: How much more than the quota to ask the generators for, before cutting back. See
+#: :func:`augment_polarity` for why asking for exactly the quota under-delivers.
+_OVERSHOOT: Final[float] = 1.4
+
+AUGMENTATION_TARGETS: Final[dict[str, str]] = {
+    "swapped": "contradiction",
+    "unrelated": "neutral",
+    "identical": "entailment",
+}
 
 
 class BuildError(RuntimeError):
@@ -145,12 +172,109 @@ def assert_no_pair_leakage(splits: dict[str, Dataset]) -> None:
             )
 
 
-def build(cap: Optional[int] = 50_000, seed: int = 42) -> tuple[DatasetDict, DatasetDict, dict]:
+def _tagged(before: Dataset, after: Dataset, source: str) -> Dataset:
+    """Keep only the rows a generator appended, identified by their tag.
+
+    The generators return input plus output because that is what the v2 pipeline wants.
+    Here only the new rows are needed, and they are found by their ``source`` tag rather
+    than by a row count, so a generator that ever reorders its output cannot corrupt this.
+    """
+    del before
+    return after.filter(lambda row: row["source"] == source)
+
+
+def augment_polarity(
+    train: Dataset,
+    forbidden_groups: set[str],
+    per_class: int = 25_000,
+    seed: int = 42,
+) -> tuple[Dataset, dict[str, int]]:
+    """Grow the training split with rows whose polarity can be derived.
+
+    Train only. Augmenting an evaluation split would measure the model's ability to
+    recognise our own generators rather than its grasp of the relation.
+
+    Args:
+        train: The merged training split, polarity already unified.
+        forbidden_groups: Source sentences owned by dev or test. Swapping moves the
+            simplification into the source position, so a mirrored row can land in a group
+            that was deliberately held out; ``swap`` drops those.
+        per_class: How many rows to add per class. Equal quotas, so the class balance the
+            cap established is not undone by the augmentation.
+        seed: Draw seed.
+
+    Returns:
+        The augmented split and a census of what each augmentation contributed.
+    """
+    rng = random.Random(seed)
+    census: dict[str, int] = {}
+    pieces: list[Dataset] = [train]
+    # Ask the generators for more than the quota, then cut back to it. They under-deliver
+    # on purpose: the unrelated generator rejects any draw whose two sentences overlap too
+    # much, and the identical one skips a sentence it has already used. Asking for exactly
+    # the quota would quietly return less than the quota, and the three classes would stop
+    # growing by the same amount, which is the one thing this is here to guarantee.
+    ratio = max(per_class * _OVERSHOOT / max(len(train), 1), 0.0)
+
+    mirrored = _tagged(train, swap(train, forbidden_groups=forbidden_groups), "swapped")
+    # Only the contradictions survive the swap. The rest lost their polarity to NaN inside
+    # ``swap`` itself, which is where that rule lives.
+    mirrored = mirrored.filter(is_symmetric_polarity)
+    if len(mirrored) > per_class:
+        mirrored = mirrored.select(sorted(rng.sample(range(len(mirrored)), per_class)))
+    census["swapped"] = len(mirrored)
+    pieces.append(mirrored)
+
+    for source, generator in (("unrelated", generate_unrelated), ("identical", generate_identical)):
+        added = _tagged(train, generator(train, ratio=ratio, seed=seed), source)
+        if len(added) > per_class:
+            added = added.select(sorted(rng.sample(range(len(added)), per_class)))
+        census[source] = len(added)
+        pieces.append(added)
+
+    columns = train.column_names
+    return concatenate_datasets([piece.select_columns(columns) for piece in pieces]), census
+
+
+def augment_and_verify(splits: dict[str, Dataset], per_class: int, seed: int) -> dict[str, int]:
+    """Augment the training split in place and re-check the wall it could have breached.
+
+    Extracted from :func:`build` so it can be tested: ``build`` needs the network, and the
+    check that matters most here is the one that runs AFTER new rows exist.
+
+    Args:
+        splits: The built splits, mutated in place on ``train``.
+        per_class: Rows to add per class.
+        seed: Draw seed.
+
+    Returns:
+        The census of what each augmentation contributed.
+
+    Raises:
+        BuildError: If augmentation put an evaluation pair into training.
+    """
+    # The groups the splitter deliberately held out. Swapping moves the simplification into
+    # the source position, which is the one way augmentation can bridge them, and it is
+    # invisible to a check that only compares whole pairs.
+    forbidden = {
+        group_key(sentence) for name in ("dev", "test") for sentence in splits[name]["original"]
+    }
+    splits["train"], census = augment_polarity(splits["train"], forbidden, per_class=per_class, seed=seed)
+    # Re-checked AFTER augmentation, not only before: the rows that could leak are the ones
+    # that did not exist when the first check ran.
+    assert_no_pair_leakage(splits)
+    return census
+
+
+def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 0) -> tuple[DatasetDict, DatasetDict, dict]:
     """Build the merged polarity corpus and the held-out probes.
 
     Args:
         cap: Maximum training rows per class per corpus.
         seed: Draw seed for the cap.
+        augment_per_class: Rows to add per class by augmentation, 0 to add none. This is
+            the ``_none`` against ``_full`` axis of the v2 campaign, where the comparison
+            reversed the conclusion twice, which is why it is measured and not assumed.
 
     Returns:
         The corpus splits, the probes, and a census describing both.
@@ -189,6 +313,9 @@ def build(cap: Optional[int] = 50_000, seed: int = 42) -> tuple[DatasetDict, Dat
 
     assert_no_pair_leakage(splits)
 
+    if augment_per_class:
+        census["augmentation"] = augment_and_verify(splits, augment_per_class, seed)
+
     probes = {}
     for name, module in PROBE_CORPORA.items():
         probes[name] = unify(module.load())
@@ -208,9 +335,15 @@ def build(cap: Optional[int] = 50_000, seed: int = 42) -> tuple[DatasetDict, Dat
 @click.option("--out", required=True, help="Directory to save the corpus and the probes into.")
 @click.option("--cap", default=50_000, show_default=True, help="Max training rows per class per corpus; 0 for none.")
 @click.option("--seed", default=42, show_default=True)
-def main(out: str, cap: int, seed: int) -> None:
+@click.option(
+    "--augment-per-class",
+    default=0,
+    show_default=True,
+    help="Rows added per class by augmentation; 0 builds the _none condition.",
+)
+def main(out: str, cap: int, seed: int, augment_per_class: int) -> None:
     """Build, report and save."""
-    corpus, probes, census = build(cap=cap or None, seed=seed)
+    corpus, probes, census = build(cap=cap or None, seed=seed, augment_per_class=augment_per_class)
     corpus.save_to_disk(f"{out}/corpus")
     probes.save_to_disk(f"{out}/probes")
     with open(f"{out}/census.json", "w", encoding="utf-8") as handle:
@@ -218,6 +351,8 @@ def main(out: str, cap: int, seed: int) -> None:
 
     for split in SPLITS:
         click.echo(f"{split:6} {census[f'{split}_rows']:>7,}  {census[f'{split}_classes']}")
+    if "augmentation" in census:
+        click.echo(f"augmentation : {census['augmentation']}")
     click.echo(f"sondes tenues a l'ecart : {census['probes']}")
     click.echo(f"corpus : {out}/corpus   sondes : {out}/probes   recensement : {out}/census.json")
 

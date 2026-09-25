@@ -277,3 +277,45 @@ def test_validate_rejects_a_corpus_that_annotates_neither_target():
     rows = [_row(scale="none", label_raw=float("nan"))]
     with pytest.raises(ContractError, match="at least one target"):
         validate(_dataset(rows))
+
+
+# --- the symmetry rule, read on the unified column ------------------------------------
+
+
+def test_symmetry_is_decided_on_the_unified_class_not_the_native_name():
+    from data.schema import POLARITY_CLASSES, is_symmetric_polarity
+
+    # VitaminC writes REFUTES, SICK writes contradiction; after unification both carry the
+    # same class, and the rule must see them as the same relation.
+    refutes = {"polarity_raw": "REFUTES", "polarity": float(POLARITY_CLASSES["contradiction"])}
+    contradiction = {"polarity_raw": "contradiction", "polarity": float(POLARITY_CLASSES["contradiction"])}
+    assert is_symmetric_polarity(refutes)
+    assert is_symmetric_polarity(contradiction)
+
+
+def test_an_entailment_is_not_symmetric_under_either_naming():
+    from data.schema import POLARITY_CLASSES, is_symmetric_polarity
+
+    assert not is_symmetric_polarity(
+        {"polarity_raw": "SUPPORTS", "polarity": float(POLARITY_CLASSES["entailment"])}
+    )
+    assert not is_symmetric_polarity(
+        {"polarity_raw": "entailment", "polarity": float(POLARITY_CLASSES["entailment"])}
+    )
+
+
+def test_an_unharmonised_row_falls_back_to_its_native_name():
+    from data.schema import is_symmetric_polarity
+
+    # A loader output has polarity NaN: harmonize has not run yet. The fallback is what
+    # lets such a corpus be swapped at all.
+    assert is_symmetric_polarity({"polarity_raw": "contradiction", "polarity": float("nan")})
+    assert not is_symmetric_polarity({"polarity_raw": "entailment", "polarity": float("nan")})
+
+
+def test_a_row_with_no_polarity_at_all_is_not_symmetric():
+    from data.schema import is_symmetric_polarity
+
+    # The v2 corpora. Nothing to carry through the swap, so nothing is claimed.
+    assert not is_symmetric_polarity({"polarity_raw": "", "polarity": float("nan")})
+    assert not is_symmetric_polarity({})

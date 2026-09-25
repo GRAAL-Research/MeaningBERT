@@ -36,7 +36,7 @@ from typing import Callable, Iterable, Optional
 from datasets import Dataset, DatasetDict, concatenate_datasets
 
 from data.harmonize import normalise_text, pair_key
-from data.schema import POLARITY_CLASSES, SYMMETRIC_POLARITIES
+from data.schema import POLARITY_CLASSES, is_symmetric_polarity
 from data.splits import LeakageError, group_key
 
 #: Pairs whose two sides are identical gain nothing from being swapped.
@@ -98,7 +98,7 @@ def swap(dataset: Dataset, forbidden_groups: Optional[set[str]] = None) -> Datas
         if key in seen:
             continue
         seen.add(key)
-        keeps_polarity = row.get("polarity_raw", "") in SYMMETRIC_POLARITIES
+        keeps_polarity = is_symmetric_polarity(row)
         mirrored.append(
             {
                 **row,
