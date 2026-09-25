@@ -75,18 +75,25 @@ def amplitude(entail: np.ndarray, contra: np.ndarray) -> dict:
     from 0.17 to 0.85. Mid-ranks give a tie its due half-credit, which is what the
     Mann-Whitney identity assumes.
     """
-    gap = float(entail.mean() - contra.mean())
+    n_e, n_c = len(entail), len(contra)
+    # An empty class is a real outcome, not a crash: a filter can leave a suite with no
+    # contradictions. numpy's mean of an empty slice is NaN but shouts a RuntimeWarning
+    # while doing it, and a warning that fires on a handled case trains the reader to
+    # ignore the ones that matter.
+    mean_e = float(entail.mean()) if n_e else float("nan")
+    mean_c = float(contra.mean()) if n_c else float("nan")
+    gap = mean_e - mean_c
+
     # AUC by the rank identity: the share of (entailment, contradiction) couples the metric
     # orders correctly, counting a tie as half a couple. Computed from ranks so it costs
     # one sort instead of n*m comparisons.
-    n_e, n_c = len(entail), len(contra)
     ranks = rankdata(np.concatenate([entail, contra]))
     auc = float((ranks[:n_e].sum() - n_e * (n_e + 1) / 2) / (n_e * n_c)) if n_e and n_c else float("nan")
     return {
         "n_entailment": n_e,
         "n_contradiction": n_c,
-        "mean_entailment": float(entail.mean()),
-        "mean_contradiction": float(contra.mean()),
+        "mean_entailment": mean_e,
+        "mean_contradiction": mean_c,
         "amplitude_points": gap,
         "amplitude_share": gap / 100.0,
         "auc": auc,

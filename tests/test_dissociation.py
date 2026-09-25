@@ -93,3 +93,18 @@ def test_the_class_counts_are_reported_beside_the_scores():
 def test_an_empty_class_reports_nan_rather_than_a_confident_number():
     got = amplitude(np.array([90.0, 80.0]), np.array([]))
     assert math.isnan(got["auc"])
+
+
+def test_an_empty_class_stays_quiet_instead_of_warning():
+    # An empty class is a handled outcome, not an accident: a filter can leave a suite with
+    # no contradictions. numpy's mean of an empty slice returns NaN but shouts while doing
+    # it, and a warning that fires on a handled case teaches the reader to ignore the ones
+    # that matter.
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        got = amplitude(np.array([90.0, 80.0]), np.array([]))
+    assert math.isnan(got["mean_contradiction"])
+    assert got["mean_entailment"] == pytest.approx(85.0)
+    assert math.isnan(got["amplitude_points"])

@@ -13,6 +13,11 @@ class NonStopMasker:
 
     @staticmethod
     def compute_effective_mask_ratio(is_masked):
+        # No sentences means no ratio, which is NaN and not an error. numpy gets there on
+        # its own but shouts a RuntimeWarning on the way, and a warning that fires on a
+        # handled case teaches the reader to ignore the ones that matter.
+        if not is_masked:
+            return float("nan")
         return np.mean([np.mean(is_m) for is_m in is_masked])
 
     def mask(self, sentences):
