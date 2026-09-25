@@ -58,6 +58,18 @@ WORKERS: Final[dict[str, tuple[int, int]]] = {
 }
 
 
+#: (arch, worker) pairs that hang, as opposed to pairs that are merely slow.
+#:
+#: ``bert`` on ``renard-gpu0`` wedges the card: the process stays runnable, the GPU reads
+#: 100 % utilisation, and the step counter never advances again. Observed three times out
+#: of three during the v2 campaign, at steps 51, 283 and 164, and again on 2026-09-25 at
+#: step 446 of the polarity grid. Setting ``dataloader_num_workers`` to zero did not fix
+#: it, and other architectures run on the same card, so it is this pairing and not the card
+#: alone. Nobody has a root cause; what exists is a reproduction and a cost, so it is
+#: written down here rather than rediscovered next campaign.
+FORBIDDEN: Final[frozenset[tuple[str, str]]] = frozenset({("bert", "renard-gpu0")})
+
+
 def parse_seeds(text: str) -> list[int]:
     """Parse ``42-51`` or ``42,43,44`` into a list of seeds."""
     if "-" in text:
@@ -102,11 +114,16 @@ def assign(
         # A large cell wants more than 11 GB to be comfortable. Steering, not a hard rule:
         # the runner halves the micro-batch on out-of-memory, so a misplacement costs speed
         # and not a result.
-        roomy = [name for name in workers if WORKERS[name][0] >= needed and (cost < 3 or WORKERS[name][1] >= 12)]
-        eligible = roomy or [name for name in workers if WORKERS[name][0] >= needed]
+        capable = [
+            name
+            for name in workers
+            if WORKERS[name][0] >= needed and (arch, name) not in FORBIDDEN
+        ]
+        roomy = [name for name in capable if cost < 3 or WORKERS[name][1] >= 12]
+        eligible = roomy or capable
         if not eligible:
             raise ValueError(
-                f"{arch} seed {seed} {condition} needs compute {needed} and no worker has it; "
+                f"{arch} seed {seed} {condition} needs compute {needed} and no worker can take it; "
                 "a dropped cell becomes a hole nobody notices until the analysis"
             )
         chosen = min(eligible, key=lambda name: (load[name], name))

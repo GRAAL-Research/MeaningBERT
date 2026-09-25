@@ -83,7 +83,8 @@ def test_a_large_cell_avoids_the_smallest_card():
 
 
 def test_a_base_cell_is_allowed_on_the_smallest_card():
-    placed = assign(_grid(archs=["bert"], seeds=range(42, 52)), PASCAL)
+    # Not with bert, which wedges that card; deberta-v3-base runs on it fine.
+    placed = assign(_grid(archs=["deberta-v3-base"], seeds=range(42, 52)), PASCAL)
     assert placed["renard-gpu0"]
 
 
@@ -120,3 +121,29 @@ def test_every_registered_arch_declares_a_cost_and_a_gate():
     for tag, (cost, needed) in ARCHS.items():
         assert cost > 0, tag
         assert needed in (0, 80), tag
+
+
+# --- pairings that hang ---------------------------------------------------------------
+
+
+def test_bert_is_never_placed_on_the_card_it_wedges():
+    # Three times out of three during the v2 campaign, and again on 2026-09-25 at step 446
+    # of the polarity grid: the process stays runnable, the GPU reads 100 %, and the step
+    # counter never moves again. Other architectures run on that card, so it is the pairing.
+    from training.plan_polarity_grid import FORBIDDEN
+
+    assert ("bert", "renard-gpu0") in FORBIDDEN
+    placed = assign(_grid(archs=["bert"], seeds=range(42, 52)), PASCAL)
+    assert placed["renard-gpu0"] == []
+    assert sum(len(slice_) for slice_ in placed.values()) == 20
+
+
+def test_a_forbidden_pairing_does_not_make_the_cell_disappear():
+    placed = assign(_grid(archs=["bert"], seeds=(42,)), PASCAL)
+    flat = [cell[:3] for slice_ in placed.values() for cell in slice_]
+    assert sorted(flat) == sorted(cell[:3] for cell in _grid(archs=["bert"], seeds=(42,)))
+
+
+def test_a_cell_forbidden_everywhere_is_refused_rather_than_dropped():
+    with pytest.raises(ValueError, match="no worker can take it"):
+        assign(_grid(archs=["bert"], seeds=(42,)), ["renard-gpu0"])
