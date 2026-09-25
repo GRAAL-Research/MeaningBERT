@@ -155,3 +155,33 @@ C'est elle qui decide si la v3 peut redistribuer un corpus fusionne comme la v2 
 ou seulement publier le code qui va le chercher. Decouvrir tard qu'un corpus central comme
 VitaminC, qui pese 489 000 des 635 000 lignes, impose une contrainte changeant la forme de
 la publication couterait beaucoup plus que la verification.
+
+### Releve du 2026-09-25
+
+| corpus | licence | consequence |
+|---|---|---|
+| `tals/vitaminc` | **CC BY-SA 3.0** | redistribuable, mais **partage a l'identique** : tout corpus derive doit sortir sous la meme licence |
+| `nikitam/ACES` | **CC BY-NC-SA 4.0** | **non commercial** |
+| `mteb/sickr-sts` | **CC BY-NC-SA 3.0** | **non commercial** |
+| `joey234/nan-nli` | CC BY-SA 4.0 | redistribuable, partage a l'identique |
+| `lasha-nlp/CONDAQA` | Apache 2.0 | redistribuable sans contrainte |
+| `google-research-datasets/paws` | « other » | a lire a la source |
+| `yangwang825/sick` | aucune | aucune permission par defaut |
+| `sentence-transformers/stsb` | aucune | aucune permission par defaut |
+| `tasksource/monli` | aucune | aucune permission par defaut |
+
+**Le corpus fusionne unique de la v2 n'est pas reproductible ici.** BY-SA exige que le
+derive sorte sous les memes termes, et NC ajoute une restriction que BY-SA interdit
+d'ajouter. Melanger VitaminC avec ACES ou avec la moitie proximite de SICK produit un
+ensemble qu'aucune licence ne couvre.
+
+Trois pistes, a trancher avant les chargeurs :
+
+1. **Publier les chargeurs seulement**, aucun corpus fusionne. Reproductible par le code,
+   au prix de neuf sources qui peuvent bouger.
+2. **Fusionner uniquement le sous-ensemble compatible**, VitaminC plus NaN-NLI plus
+   CONDAQA, sous BY-SA, et garder ACES et SICK-proximite comme dependances a telecharger.
+   Le gros du volume reste redistribuable.
+3. **Remonter aux sources originales** pour les trois corpus sans licence declaree. SICK et
+   STS-B ont des licences a leur publication d'origine ; le silence du miroir HuggingFace
+   n'est pas la licence de l'oeuvre.
