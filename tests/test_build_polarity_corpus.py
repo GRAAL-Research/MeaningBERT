@@ -8,6 +8,8 @@ measures nothing while still reporting a number.
 
 from __future__ import annotations
 
+import collections
+
 import pytest
 from datasets import Dataset
 
@@ -380,3 +382,143 @@ def test_a_supported_vitaminc_pair_still_loses_its_polarity_when_mirrored():
     ]
     augmented, census = augment_polarity(unify(_dataset(rows)), set(), per_class=50, seed=42)
     assert census["swapped"] == 0
+
+
+# --- stratification -------------------------------------------------------------------
+
+from data.build_polarity_corpus import (  # noqa: E402
+    assert_no_group_leakage,
+    drop_leaked_groups,
+    stratify,
+)
+
+
+def _mixed_corpus_rows():
+    """A big corpus and a small one, both carrying all three classes."""
+    rows = []
+    cycle = ["entailment", "neutral", "contradiction"]
+    for index in range(90):
+        rows.append(_row(index, cycle[index % 3], original=f"big premise {index}"))
+    big = unify(_dataset(rows, corpus="vitaminc"))
+    rows = []
+    for index in range(9):
+        rows.append(_row(index, cycle[index % 3], original=f"small premise {index}"))
+    small = unify(_dataset(rows, corpus="sick"))
+    columns = big.column_names
+    from datasets import concatenate_datasets
+
+    return concatenate_datasets([big.select_columns(columns), small.select_columns(columns)])
+
+
+def test_stratify_balances_the_three_classes():
+    # The corpora's own evaluation splits are 48 % entailment against 16 % neutral, and a
+    # head that never predicts neutral still scores respectably on such a set.
+    drawn = stratify(_mixed_corpus_rows(), per_class=6, seed=42)
+    counts = collections.Counter(drawn["polarity"])
+    assert set(counts.values()) == {6}
+    assert len(counts) == 3
+
+
+def test_stratify_takes_a_small_corpus_whole_rather_than_to_its_natural_share():
+    # SICK is 0.8 % of the merged dev split because VitaminC is fifty times its size, and
+    # it is the bridge corpus. Sampling it down to its proportion is the failure here.
+    drawn = stratify(_mixed_corpus_rows(), per_class=6, seed=42)
+    by_corpus = collections.Counter(drawn["corpus"])
+    assert by_corpus["sick"] == 9
+    assert by_corpus["vitaminc"] == 9
+
+
+def test_the_surplus_a_small_corpus_cannot_use_spills_to_the_large_one():
+    # Water-filling: the share sick cannot fill is redistributed, not lost, so the class
+    # quota is still met exactly.
+    drawn = stratify(_mixed_corpus_rows(), per_class=10, seed=42)
+    counts = collections.Counter(drawn["polarity"])
+    assert set(counts.values()) == {10}
+    assert collections.Counter(drawn["corpus"])["sick"] == 9
+
+
+def test_stratify_is_reproducible():
+    data = _mixed_corpus_rows()
+    assert stratify(data, 6, 42)["item_id"] == stratify(data, 6, 42)["item_id"]
+
+
+def test_stratify_never_invents_rows_a_class_does_not_have():
+    rows = [_row(i, "entailment") for i in range(4)] + [_row(100 + i, "neutral") for i in range(2)]
+    drawn = stratify(unify(_dataset(rows)), per_class=10, seed=42)
+    counts = collections.Counter(drawn["polarity"])
+    assert counts[float(POLARITY_CLASSES["entailment"])] == 4
+    assert counts[float(POLARITY_CLASSES["neutral"])] == 2
+
+
+# --- source-sentence leakage ----------------------------------------------------------
+
+
+def test_a_training_row_sharing_a_source_sentence_with_the_test_split_is_dropped():
+    # VitaminC reuses the same Wikipedia evidence across many claims and splits by case,
+    # so 5.6 % of test source sentences were also in training. Not pair leakage, which the
+    # pair check already refuses: the source-sentence leakage v2 was rebuilt to remove.
+    shared = _TOPICS[0][0]
+    splits = {
+        "train": _train([(shared, "a different claim", "contradiction"), _TOPICS[1] + ("neutral",)]),
+        "dev": _eval_split([("a held out premise", "its hypothesis")]),
+        "test": _eval_split([(shared, "yet another claim")]),
+    }
+    dropped = drop_leaked_groups(splits)
+    assert dropped == 1
+    assert shared not in splits["train"]["original"]
+
+
+def test_dropping_leaked_groups_keeps_the_rows_that_do_not_leak():
+    splits = {
+        "train": _train([(left, right, "contradiction") for left, right in _TOPICS]),
+        "dev": _eval_split([("a held out premise", "its hypothesis")]),
+        "test": _eval_split([("another held out premise", "its hypothesis")]),
+    }
+    assert drop_leaked_groups(splits) == 0
+    assert len(splits["train"]) == len(_TOPICS)
+
+
+def test_group_leakage_is_refused_outright_not_only_dropped():
+    shared = _TOPICS[0][0]
+    splits = {
+        "train": _train([(shared, "a claim", "contradiction")]),
+        "dev": _eval_split([("a held out premise", "its hypothesis")]),
+        "test": _eval_split([(shared, "another claim")]),
+    }
+    with pytest.raises(BuildError, match="source-sentence leakage"):
+        assert_no_group_leakage(splits)
+
+
+def test_a_clean_corpus_passes_the_group_check():
+    splits = {
+        "train": _train([(left, right, "neutral") for left, right in _TOPICS]),
+        "dev": _eval_split([("a held out premise", "its hypothesis")]),
+        "test": _eval_split([("another held out premise", "its hypothesis")]),
+    }
+    assert_no_group_leakage(splits)
+
+
+def test_dev_is_cleaned_against_test_too():
+    # A development split sharing source sentences with the test split makes model
+    # selection quietly optimistic about the number that gets reported. Dev is the split
+    # that can afford to lose rows: it selects a model and never reports a number.
+    shared = _TOPICS[0][0]
+    splits = {
+        "train": _train([_TOPICS[1] + ("neutral",)]),
+        "dev": _train([(shared, "a hypothesis", "contradiction"), _TOPICS[2] + ("entailment",)]),
+        "test": _eval_split([(shared, "another hypothesis")]),
+    }
+    assert drop_leaked_groups(splits, "dev", ("test",)) == 1
+    assert shared not in splits["dev"]["original"]
+    assert len(splits["dev"]) == 1
+
+
+def test_the_group_check_covers_the_dev_against_test_wall():
+    shared = _TOPICS[0][0]
+    splits = {
+        "train": _train([_TOPICS[1] + ("neutral",)]),
+        "dev": _train([(shared, "a hypothesis", "contradiction")]),
+        "test": _eval_split([(shared, "another hypothesis")]),
+    }
+    with pytest.raises(BuildError, match="both dev and test"):
+        assert_no_group_leakage(splits)

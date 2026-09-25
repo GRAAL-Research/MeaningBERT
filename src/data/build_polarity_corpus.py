@@ -146,6 +146,100 @@ def cap_per_class(dataset: Dataset, cap: Optional[int], seed: int) -> Dataset:
     return dataset.select(sorted(kept))
 
 
+def stratify(dataset: Dataset, per_class: int, seed: int) -> Dataset:
+    """Draw a class-balanced, corpus-stratified evaluation split.
+
+    Two things are being fixed at once, and neither is cosmetic.
+
+    **Class balance.** The corpora's own evaluation splits are 48 % entailment against 16 %
+    neutral. A head that never predicts neutral still scores respectably on such a set, and
+    the development split that selects the model would reward it for doing so.
+
+    **Corpus balance.** SICK is 8 % of the merged test split and 0.8 % of the merged
+    development split, because VitaminC is fifty times its size. SICK is the bridge corpus,
+    the only one carrying both targets on the same pairs, so selecting a model on a
+    development split that is 99 % VitaminC selects for the wrong thing.
+
+    The allocation is water-filling: each corpus is offered an equal share of the class
+    quota, a corpus that cannot fill its share gives back what it has, and the surplus
+    spills to the corpora that can. A small corpus is therefore taken whole rather than
+    sampled down to its natural proportion, which is the entire point.
+
+    Args:
+        dataset: A merged split, polarity already unified.
+        per_class: Rows to draw for each of the three classes.
+        seed: Draw seed, so the split is reproducible.
+
+    Returns:
+        The drawn rows, in their original order.
+    """
+    rng = random.Random(seed)
+    cells: dict[tuple[float, str], list[int]] = collections.defaultdict(list)
+    for index, (value, corpus) in enumerate(zip(dataset["polarity"], dataset["corpus"])):
+        cells[(value, corpus)].append(index)
+
+    kept: list[int] = []
+    for value in sorted({key[0] for key in cells}):
+        available = {corpus: cells[(value, corpus)] for (v, corpus) in cells if v == value}
+        remaining, pending = per_class, dict(available)
+        # Water-filling: smallest corpus first, so the share it cannot use is redistributed
+        # rather than lost.
+        for corpus in sorted(pending, key=lambda name: len(pending[name])):
+            share = remaining // max(len(pending), 1)
+            indices = pending.pop(corpus)
+            take = min(share, len(indices))
+            kept.extend(indices if take >= len(indices) else rng.sample(indices, take))
+            remaining -= take
+    return dataset.select(sorted(kept))
+
+
+def drop_leaked_groups(splits: dict[str, Dataset], victim: str = "train", against=("dev", "test")) -> int:
+    """Remove rows of *victim* whose source sentence appears in any split of *against*.
+
+    The corpora publish their own splits and those are trusted, but VitaminC reuses the
+    same Wikipedia evidence across many claims, and its splits are drawn by case rather
+    than by evidence. Measured on the merged corpus: 1 662 source sentences, 5.6 % of the
+    test split's groups, were also in training. That is not pair-level leakage, which the
+    pair check already refuses; it is the source-sentence leakage the whole v2 campaign was
+    rebuilt to remove, and it inflates every number computed on the test split.
+
+    It is used twice. Train against dev and test, which is the wall that matters. Then dev
+    against test, because a development split that shares source sentences with the test
+    split makes model selection quietly optimistic about the number that gets reported.
+
+    Args:
+        splits: The built splits, mutated in place on *victim*.
+        victim: The split rows are removed from.
+        against: The splits whose source sentences are protected.
+
+    Returns:
+        How many rows were dropped.
+    """
+    held_out = {group_key(sentence) for name in against for sentence in splits[name]["original"]}
+    before = len(splits[victim])
+    splits[victim] = splits[victim].filter(lambda row: group_key(row["original"]) not in held_out)
+    return before - len(splits[victim])
+
+
+def assert_no_group_leakage(splits: dict[str, Dataset]) -> None:
+    """Refuse a corpus whose evaluation source sentences also appear in training.
+
+    Raises:
+        BuildError: If any dev or test source sentence is also a training source sentence.
+    """
+    groups = {
+        name: {group_key(sentence) for sentence in splits[name]["original"]}
+        for name in ("train", "dev", "test")
+    }
+    for left, right in (("train", "dev"), ("train", "test"), ("dev", "test")):
+        shared = groups[left] & groups[right]
+        if shared:
+            raise BuildError(
+                f"{len(shared)} source sentence(s) appear in both {left} and {right}; "
+                "this is the source-sentence leakage the v2 campaign was rebuilt to remove"
+            )
+
+
 def assert_no_pair_leakage(splits: dict[str, Dataset]) -> None:
     """Refuse a corpus whose evaluation pairs also appear in training.
 
@@ -261,12 +355,19 @@ def augment_and_verify(splits: dict[str, Dataset], per_class: int, seed: int) ->
     }
     splits["train"], census = augment_polarity(splits["train"], forbidden, per_class=per_class, seed=seed)
     # Re-checked AFTER augmentation, not only before: the rows that could leak are the ones
-    # that did not exist when the first check ran.
+    # that did not exist when the first check ran. Both walls, because a generated pair can
+    # breach the pair one and a mirror can breach the group one.
     assert_no_pair_leakage(splits)
+    assert_no_group_leakage(splits)
     return census
 
 
-def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 0) -> tuple[DatasetDict, DatasetDict, dict]:
+def build(
+    cap: Optional[int] = 50_000,
+    seed: int = 42,
+    augment_per_class: int = 0,
+    eval_per_class: int = 4_000,
+) -> tuple[DatasetDict, DatasetDict, dict]:
     """Build the merged polarity corpus and the held-out probes.
 
     Args:
@@ -275,6 +376,8 @@ def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 
         augment_per_class: Rows to add per class by augmentation, 0 to add none. This is
             the ``_none`` against ``_full`` axis of the v2 campaign, where the comparison
             reversed the conclusion twice, which is why it is measured and not assumed.
+        eval_per_class: Rows per class in the stratified dev and test splits, 0 to keep the
+            corpora's own splits whole. See :func:`stratify` for why they are not kept.
 
     Returns:
         The corpus splits, the probes, and a census describing both.
@@ -311,7 +414,19 @@ def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 
         if leaked:
             raise BuildError(f"probe corpus {sorted(leaked)} reached the {split} split; probes never train")
 
+    if eval_per_class:
+        for name in ("dev", "test"):
+            splits[name] = stratify(splits[name], eval_per_class, seed)
+
+    # AFTER the evaluation splits are final, so the smallest possible slice of training is
+    # given up, and BEFORE augmentation, so the mirrors are drawn from clean rows. Dev is
+    # cleaned against test first: it is the split that can afford to lose rows, since it
+    # only selects a model and never reports a number.
+    census["dev_rows_dropped_for_group_leakage"] = drop_leaked_groups(splits, "dev", ("test",))
+    census["train_rows_dropped_for_group_leakage"] = drop_leaked_groups(splits, "train", ("dev", "test"))
+
     assert_no_pair_leakage(splits)
+    assert_no_group_leakage(splits)
 
     if augment_per_class:
         census["augmentation"] = augment_and_verify(splits, augment_per_class, seed)
@@ -327,6 +442,7 @@ def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 
             label: counts.get(float(index), 0) for label, index in POLARITY_CLASSES.items()
         }
         census[f"{split}_rows"] = len(dataset)
+        census[f"{split}_corpora"] = dict(collections.Counter(dataset["corpus"]).most_common())
 
     return DatasetDict(splits), DatasetDict(probes), census
 
@@ -341,16 +457,31 @@ def build(cap: Optional[int] = 50_000, seed: int = 42, augment_per_class: int = 
     show_default=True,
     help="Rows added per class by augmentation; 0 builds the _none condition.",
 )
-def main(out: str, cap: int, seed: int, augment_per_class: int) -> None:
+@click.option(
+    "--eval-per-class",
+    default=4_000,
+    show_default=True,
+    help="Rows per class in the stratified dev and test splits; 0 keeps the corpora's own.",
+)
+def main(out: str, cap: int, seed: int, augment_per_class: int, eval_per_class: int) -> None:
     """Build, report and save."""
-    corpus, probes, census = build(cap=cap or None, seed=seed, augment_per_class=augment_per_class)
+    corpus, probes, census = build(
+        cap=cap or None, seed=seed, augment_per_class=augment_per_class, eval_per_class=eval_per_class
+    )
     corpus.save_to_disk(f"{out}/corpus")
     probes.save_to_disk(f"{out}/probes")
     with open(f"{out}/census.json", "w", encoding="utf-8") as handle:
         json.dump(census, handle, indent=2, ensure_ascii=False)
 
     for split in SPLITS:
-        click.echo(f"{split:6} {census[f'{split}_rows']:>7,}  {census[f'{split}_classes']}")
+        click.echo(
+            f"{split:6} {census[f'{split}_rows']:>7,}  {census[f'{split}_classes']}"
+            f"  corpus {census[f'{split}_corpora']}"
+        )
+    click.echo(
+        f"retirees pour fuite de groupe : train {census['train_rows_dropped_for_group_leakage']:,}"
+        f", dev {census['dev_rows_dropped_for_group_leakage']:,}"
+    )
     if "augmentation" in census:
         click.echo(f"augmentation : {census['augmentation']}")
     click.echo(f"sondes tenues a l'ecart : {census['probes']}")
