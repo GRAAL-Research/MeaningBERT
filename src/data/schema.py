@@ -84,6 +84,20 @@ POLARITY_SCHEMES: Final[dict[str, frozenset[str]]] = {
     "mt_pair2": frozenset({"good", "incorrect"}),
 }
 
+#: The unified three classes the ``polarity`` column holds, after ``harmonize.py`` has
+#: reconciled the native schemes. The index is the training target of the polarity head.
+#: ``float("nan")`` in that column means "this pair carries no polarity annotation", which
+#: is a first-class state and not a missing value: a corpus is allowed to annotate only one
+#: of the two targets, and so is a generated row whose polarity cannot be derived.
+POLARITY_CLASSES: Final[dict[str, int]] = {"entailment": 0, "neutral": 1, "contradiction": 2}
+
+#: Polarity relations that survive swapping the two sentences. Contradiction is symmetric:
+#: if A denies B then B denies A. Entailment is NOT: "a dog is running" entails "an animal
+#: is running", and the reverse does not hold. Neutral is not symmetric either, since a
+#: pair that is neutral one way round can be an entailment the other way. Carrying a
+#: polarity label through a swap is therefore only sound for contradiction.
+SYMMETRIC_POLARITIES: Final[frozenset[str]] = frozenset({"contradiction"})
+
 SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "swapped", "back_translated"})
 DOMAINS: Final[frozenset[str]] = frozenset({"wiki", "news", "biomedical", "scientific", "mixed"})
 SPLIT_HINTS: Final[frozenset[str]] = frozenset({"train", "dev", "test", ""})

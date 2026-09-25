@@ -6,6 +6,7 @@ it can bridge a group that the splitter deliberately separated.
 """
 
 import collections
+import math
 
 import pytest
 from datasets import DatasetDict
@@ -20,8 +21,13 @@ from data.augment import (
     swap,
     token_overlap,
 )
-from data.schema import build
+from data.schema import POLARITY_CLASSES, build
 from data.splits import LeakageError, group_key
+
+
+def _rows_of(dataset):
+    """Materialise a dataset as dicts, so a test can read columns by name."""
+    return [dict(zip(dataset.column_names, values)) for values in zip(*(dataset[c] for c in dataset.column_names))]
 
 REVERSE = lambda texts: [text[::-1] for text in texts]  # noqa: E731 - deterministic stub
 
@@ -299,3 +305,104 @@ def test_item_ids_stay_unique_after_full_augmentation():
     out, _ = augment_splits(_splits(), "full", translate=REVERSE)
     ids = out["train"]["item_id"]
     assert len(ids) == len(set(ids))
+
+
+# --- v3: the polarity does not augment the way the magnitude does --------------------
+
+
+def _polar_dataset(rows):
+    """Build a harmonised dataset carrying polarity, from (orig, simp, source, label, pol)."""
+    built = build(
+        [
+            {
+                "item_id": str(index),
+                "original": original,
+                "simplification": simplification,
+                "label_raw": float(label),
+                "scale": "da100",
+                "domain": "wiki",
+                "license": "MIT",
+                "source": source,
+                "polarity_raw": polarity,
+                "polarity_scheme": "nli3",
+            }
+            for index, (original, simplification, source, label, polarity) in enumerate(rows)
+        ],
+        "demo",
+    )
+    built = built.remove_columns(["label"]).add_column("label", [float(r[3]) for r in rows])
+    return built.remove_columns(["polarity"]).add_column(
+        "polarity", [float(POLARITY_CLASSES[r[4]]) for r in rows]
+    )
+
+
+def test_a_mirrored_contradiction_keeps_its_polarity():
+    # Contradiction is symmetric: if A denies B then B denies A. This is free, sound extra
+    # supervision and dropping it would waste it.
+    data = _polar_dataset([("a dog barks", "no dog barks", "original", 20.0, "contradiction")])
+    swapped = [row for row in _rows_of(swap(data)) if row["source"] == "swapped"]
+    assert len(swapped) == 1
+    assert swapped[0]["polarity_raw"] == "contradiction"
+    assert swapped[0]["polarity"] == float(POLARITY_CLASSES["contradiction"])
+
+
+def test_a_mirrored_entailment_loses_its_polarity_instead_of_lying():
+    # "a dog is running" entails "an animal is running"; the reverse is false. Carrying the
+    # label through the swap would teach the polarity head that entailment is reversible,
+    # on every mirrored row of the corpus.
+    data = _polar_dataset([("a dog is running", "an animal is running", "original", 80.0, "entailment")])
+    swapped = [row for row in _rows_of(swap(data)) if row["source"] == "swapped"]
+    assert len(swapped) == 1
+    assert swapped[0]["polarity_raw"] == ""
+    assert swapped[0]["polarity_scheme"] == "none"
+    assert math.isnan(swapped[0]["polarity"])
+
+
+def test_a_mirrored_neutral_also_loses_its_polarity():
+    # A pair that is neutral one way round can be an entailment the other way, so neutral
+    # is no more reversible than entailment is.
+    data = _polar_dataset([("a man plays guitar", "a man is on a stage", "original", 50.0, "neutral")])
+    swapped = [row for row in _rows_of(swap(data)) if row["source"] == "swapped"]
+    assert math.isnan(swapped[0]["polarity"])
+
+
+def test_a_mirrored_row_keeps_its_magnitude_label_whatever_its_polarity():
+    # The two targets are independent: the magnitude IS symmetric, and losing the polarity
+    # must not cost the mirrored row its meaning-preservation supervision.
+    data = _polar_dataset([("a dog is running", "an animal is running", "original", 80.0, "entailment")])
+    swapped = [row for row in _rows_of(swap(data)) if row["source"] == "swapped"]
+    assert swapped[0]["label"] == pytest.approx(80.0)
+
+
+def test_a_generated_identical_pair_is_an_entailment_not_the_template_row_s_class():
+    # The generators build rows from ``template = rows[0]``. Inheriting its polarity would
+    # stamp one arbitrary row's class onto every generated pair; here the only row is a
+    # contradiction, so the bug would label every identical pair a contradiction.
+    data = _polar_dataset(
+        [(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]]
+    )
+    generated = [row for row in _rows_of(generate_identical(data, ratio=0.5)) if row["source"] == "identical"]
+    assert generated
+    assert {row["polarity_raw"] for row in generated} == {"entailment"}
+    assert {row["polarity"] for row in generated} == {float(POLARITY_CLASSES["entailment"])}
+
+
+def test_a_generated_unrelated_pair_is_neutral_and_never_a_contradiction():
+    # The distinction the whole signed scale rests on: two sentences with nothing in common
+    # score 0, they do not score -100. Unrelated is not opposed.
+    data = _polar_dataset(
+        [(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]]
+    )
+    generated = [row for row in _rows_of(generate_unrelated(data, ratio=0.5)) if row["source"] == "unrelated"]
+    assert generated
+    assert {row["polarity_raw"] for row in generated} == {"neutral"}
+    assert "contradiction" not in {row["polarity_raw"] for row in generated}
+
+
+def test_augmenting_a_corpus_without_polarity_leaves_it_without_polarity():
+    # The v2 corpora annotate no polarity, and augmentation must not invent one for them.
+    data = _dataset([(left, right, "original", 70.0) for left, right in _TOPICS[:12]])
+    augmented = generate_identical(swap(data), ratio=0.5)
+    assert {row["polarity_scheme"] for row in _rows_of(augmented)} <= {"none", "nli3"}
+    inherited = [row for row in _rows_of(augmented) if row["source"] == "swapped"]
+    assert {row["polarity_raw"] for row in inherited} == {""}

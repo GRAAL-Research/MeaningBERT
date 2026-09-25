@@ -36,6 +36,7 @@ from typing import Callable, Iterable, Optional
 from datasets import Dataset, DatasetDict, concatenate_datasets
 
 from data.harmonize import normalise_text, pair_key
+from data.schema import POLARITY_CLASSES, SYMMETRIC_POLARITIES
 from data.splits import LeakageError, group_key
 
 #: Pairs whose two sides are identical gain nothing from being swapped.
@@ -64,6 +65,15 @@ def swap(dataset: Dataset, forbidden_groups: Optional[set[str]] = None) -> Datas
     The label is carried over unchanged: that is the whole point, the metric is meant to be
     symmetric. Identical pairs are skipped because swapping ``(A, A)`` produces ``(A, A)``.
 
+    **The polarity is not carried over in the same way, because it is not symmetric.** If A
+    contradicts B then B contradicts A, so a contradiction survives the swap. Entailment
+    does not: "a dog is running" entails "an animal is running" and the reverse is false.
+    Neither does neutral, since a pair that is neutral one way round can be an entailment
+    the other. So a mirrored row keeps its polarity only when that polarity is
+    contradiction, and otherwise says it has none, which is a state the schema carries on
+    purpose. Copying the label through unchanged would have taught the polarity head that
+    entailment is reversible, on every mirrored row of the corpus.
+
     Swapping moves the simplification into the source-sentence position, so a mirrored row
     can land in a group that belongs to dev or test. Rows that would do so are dropped
     rather than flagged afterwards; this was measured on CSMD, where the check fires on the
@@ -88,6 +98,7 @@ def swap(dataset: Dataset, forbidden_groups: Optional[set[str]] = None) -> Datas
         if key in seen:
             continue
         seen.add(key)
+        keeps_polarity = row.get("polarity_raw", "") in SYMMETRIC_POLARITIES
         mirrored.append(
             {
                 **row,
@@ -95,6 +106,9 @@ def swap(dataset: Dataset, forbidden_groups: Optional[set[str]] = None) -> Datas
                 "original": row["simplification"],
                 "simplification": row["original"],
                 "source": "swapped",
+                "polarity_raw": row.get("polarity_raw", "") if keeps_polarity else "",
+                "polarity_scheme": row.get("polarity_scheme", "none") if keeps_polarity else "none",
+                "polarity": row.get("polarity", float("nan")) if keeps_polarity else float("nan"),
             }
         )
     if not mirrored:
@@ -233,6 +247,14 @@ def generate_identical(dataset: Dataset, ratio: float = DEFAULT_IDENTICAL_RATIO,
                 "label_std": float("nan"),
                 "source": "identical",
                 "system": "generated",
+                # Derived, not inherited. ``template`` is simply the first row of the
+                # dataset, so copying its polarity would stamp one arbitrary row's class
+                # onto every generated pair: if that row happened to be a contradiction,
+                # every identical pair would be labelled as one. A sentence trivially
+                # entails itself, and that is knowable without an annotator.
+                "polarity_raw": "entailment",
+                "polarity_scheme": "nli3",
+                "polarity": float(POLARITY_CLASSES["entailment"]),
             }
         )
     if not added:
@@ -293,6 +315,13 @@ def generate_unrelated(
                 "label_std": float("nan"),
                 "source": "unrelated",
                 "system": "generated",
+                # Derived, not inherited, for the same reason as the identical pairs above.
+                # Two sentences drawn at random and kept only when their token overlap is
+                # below the threshold are neutral: unrelated is not the same as opposed,
+                # which is the distinction the whole signed scale rests on.
+                "polarity_raw": "neutral",
+                "polarity_scheme": "nli3",
+                "polarity": float(POLARITY_CLASSES["neutral"]),
             }
         )
     if not added:
