@@ -42,10 +42,11 @@ CLASS_NAMES: Final[tuple[str, ...]] = tuple(
     name for name, _ in sorted(POLARITY_CLASSES.items(), key=lambda item: item[1])
 )
 
-#: The dev split is VitaminC's whole validation set, 63 000 rows. Scoring it after every
-#: epoch costs more than the epoch. Model selection runs on a fixed sample of it; the final
-#: numbers are computed on the complete test split, which is never sampled.
-DEFAULT_DEV_SAMPLE: Final[int] = 4_000
+#: Use the development split whole. It is built stratified by class and by corpus, and at
+#: about twelve thousand rows it is cheap enough to score after every epoch. Sampling it
+#: here would undo that stratification at random, which is worse than the cost it saves;
+#: the option survives only for a corpus built without ``--eval-per-class``.
+DEFAULT_DEV_SAMPLE: Final[int] = 0
 
 
 def confusion(predictions: np.ndarray, labels: np.ndarray) -> list[list[int]]:

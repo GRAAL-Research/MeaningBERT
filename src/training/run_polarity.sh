@@ -17,6 +17,7 @@ NAME="${1:?usage: run_polarity.sh <worker-name>}"
 REPO="${REPO:-$HOME/MeaningBERT-v3}"
 VENV="${VENV:-$HOME/.venvs/meaningbert-v2}"
 CORPUS="${CORPUS:-$REPO/datastore/polarity}"
+CONDITION="${CONDITION:-none}"
 ROOT="${ROOT:-$REPO/results/polarity}"
 GPU="${GPU:-0}"
 EPOCHS="${EPOCHS:-2}"
@@ -24,7 +25,9 @@ LR="${LR:-1e-5}"
 MICRO="${MICRO:-8}"
 ACCUM="${ACCUM:-4}"
 MAXLEN="${MAXLEN:-256}"
-DEV_SAMPLE="${DEV_SAMPLE:-4000}"
+# 0 means "use the stratified dev split whole", which is what a corpus built with
+# --eval-per-class wants: sampling it again would undo the stratification at random.
+DEV_SAMPLE="${DEV_SAMPLE:-0}"
 KEEP_MODEL="${KEEP_MODEL:-true}"
 MIN_FREE_GB="${MIN_FREE_GB:-25}"
 
@@ -34,7 +37,7 @@ echo "[$(date '+%F %T')] worker $NAME demarre sur GPU $GPU, cellules : $CELLS"
 run_cell() {
     local checkpoint="$1" seed="$2"
     local slug; slug=$(echo "$checkpoint" | tr '/' '-')
-    local out="$ROOT/$slug/seed$seed"
+    local out="$ROOT/$slug-$CONDITION/seed$seed"
     local log="$out.log"
 
     if [ -f "$out/metrics.json" ]; then
