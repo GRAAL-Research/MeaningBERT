@@ -9,8 +9,10 @@ live on that machine, which is exactly what this emits.
 Assignment is longest-processing-time first: the most expensive cells are placed while
 there is still room to balance them. Cost is measured, not guessed, from the runs of
 2026-09-25: a base model takes about 72 minutes on the ``_none`` condition, ``_full`` is
-1.45 times longer because it carries 1.5 times the rows, and a large model is about three
-times a base one.
+1.45 times longer because it carries 1.5 times the rows, and a large model is 4.5 times a
+base one. That last figure was 3.0 until it was measured: deberta-v3-large runs at 1.93
+seconds per optimiser step against 2.5 steps per second for a base model, and planning on
+the guess left one card with 8 days of work and another idle after 4.
 
 Run::
 
@@ -31,11 +33,11 @@ ARCHS: Final[dict[str, tuple[float, int]]] = {
     "deberta-v3-base": (1.0, 0),
     "nli-deberta-v3-base": (1.0, 0),
     "stsb-roberta-base": (1.0, 0),
-    "deberta-v3-large": (3.0, 0),
-    "nli-deberta-v3-large": (3.0, 0),
-    "roberta-large-mnli": (3.0, 0),
+    "deberta-v3-large": (4.5, 0),
+    "nli-deberta-v3-large": (4.5, 0),
+    "roberta-large-mnli": (4.5, 0),
     "modernbert-base": (1.0, 80),
-    "modernbert-large": (3.0, 80),
+    "modernbert-large": (4.5, 80),
 }
 
 #: The augmented condition carries 1.5 times the training rows, and the evaluation splits

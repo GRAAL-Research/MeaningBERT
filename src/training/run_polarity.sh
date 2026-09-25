@@ -84,6 +84,23 @@ run_cell() {
         return 0
     fi
 
+    # Claim the cell before starting it. Two workers on the SAME machine share a results
+    # tree, which is what lets a finished worker pick up another's backlog; without a claim
+    # they would both start the cell the other is halfway through, because metrics.json is
+    # only written at the end. mkdir is the atomic primitive here, touch is not.
+    mkdir -p "$(dirname "$out")"
+    if ! mkdir "$out.claim" 2>/dev/null; then
+        local age=$(( ($(date +%s) - $(stat -c %Y "$out.claim" 2>/dev/null || date +%s)) / 3600 ))
+        if [ "$age" -lt 24 ]; then
+            echo "[BUSY] $tag-$CONDITION seed $seed : reclamee ailleurs il y a ${age} h"
+            return 0
+        fi
+        # A claim older than a day belongs to a worker that died. Taking it back beats
+        # leaving a hole in the grid.
+        echo "[STALE] $tag-$CONDITION seed $seed : reclamation de ${age} h reprise"
+    fi
+    trap 'rmdir "$out.claim" 2>/dev/null' RETURN
+
     # A full disk is how two of the three overnight failures of the v2 campaign happened,
     # and a run that dies at hour four costs more than the check that would have refused it.
     local free; free=$(df -BG --output=avail "$REPO" | tail -1 | tr -dc '0-9')
@@ -92,7 +109,6 @@ run_cell() {
         return 1
     fi
 
-    mkdir -p "$(dirname "$out")"
     local keep="--keep-model"; [ "$KEEP_MODEL" = "true" ] || keep="--no-keep-model"
 
     # Stepped fallback on out-of-memory, halving the micro batch and doubling accumulation
@@ -110,6 +126,7 @@ run_cell() {
         local status=$? elapsed=$(( $(date +%s) - start ))
 
         if [ $status -eq 0 ]; then
+            rmdir "$out.claim" 2>/dev/null
             echo "[ OK ] $tag-$CONDITION seed $seed en $((elapsed / 60)) min"
             grep -E "^test |^sonde " "$log" | sed 's/^/       /'
             return 0
