@@ -29,34 +29,26 @@
     "why": "450k contrastive claim-evidence pairs; the largest minimal-pair corpus there is"
   },
   {
-    "name": "nightingal3/fig-qa",
-    "config": "default",
+    "name": "nikitam/ACES",
+    "config": "ACES",
     "configs": [
-      "default"
+      "ACES",
+      "Span-ACES"
     ],
     "ok": true,
     "rows": {
-      "train": 9674,
-      "validation": 1094,
-      "test": 1146
+      "train": 36476
     },
     "columns": [
-      "ending1",
-      "ending2",
-      "labels",
-      "startphrase",
-      "valid"
+      "good-translation",
+      "incorrect-translation",
+      "langpair",
+      "phenomena",
+      "reference",
+      "source"
     ],
     "licence": "non declaree",
-    "label_field": "labels",
-    "label_space": "Value('int64')",
-    "why": "control: figurative pairs, to see whether the harness reads an unrelated schema"
-  },
-  {
-    "name": "EdinburghNLP/ACES",
-    "config": null,
-    "ok": false,
-    "error": "DatasetNotFoundError: Dataset 'EdinburghNLP/ACES' doesn't exist on the Hub or cannot be accessed.",
+    "label_field": null,
     "why": "36k examples over 68 phenomena: negation, antonyms, numbers, entities, argument order"
   },
   {
@@ -83,6 +75,151 @@
     "why": "108k pairs with high lexical overlap that are NOT paraphrases"
   },
   {
+    "name": "yangwang825/sick",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 4439,
+      "validation": 495,
+      "test": 4906
+    },
+    "columns": [
+      "label",
+      "text1",
+      "text2"
+    ],
+    "licence": "non declaree",
+    "label_field": "label",
+    "label_space": "Value('int64')",
+    "why": "SICK, entailment half: the polarity label"
+  },
+  {
+    "name": "mteb/sickr-sts",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "test": 9927
+    },
+    "columns": [
+      "score",
+      "sentence1",
+      "sentence2"
+    ],
+    "licence": "non declaree",
+    "label_field": null,
+    "why": "SICK, relatedness half: the continuous score, to join on the pair"
+  },
+  {
+    "name": "tasksource/monli",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 1002,
+      "test": 200
+    },
+    "columns": [
+      "depth",
+      "gold_label",
+      "sentence1",
+      "sentence1_lex",
+      "sentence2",
+      "sentence2_lex"
+    ],
+    "licence": "non declaree",
+    "label_field": "gold_label",
+    "label_space": "Value('string')",
+    "why": "downward monotonicity under negation"
+  },
+  {
+    "name": "joey234/nan-nli",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 258
+    },
+    "columns": [
+      "Clause or sub-clause deletion",
+      "Comparative quantifier change",
+      "Construction",
+      "Construction Subtype",
+      "Focus particle change",
+      "H-Analytic",
+      "H-Clausal",
+      "H-Meta-linguistic",
+      "H-Non-verbal",
+      "H-Ordinary",
+      "H-Sub-clausal",
+      "H-Synthetic",
+      "H-Verbal",
+      "Indefinite quantifier change",
+      "Lexical change",
+      "Negator addition or deletion",
+      "Negator position change",
+      "Negator token change",
+      "Numerical quantifier change",
+      "P-Analytic",
+      "P-Clausal",
+      "P-Meta-linguistic",
+      "P-Non-verbal",
+      "P-Ordinary",
+      "P-Sub-clausal",
+      "P-Synthetic",
+      "P-Verbal",
+      "Quantification",
+      "Syntactical changes",
+      "Unnamed: 13",
+      "Unnamed: 22",
+      "hypothesis",
+      "label",
+      "premise"
+    ],
+    "licence": "non declaree",
+    "label_field": "label",
+    "label_space": "Value('string')",
+    "why": "sub-clausal negation, targeted and small"
+  },
+  {
+    "name": "lasha-nlp/CONDAQA",
+    "config": "default",
+    "configs": [
+      "default"
+    ],
+    "ok": true,
+    "rows": {
+      "train": 5832,
+      "validation": 1110,
+      "test": 7240
+    },
+    "columns": [
+      "PassageEditID",
+      "PassageID",
+      "QuestionID",
+      "SampleID",
+      "label",
+      "original cue",
+      "original passage",
+      "original sentence",
+      "sentence1",
+      "sentence2"
+    ],
+    "licence": "non declaree",
+    "label_field": "label",
+    "label_space": "Value('string')",
+    "why": "negation scope in reading comprehension"
+  },
+  {
     "name": "sentence-transformers/stsb",
     "config": "default",
     "configs": [
@@ -101,40 +238,6 @@
     ],
     "licence": "non declaree",
     "label_field": null,
-    "why": "continuous relatedness, the bridge between a magnitude head and a polarity head"
-  },
-  {
-    "name": "sick",
-    "config": null,
-    "ok": false,
-    "error": "RuntimeError: Dataset scripts are no longer supported, but found sick.py",
-    "why": "relatedness AND entailment on the same pairs; the natural bridge between the two heads"
-  },
-  {
-    "name": "pietrolesci/nan-nli",
-    "config": null,
-    "ok": false,
-    "error": "DatasetNotFoundError: Dataset 'pietrolesci/nan-nli' doesn't exist on the Hub or cannot be accessed.",
-    "why": "sub-clausal negation, targeted and small"
-  },
-  {
-    "name": "sagnikrayc/monli",
-    "config": null,
-    "ok": false,
-    "error": "DatasetNotFoundError: Dataset 'sagnikrayc/monli' doesn't exist on the Hub or cannot be accessed.",
-    "why": "downward monotonicity under negation"
-  },
-  {
-    "name": "lasha-nlp/CondaQA",
-    "config": "default",
-    "configs": [
-      "default"
-    ],
-    "ok": true,
-    "rows": {},
-    "columns": [],
-    "licence": "non declaree",
-    "label_field": null,
-    "why": "negation scope in reading comprehension"
+    "why": "continuous relatedness, to calibrate the magnitude head against"
   }
 ]

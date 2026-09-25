@@ -23,21 +23,29 @@ from typing import Optional
 
 import click
 
-#: The polarity candidates from ROADMAP.md, in the order the roadmap ranks them.
+#: The polarity candidates from ROADMAP.md, at the identifiers they are actually published
+#: under today. Four of the roadmap's eight had moved: ACES is ``nikitam/ACES``, SICK is
+#: ``RobZamp/sick`` since HuggingFace dropped loading scripts, MoNLI is ``tasksource/monli``,
+#: NaN-NLI is ``joey234/nan-nli``, and CondaQA capitalises as ``CONDAQA``. A roadmap written
+#: once and never probed goes stale in silence, which is how v2 nearly planned around SALSA.
 #:
 #: ``config`` is the HuggingFace configuration name when the dataset needs one. ``why``
 #: records what each is meant to contribute, so a corpus that fails can be replaced by
 #: something that fills the same hole rather than by whatever is next on the list.
 CANDIDATES = [
     ("tals/vitaminc", None, "450k contrastive claim-evidence pairs; the largest minimal-pair corpus there is"),
-    ("nightingal3/fig-qa", None, "control: figurative pairs, to see whether the harness reads an unrelated schema"),
-    ("EdinburghNLP/ACES", None, "36k examples over 68 phenomena: negation, antonyms, numbers, entities, argument order"),
+    ("nikitam/ACES", None, "36k examples over 68 phenomena: negation, antonyms, numbers, entities, argument order"),
     ("google-research-datasets/paws", "labeled_final", "108k pairs with high lexical overlap that are NOT paraphrases"),
-    ("sentence-transformers/stsb", None, "continuous relatedness, the bridge between a magnitude head and a polarity head"),
-    ("sick", None, "relatedness AND entailment on the same pairs; the natural bridge between the two heads"),
-    ("pietrolesci/nan-nli", None, "sub-clausal negation, targeted and small"),
-    ("sagnikrayc/monli", None, "downward monotonicity under negation"),
-    ("lasha-nlp/CondaQA", None, "negation scope in reading comprehension"),
+    # SICK is the bridge between the two heads, and no single English copy of it opens any
+    # more: the canonical one still ships a loading script, which HuggingFace dropped. The
+    # two halves survive as separate datasets over the SAME pairs, so joining them on the
+    # sentence pair rebuilds the original. sick-br carries both columns but is Portuguese.
+    ("yangwang825/sick", None, "SICK, entailment half: the polarity label"),
+    ("mteb/sickr-sts", None, "SICK, relatedness half: the continuous score, to join on the pair"),
+    ("tasksource/monli", None, "downward monotonicity under negation"),
+    ("joey234/nan-nli", None, "sub-clausal negation, targeted and small"),
+    ("lasha-nlp/CONDAQA", None, "negation scope in reading comprehension"),
+    ("sentence-transformers/stsb", None, "continuous relatedness, to calibrate the magnitude head against"),
 ]
 
 
