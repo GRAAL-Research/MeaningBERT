@@ -19,6 +19,21 @@ from statistics import mean, stdev
 
 import wandb
 
+try:  # PYTHONPATH=src.
+    from figures_generator.compression_report import (
+        compression_ratio,
+        is_usable_run,
+        label_reference_caption,
+        label_reference_line,
+    )
+except ImportError:  # pragma: no cover - script run from inside ``src/figures_generator``.
+    from compression_report import (  # type: ignore[no-redef]
+        compression_ratio,
+        is_usable_run,
+        label_reference_caption,
+        label_reference_line,
+    )
+
 AUGMENTATION_LABELS: dict[str, str] = {
     "none": "No augmentation",
     "swap": "Swap",
@@ -33,6 +48,7 @@ TEST_METRICS: list[str] = [
     "test/pearson_pvalue",
     "test/mean_score",
     "test/st_dev_score",
+    "test/diverged",
 ]
 
 HOLDOUT_IDENTICAL_METRICS: list[str] = [
@@ -76,6 +92,8 @@ def fetch_runs(project: str) -> list[dict]:
             "augmentation": augmentation,
             "fold": fold,
             "seed": seed,
+            # Kept so the C1 filter can read every ``*diverged`` flag, whatever its prefix.
+            "summary": summary,
         }
 
         # Collect all metrics
@@ -134,6 +152,32 @@ def deduplicate_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
     return list(seen.values()), duplicates
 
 
+def filter_usable_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Drop the runs that diverged (C1) or collapsed to a constant output.
+
+    A diverged run used to enter the aggregate as a credible zero-predictor. It is now
+    flagged by ``metrics.compute_metrics`` and excluded here, together with the runs of
+    the previous sweep, which predate the flag but still show the collapse signature.
+
+    Args:
+        runs: Structured run dicts from :func:`fetch_runs`.
+
+    Returns:
+        The ``(usable, excluded)`` split.
+    """
+    usable: list[dict] = []
+    excluded: list[dict] = []
+    for run in runs:
+        (usable if is_usable_run(run.get("summary", {})) else excluded).append(run)
+
+    if excluded:
+        print(f"  Excluded {len(excluded)} diverged or collapsed run(s) from the aggregate (C1):")
+        for run in excluded:
+            print(f"    {run['name']} (id={run['id']})")
+
+    return usable, excluded
+
+
 def group_runs(
     runs: list[dict],
 ) -> dict[tuple[str, str], list[dict]]:
@@ -149,6 +193,10 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
     """Compute mean +/- std for each (checkpoint, augmentation) group."""
     metrics_to_summarize = [
         ("test/rmse", "RMSE", "low"),
+        # C5: the predicted moments sit next to the RMSE, because a RMSE alone hides the
+        # amplitude compression that produced it.
+        ("test/mean_score", "Pred mean", "high"),
+        ("test/st_dev_score", "Pred std", "high"),
         ("test/R2", "R2", "high"),
         ("test/pearson_corr", "Pearson", "high"),
         ("train/test/identical_sentences_ratio_equals", "Identical =100%", "high"),
@@ -167,6 +215,7 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
 
         for metric_key, label, _ in metrics_to_summarize:
             import math  # pylint: disable=import-outside-toplevel
+
             values = [
                 r[metric_key]
                 for r in run_list
@@ -185,6 +234,10 @@ def compute_summary_table(groups: dict[tuple[str, str], list[dict]]) -> list[dic
                 row[f"{label}_std"] = None
                 row[label] = "n/a"
 
+        # C5: one number saying how much narrower the predictions are than the labels.
+        pred_std_mean = row.get("Pred std_mean")
+        row["Compression"] = f"{compression_ratio(pred_std_mean):.2f}x" if pred_std_mean is not None else "n/a"
+
         rows.append(row)
 
     return rows
@@ -197,6 +250,9 @@ def print_summary(rows: list[dict]) -> None:
         "Augmentation",
         "N_folds",
         "RMSE",
+        "Pred mean",
+        "Pred std",
+        "Compression",
         "R2",
         "Pearson",
         "Identical =100%",
@@ -214,6 +270,9 @@ def print_summary(rows: list[dict]) -> None:
         line = " | ".join(f"{str(row.get(col, 'n/a')):>20s}" for col in display_cols)
         print(line)
 
+    print()
+    print(label_reference_line())
+
 
 def save_csv(rows: list[dict], output_path: str) -> None:
     """Save summary rows to CSV."""
@@ -224,6 +283,9 @@ def save_csv(rows: list[dict], output_path: str) -> None:
         "Augmentation",
         "N_folds",
         "RMSE",
+        "Pred mean",
+        "Pred std",
+        "Compression",
         "R2",
         "Pearson",
         "Identical =100%",
@@ -244,6 +306,8 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     """Generate a LaTeX table from summary rows."""
     metric_cols = [
         ("RMSE", "low"),
+        ("Pred mean", None),
+        ("Pred std", None),
         ("R2", "high"),
         ("Pearson", "high"),
         ("Identical =100%", "high"),
@@ -253,6 +317,9 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     # Find best values per metric
     best: dict[str, float | None] = {}
     for col, direction in metric_cols:
+        # The predicted moments have no best value: they are read against the labels.
+        if direction is None:
+            continue
         means = [r.get(f"{col}_mean") for r in rows if r.get(f"{col}_mean") is not None]
         if means:
             best[col] = min(means) if direction == "low" else max(means)
@@ -263,7 +330,7 @@ def generate_latex_table(rows: list[dict], output_path: str) -> None:
     lines: list[str] = []
     lines.append(r"\begin{table}[htbp]")
     lines.append(r"\centering")
-    lines.append(r"\caption{Checkpoint sweep results (mean $\pm$ std across folds).}")
+    lines.append(r"\caption{Checkpoint sweep results (mean $\pm$ std across folds). " + label_reference_caption() + "}")
     lines.append(r"\label{tab:checkpoint-sweep}")
     lines.append(r"\resizebox{\textwidth}{!}{")
     lines.append(r"\begin{tabular}{" + alignment + "}")
@@ -361,10 +428,14 @@ def main() -> None:
         return
 
     runs, _ = deduplicate_runs(runs)
+    runs, excluded = filter_usable_runs(runs)
+    if not runs:
+        print("\nEvery finished run is diverged or collapsed. Nothing to aggregate.")
+        return
     groups = group_runs(runs)
     rows = compute_summary_table(groups)
 
-    print(f"\n=== Summary ({len(runs)} finished runs) ===\n")
+    print(f"\n=== Summary ({len(runs)} usable runs, {len(excluded)} excluded) ===\n")
     print_summary(rows)
 
     os.makedirs(args.output_dir, exist_ok=True)

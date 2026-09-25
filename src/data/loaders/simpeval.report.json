@@ -1,0 +1,53 @@
+{
+  "corpus": "simpeval",
+  "n_rows": 2759,
+  "n_unique_originals": 161,
+  "scale": "da100",
+  "label_raw_min": 5.6,
+  "label_raw_max": 100.0,
+  "label_raw_mean": 74.99666545849945,
+  "n_annotators_median": 5,
+  "pct_with_std": 100.0,
+  "domains": {
+    "wiki": 2759
+  },
+  "systems": {
+    "lstm_w_split": 100,
+    "editnts_w_split": 100,
+    "Dress-Ls.lower": 100,
+    "RM+EX+LS+RO": 100,
+    "Hybrid.lower": 100,
+    "transformer_w_split": 100,
+    "UNTS": 99,
+    "T5-3B": 160,
+    "new_turk_corpus_random": 100,
+    "asset.test.simp": 100,
+    "new_asset.test.simp.second": 100,
+    "con_simplification": 100,
+    "PBMT-R.lower": 100,
+    "new_simple_wiki": 100,
+    "copy": 100,
+    "SBMT-SARI.lower": 100,
+    "UNMT": 100,
+    "scramble_words": 100,
+    "T5-base": 100,
+    "muss_untokenized": 100,
+    "access": 100,
+    "ControlT5": 100,
+    "SEMoses_all": 100,
+    "T5-large": 100,
+    "GPT-3-few-shot": 60,
+    "Human 1 Writing": 60,
+    "Human 2 Writing": 60,
+    "GPT-3-zero-shot": 60,
+    "Muss": 60
+  },
+  "split_hints": {
+    "": 2759
+  },
+  "license": "unspecified (no repo-level licence for LENS data/; upstream ASSET/TurkCorpus terms unchecked)",
+  "license_allows_redistribution": false,
+  "source_url": "https://github.com/Yao-Dou/LENS",
+  "retrieval_date": "2026-09-19",
+  "notes": "Corpus = concatenation de deux sous-ensembles LENS (Yao-Dou/LENS, commit 8fa5b149f099f0c75563ee8344a2411b0bffbc37), distingues par le prefixe de item_id : 'simpeval:past-*' (2399 lignes, simpeval_past.csv) et 'simpeval:2022-*' (360 lignes, simpDA_2022.csv). AXE DE MESURE : simpeval_past.csv ne separe pas les dimensions (rating 0-100 = qualite globale confondant adequation/fluidite/simplicite, methodologie 'Rank & Rate' du papier LENS, alpha de Krippendorff 0.70). C'est une question ouverte majeure signalee ici : le label_raw de la partie 'past' n'est PAS une mesure pure de preservation du sens. Pour la partie 2022, simpDA_2022.csv (et non simpeval_2022.csv, le fichier utilise dans le papier pour la table de correlation des metriques) separe explicitement adequacy/fluency/simplicity sur les 3 memes annotateurs et les 360 memes paires ; seul Answer.adequacy est utilise ici, ce qui est la vraie mesure de preservation du sens. AGREGATION : label_raw = moyenne, label_std = ecart-type d'echantillon (ddof=1) des notes individuelles ; 5 annotateurs pour 'past', 3 pour '2022'. LIGNES ECARTEES : 1 ligne dans simpeval_past.csv (id=1682, systeme UNTS) a 'generation' et 'processed_generation' vides (echec du systeme, aucune simplification produite) ; aucune autre ligne malformee, aucune ligne avec adequacy manquante dans le 2022. DEDUPLICATION INTRA-CORPUS sur (original, simplification, system) : 0 doublon trouve. SOURCE : source='identical' assigne empiriquement quand original==simplification apres strip (pas seulement quand system=='copy' : plusieurs systemes reproduisent l'original par accident, ex. T5-base, T5-3B, Dress-Ls.lower dans 'past'). DOMAINE : 'wiki' pour les deux sous-ensembles (papier LENS section 3 : 'past' vient du test set TurkCorpus/ASSET, base sur le Parallel Wikipedia Simplification Corpus ; '2022' vient de 60 phrases ajoutees a Wikipedia entre le 22 octobre et le 24 novembre 2022, choisies pour eviter la contamination du pretraining de GPT-3). RECOUVREMENT AVEC CSMD (davebulaval/CSMD, config 'meaning', train+dev+test, 453 originaux uniques) : 148/161 phrases sources 'original' de SimpEval apparaissent deja dans CSMD v1. DECOUVERTE CRITIQUE (a traiter dans harmonize.py / H2 / H4 avant tout entrainement) : la carte HuggingFace de CSMD indique elle-meme que CSMD v1 est compose a partir de quatre corpus, dont 'SimpDa_2022' -- c'est-a-dire exactement le fichier utilise ici pour le sous-ensemble 2022. Verification empirique au niveau de la PAIRE (original, simplification) : 360/360 paires du sous-ensemble 2022 sont deja, mot pour mot, dans CSMD v1 (100%), et 95/2399 paires du sous-ensemble 'past' le sont aussi (recouvrement partiel via ASSET, egalement source de CSMD v1). Consequence directe : le sous-ensemble 2022 de ce loader n'ajoute AUCUNE paire nouvelle par rapport a CSMD v1, seulement 2304 paires du sous-ensemble 'past' sont reellement inedites. Ceci invalide en l'etat le critere de succes n2 de PRODUIT.md ('split SimpEval jamais vu comme test externe') pour la portion 2022, et le gain de volume brut de ce loader (2759 lignes) ne doit pas etre compte tel quel dans l'objectif 'passer de 1355 a 8000+ paires' sans dedup explicite contre CSMD v1 dans harmonize.py. A noter aussi : quand une paire est partagee, le label CSMD ne correspond pas simplement a la moyenne d'Answer.adequacy (ex. 94.0 vs 100.0, 71.7 vs 71.3 observes sur des paires prises au hasard) -- CSMD v1 a probablement applique sa propre agregation/echelle sur ces memes annotations brutes, a documenter avant de fixer le mapping harmonize.py. LICENCE (H4) : aucun fichier LICENSE au niveau du depot Yao-Dou/LENS ne couvre le dossier data/ (seul lens/LICENSE, Apache-2.0, couvre le code du checkpoint de metrique). Les phrases sources viennent d'ASSET/TurkCorpus dont les conditions de redistribution ne sont pas verifiees ici. license_allows_redistribution=false par prudence : verification licence-par-licence a faire avant toute redistribution des lignes (le loader et les petites fixtures de test restent commites, conformement a BRIEF.md)."
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import math
 import os
@@ -14,6 +15,7 @@ import wandb
 from datasets import DatasetDict, load_dataset, load_from_disk
 from poutyne import set_seeds
 from transformers import (
+    AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollatorWithPadding,
@@ -23,7 +25,14 @@ from transformers import (
     TrainingArguments,
 )
 
+from calibration import DEFAULT_OUTPUT_HEAD, OUTPUT_HEADS, percent_from_logits, targets_for_head, unit_from_logits
+from callbacks import DEFAULT_COLLAPSE_PATIENCE, PredictionCollapseCallback
 from metrics.metrics import compute_metrics, eval_compute_metrics_identical, eval_compute_metrics_unrelated
+
+try:  # PYTHONPATH=src, the documented way to run this script.
+    from diagnostics.calibration_audit import COLLAPSE_STD_THRESHOLD
+except ImportError:  # pragma: no cover - repository root on the path instead of ``src``.
+    from src.diagnostics.calibration_audit import COLLAPSE_STD_THRESHOLD  # type: ignore[no-redef]
 
 
 def _sanitize_for_json(obj: Any) -> Any:
@@ -36,11 +45,15 @@ def _sanitize_for_json(obj: Any) -> Any:
         return [_sanitize_for_json(v) for v in obj]
     return obj
 
+
 log = logging.getLogger("pytorch_lightning")
 log.propagate = False
 log.setLevel(logging.ERROR)
 
 NUM_EPOCH = 500
+
+#: Token budget per pair. See --max_length for the measurements behind this number.
+DEFAULT_MAX_LENGTH = 256
 
 # Default learning rates per model family.
 # Decoder-based and DeBERTa models tend to need lower LRs than BERT.
@@ -67,7 +80,25 @@ AUGMENTATION_HF_MAP: dict[str, str] = {
 }
 
 # Columns added during data augmentation that are not model inputs.
-COLUMNS_TO_REMOVE: list[str] = ["source"]
+# Every non-tensor column the Trainer would choke on. The v1 fold layout only carried
+# "source"; the v2 contract (src/data/CONTRACT.md) adds the provenance and scale columns,
+# and they must all be dropped after tokenisation. Only input_ids, attention_mask and
+# label survive.
+COLUMNS_TO_REMOVE: list[str] = [
+    "source",
+    "item_id",
+    "original",
+    "simplification",
+    "label_raw",
+    "scale",
+    "n_annotators",
+    "label_std",
+    "corpus",
+    "domain",
+    "system",
+    "split_hint",
+    "license",
+]
 
 
 def get_default_lr(checkpoint: str) -> float:
@@ -119,6 +150,100 @@ def freeze_layers(model: PreTrainedModel, num_layers_to_freeze: int) -> None:
     print(f"Froze {n}/{len(layer_list)} layers.")
 
 
+class BoundedOutputTrainer(Trainer):
+    """Trainer for the bounded output heads of correction C3.
+
+    The v1 head is a single unbounded linear output trained with MSE against 0-100
+    targets: nothing tells it the scale is bounded, and the sweep answered by compressing
+    its predictions into a quarter of the label amplitude. A bounded head removes the
+    cause. Two things have to happen for that, and both happen here:
+
+    * the loss is computed on the unit scale the head lives on, through
+      :func:`calibration.unit_from_logits` and :func:`calibration.targets_for_head`;
+    * the predictions handed to ``compute_metrics`` are put back on the 0-100 scale by
+      :func:`calibration.percent_from_logits`, so every reported metric stays comparable
+      to the published article.
+
+    The dataset is never touched: the labels stay on the 0-100 scale end to end.
+
+    Args:
+        *args: Forwarded to ``Trainer``.
+        output_head: One of ``calibration.OUTPUT_HEADS``, minus ``linear``, which uses a
+            plain ``Trainer`` instead.
+        **kwargs: Forwarded to ``Trainer``.
+    """
+
+    def __init__(self, *args: Any, output_head: str = DEFAULT_OUTPUT_HEAD, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.output_head = output_head
+
+    def compute_loss(  # pylint: disable=arguments-differ,unused-argument
+        self, model, inputs, return_outputs=False, **kwargs
+    ):
+        """Compute the MSE on the unit scale of the configured head.
+
+        Args:
+            model: The model being trained.
+            inputs: The batch, labels included, on the 0-100 scale.
+            return_outputs: Whether to return the model outputs alongside the loss.
+            **kwargs: Extras passed by newer ``Trainer`` versions, such as
+                ``num_items_in_batch``. Ignored on purpose: the loss is a plain mean.
+
+        Returns:
+            The loss, or ``(loss, outputs)``.
+        """
+        labels = inputs.get("labels")
+        model_inputs = {key: value for key, value in inputs.items() if key != "labels"}
+        outputs = model(**model_inputs)
+        logits = outputs.logits.squeeze(-1)
+        predictions = unit_from_logits(logits, self.output_head)
+        targets = targets_for_head(labels.to(predictions.dtype), self.output_head)
+        loss = torch.nn.functional.mse_loss(predictions, targets)
+        return (loss, outputs) if return_outputs else loss
+
+
+def make_logits_to_percent(output_head: str):
+    """Build the ``preprocess_logits_for_metrics`` hook putting predictions back on 0-100.
+
+    Args:
+        output_head: One of ``calibration.OUTPUT_HEADS``.
+
+    Returns:
+        A callable ``(logits, labels) -> scores``, or ``None`` for the linear head, which
+        already reports on the 0-100 scale.
+    """
+    if output_head == "linear":
+        return None
+
+    def _to_percent(logits, labels):  # pylint: disable=unused-argument
+        if isinstance(logits, (tuple, list)):
+            logits = logits[0]
+        return percent_from_logits(logits, output_head)
+
+    return _to_percent
+
+
+def assert_bf16_is_supported() -> None:
+    """Fail loudly when bf16 is requested on a GPU that cannot do it.
+
+    bf16 needs compute capability 8.0. The v2 training server, renard, runs a Quadro P5000
+    (Pascal, capability 6.1), where the flag either errors out deep in accelerate or falls
+    back to fp32 without saying so. Neither is acceptable for a run whose numbers end up in
+    a table.
+
+    Raises:
+        SystemExit: If no CUDA device is visible, or its capability is below 8.0.
+    """
+    if not torch.cuda.is_available():
+        raise SystemExit("--bf16 was requested but no CUDA device is visible.")
+    major, minor = torch.cuda.get_device_capability(0)
+    if major < 8:
+        raise SystemExit(
+            f"--bf16 was requested but {torch.cuda.get_device_name(0)} has compute capability {major}.{minor}, "
+            f"below the 8.0 bf16 needs. Drop the flag to train in fp32, which is the default."
+        )
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(description="Fine-tune a model for meaning preservation regression.")
@@ -129,6 +254,16 @@ def create_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Root directory containing pre-generated datasets (from prepare_datasets.py).",
+    )
+    parser.add_argument(
+        "--variant_path",
+        type=str,
+        default=None,
+        help=(
+            "Path to one variant produced by src/data/build_corpus.py, holding train/dev/test/sanity "
+            "already split by source sentence and already augmented. Takes precedence over --data_dir. "
+            "This is the v2 path; --data_dir stays for the v1 fold layout."
+        ),
     )
     parser.add_argument(
         "--fold",
@@ -166,8 +301,11 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--bf16",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Use bfloat16 mixed precision (recommended for RTX Ada GPUs). Use --no-bf16 to disable.",
+        default=False,
+        help=(
+            "Use bfloat16 mixed precision. Needs compute capability 8.0 (Ampere or newer) and is refused "
+            "otherwise. The default is fp32: the v2 training server runs a Pascal card, which has no bf16."
+        ),
     )
     parser.add_argument(
         "--fp16",
@@ -177,10 +315,91 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--dataloader_num_workers", type=int, default=4, help="Number of dataloader workers.")
     parser.add_argument(
+        "--keep_best_model",
+        default="true",
+        choices=["true", "false"],
+        help=(
+            "Whether to save the best model and upload it as a wandb artifact. A seed sweep "
+            "needs the metrics, not ten copies of the same architecture: at 1.7 GB for "
+            "deberta-v3-large, nine extra seeds on two cells fill 30 GB and a 227 GB disk "
+            "with 17 GB left dies halfway through. The results JSON is written either way."
+        ),
+    )
+    parser.add_argument(
+        "--save_total_limit",
+        type=int,
+        default=3,
+        help=(
+            "How many intermediate checkpoints Trainer keeps on disk. A deberta-v3-large "
+            "checkpoint weighs about 5 GB, so three of them plus the best one fill a small "
+            "disk and every later run dies instantly with an empty log. Lower it on a host "
+            "with a small disk; it changes nothing to the training itself, because the best "
+            "model is saved separately and the intermediate checkpoints are deleted at the end."
+        ),
+    )
+    parser.add_argument(
+        "--max_length",
+        type=int,
+        default=DEFAULT_MAX_LENGTH,
+        help=(
+            "Token budget per pair, capped by the model's own limit. The default is not the "
+            "model limit: measured on the v2 corpora, the 99th percentile is 164 to 178 tokens "
+            "and only 0.17 to 0.31 percent of pairs exceed 256, while a handful reach 1737. "
+            "Budgeting for those few forces a small micro-batch on every batch, which measured "
+            "8.8 samples per second against 21.8. Truncation clips a tail, it does not drop a pair."
+        ),
+    )
+    parser.add_argument(
+        "--results_json",
+        type=str,
+        default=None,
+        help="Write the test, identical and unrelated metrics to this path, so the analysis needs no network.",
+    )
+    parser.add_argument(
+        "--num_epochs",
+        type=int,
+        default=NUM_EPOCH,
+        help=(
+            "Training epochs before early stopping. The v1 default of 500 was set for a sweep on three RTX 6000 "
+            "Ada; on the Pascal card of the v2 server it would put a single run beyond a day. Lower it and let "
+            "early stopping decide, but keep it equal across the runs of one comparison."
+        ),
+    )
+    parser.add_argument(
         "--early_stopping_patience",
         type=int,
         default=50,
         help="Early stopping patience in epochs. 0 to disable.",
+    )
+    parser.add_argument(
+        "--output_head",
+        type=str,
+        default=DEFAULT_OUTPUT_HEAD,
+        choices=list(OUTPUT_HEADS),
+        help=(
+            "Output layer (correction C3). 'linear' is the unbounded v1 head and the default, so an existing "
+            "command is unchanged. 'sigmoid' trains 100*sigmoid(logit), bounded at every step. 'normalized' "
+            "trains a linear head against targets divided by 100 and rescales at evaluation. The reported "
+            "metrics stay on the 0-100 scale in all three cases."
+        ),
+    )
+    parser.add_argument(
+        "--collapse_patience",
+        type=int,
+        default=DEFAULT_COLLAPSE_PATIENCE,
+        help=(
+            "Number of consecutive evaluations with a degenerate prediction spread before the run is stopped "
+            "(correction C2). 0 restores the pre-C2 behaviour, where a collapsed run trains to the end."
+        ),
+    )
+    parser.add_argument(
+        "--collapse_std_threshold",
+        type=float,
+        default=COLLAPSE_STD_THRESHOLD,
+        help=(
+            "Prediction standard deviation below which an evaluation counts as degenerate. The default is the "
+            "threshold the H1 audit uses; a healthy run of the sweep sits between 9 and 17."
+        ),
     )
     return parser
 
@@ -192,6 +411,7 @@ def main() -> None:
 
     seed: int = args.seed
     data_dir: Optional[str] = args.data_dir
+    variant_path: Optional[str] = args.variant_path
     fold: Optional[int] = args.fold
     data_augmentation: str = args.data_augmentation
     checkpoint: str = args.checkpoint
@@ -202,7 +422,17 @@ def main() -> None:
     use_bf16: bool = args.bf16
     use_fp16: bool = args.fp16
     num_workers: int = args.dataloader_num_workers
+    save_total_limit: int = args.save_total_limit
+    keep_best_model: bool = args.keep_best_model == "true"
     es_patience: int = args.early_stopping_patience
+    collapse_patience: int = args.collapse_patience
+    collapse_std_threshold: float = args.collapse_std_threshold
+    output_head: str = args.output_head
+    num_epochs: int = args.num_epochs
+    results_json: Optional[str] = args.results_json
+
+    if use_bf16:
+        assert_bf16_is_supported()
 
     set_seeds(seed=seed)
 
@@ -210,7 +440,22 @@ def main() -> None:
     holdout_identical_dataset: Optional[DatasetDict] = None
     holdout_unrelated_dataset: Optional[DatasetDict] = None
 
-    if data_dir is not None:
+    if variant_path is not None:
+        # v2 layout: one directory holding train/dev/test/sanity, already split by source
+        # sentence and already augmented. The sanity split is a genuine holdout here, which
+        # is what docs/H5-fuite-par-phrase-source.md shows v1 never had.
+        print(f"Loading v2 variant from disk: {variant_path}")
+        loaded = load_from_disk(variant_path)
+        csmd_dataset = DatasetDict({split: loaded[split] for split in ("train", "dev", "test")})
+        sanity = loaded["sanity"]
+        holdout_identical_dataset = DatasetDict({"test": sanity.filter(lambda r: r["source"] == "identical")})
+        holdout_unrelated_dataset = DatasetDict({"test": sanity.filter(lambda r: r["source"] == "unrelated")})
+        print(
+            f"  train={len(csmd_dataset['train'])} dev={len(csmd_dataset['dev'])} "
+            f"test={len(csmd_dataset['test'])} identical={len(holdout_identical_dataset['test'])} "
+            f"unrelated={len(holdout_unrelated_dataset['test'])}"
+        )
+    elif data_dir is not None:
         base_path = os.path.join(data_dir, "folds", f"fold_{fold}") if fold is not None else data_dir
         dataset_path = os.path.join(base_path, AUGMENTATION_DIR_MAP[data_augmentation])
         print(f"Loading dataset from disk: {dataset_path}")
@@ -242,8 +487,24 @@ def main() -> None:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    # DeBERTa-v3's tokenizer reports model_max_length = 1e30, so `truncation=True` alone is
+    # a no-op and the flag silently does nothing. Harmless on the v1 corpora, whose longest
+    # pair is 209 tokens, but the v2 corpora reach 1737: SimpleText is scientific abstracts
+    # and PLABA is biomedical. Past 512 the model is beyond its position embeddings, and a
+    # batch of 32 padded to 1737 tokens is roughly thirty times the usual memory on a 16 GB
+    # card. The bound has to be explicit.
+    _config = AutoConfig.from_pretrained(checkpoint)
+    _model_limit = min(getattr(_config, "max_position_embeddings", 512) or 512, 512)
+    max_length = min(args.max_length, _model_limit)
+
     def tokenize_function(example: dict) -> dict:
-        return tokenizer(example["original"], example["simplification"], truncation=True, padding=True)
+        return tokenizer(
+            example["original"],
+            example["simplification"],
+            truncation=True,
+            max_length=max_length,
+            padding=True,
+        )
 
     # Remove non-tensor columns before tokenization to avoid Trainer collation errors.
     cols_to_remove = [c for c in COLUMNS_TO_REMOVE if c in csmd_dataset["train"].column_names]
@@ -259,9 +520,14 @@ def main() -> None:
     checkpoint_short_name = checkpoint.replace("/", "_")
     effective_batch = batch_size * grad_accum
     fold_str = f"_fold{fold}" if fold is not None else ""
+    head_str = "" if output_head == DEFAULT_OUTPUT_HEAD else f"_head{output_head}"
+    # With --variant_path the corpus and its augmentation are baked into the variant, so
+    # --data_augmentation is not consulted. Naming the run after it anyway produced
+    # "augswap" on a run with no augmentation at all, which is a label that lies.
+    variant_tag = os.path.basename(os.path.normpath(variant_path)) if variant_path else f"aug{data_augmentation}"
     run_name = (
         f"{checkpoint_short_name}_seed{seed}_lr{lr}_bs{effective_batch}"
-        f"_freeze{num_freeze}_aug{data_augmentation}{fold_str}"
+        f"_freeze{num_freeze}_{variant_tag}{fold_str}{head_str}"
     )
 
     training_args = TrainingArguments(
@@ -273,8 +539,8 @@ def main() -> None:
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size * 2,
         gradient_accumulation_steps=grad_accum,
-        num_train_epochs=NUM_EPOCH,
-        save_total_limit=3,
+        num_train_epochs=num_epochs,
+        save_total_limit=save_total_limit,
         save_strategy="epoch",
         load_best_model_at_end=True,
         seed=seed,
@@ -296,7 +562,16 @@ def main() -> None:
         model_dtype = torch.float16
     else:
         model_dtype = torch.float32
-    model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=1, torch_dtype=model_dtype)
+    # ignore_mismatched_sizes discards the pretrained classification head when its shape
+    # does not match num_labels=1. A checkpoint already fine-tuned for classification carries
+    # one, and it has the wrong width: MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli ships a
+    # three-class NLI head, so loading it into a one-output regression head raises
+    # "size mismatch for bias: copying a param with shape torch.Size([3])". The head is
+    # exactly the part we mean to replace and retrain, so dropping it is the intent, not a
+    # workaround. The encoder, which is what the checkpoint is chosen for, loads untouched.
+    model = AutoModelForSequenceClassification.from_pretrained(
+        checkpoint, num_labels=1, torch_dtype=model_dtype, ignore_mismatched_sizes=True
+    )
 
     # Sync model pad_token_id with tokenizer (needed for decoder-based models).
     if model.config.pad_token_id is None:
@@ -309,16 +584,39 @@ def main() -> None:
     if es_patience > 0:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=es_patience))
 
-    trainer = Trainer(
-        model,
-        training_args,
-        train_dataset=tokenized_csmd_dataset["train"],
-        eval_dataset=tokenized_csmd_dataset["dev"],
-        data_collator=data_collator,
-        processing_class=tokenizer,
-        compute_metrics=compute_metrics,
-        callbacks=callbacks,
-    )
+    # C2: stop a run whose predictions collapsed to a constant, instead of letting it burn
+    # the GPU to the last epoch and report a plausible-looking RMSE.
+    collapse_callback: Optional[PredictionCollapseCallback] = None
+    if collapse_patience > 0:
+        collapse_callback = PredictionCollapseCallback(
+            std_threshold=collapse_std_threshold,
+            patience=collapse_patience,
+        )
+        callbacks.append(collapse_callback)
+
+    # C3: the head the score is read through must travel with the checkpoint, otherwise
+    # whoever loads it later reads raw logits as if they were a 0-100 score.
+    model.config.meaningbert_output_head = output_head
+
+    trainer_kwargs: dict[str, Any] = {
+        "train_dataset": tokenized_csmd_dataset["train"],
+        "eval_dataset": tokenized_csmd_dataset["dev"],
+        "data_collator": data_collator,
+        "processing_class": tokenizer,
+        "compute_metrics": compute_metrics,
+        "callbacks": callbacks,
+    }
+    if output_head == DEFAULT_OUTPUT_HEAD:
+        # Untouched v1 path: a plain Trainer, the model's own MSE on the 0-100 scale.
+        trainer = Trainer(model, training_args, **trainer_kwargs)
+    else:
+        trainer = BoundedOutputTrainer(
+            model,
+            training_args,
+            output_head=output_head,
+            preprocess_logits_for_metrics=make_logits_to_percent(output_head),
+            **trainer_kwargs,
+        )
 
     # --- Train ---
     print("----------Training start----------")
@@ -332,8 +630,19 @@ def main() -> None:
             "freeze_layers": num_freeze,
             "effective_batch_size": effective_batch,
             "early_stopping_patience": es_patience,
+            "collapse_patience": collapse_patience,
+            "collapse_std_threshold": collapse_std_threshold,
+            "output_head": output_head,
+            "precision": "bf16" if use_bf16 else ("fp16" if use_fp16 else "fp32"),
         }
     )
+
+    collapse_reason = collapse_callback.stop_reason if collapse_callback is not None else None
+    if collapse_reason is not None:
+        print(f"WARNING: training stopped early because {collapse_reason}. This run is not usable.")
+        wandb.log({"train/collapse_stop_reason": collapse_reason, "train/collapsed": 1.0})
+    else:
+        wandb.log({"train/collapsed": 0.0})
     wandb.log({"Best model checkpoint path": trainer.state.best_model_checkpoint})
 
     # --- Evaluate ---
@@ -361,35 +670,85 @@ def main() -> None:
             metric_key_prefix="test/unrelated_sentences",
         )
 
-    # --- Save & log artifact ---
-    best_model_dir = f"meaningbert_best_model_{checkpoint_short_name}_seed{seed}{fold_str}"
-    trainer.save_model(best_model_dir)
-    tokenizer.save_pretrained(best_model_dir)
+    # --- Persist results locally ---
+    # wandb is the system of record, but an analysis that needs the network to read its own
+    # numbers is an analysis that breaks at the worst moment. One JSON per run, on disk.
+    if results_json is not None:
+        os.makedirs(os.path.dirname(os.path.abspath(results_json)) or ".", exist_ok=True)
+        with open(results_json, "w", encoding="utf-8") as handle:
+            json.dump(
+                _sanitize_for_json(
+                    {
+                        "run_name": run_name,
+                        "checkpoint": checkpoint,
+                        "variant_path": variant_path,
+                        "output_head": output_head,
+                        "seed": seed,
+                        "num_epochs": num_epochs,
+                        "epochs_trained": trainer.state.epoch,
+                        "rows": {split: len(tokenized_csmd_dataset[split]) for split in tokenized_csmd_dataset},
+                        "test": test_results,
+                        "identical": identical_results,
+                        "unrelated": unrelated_results,
+                    }
+                ),
+                handle,
+                indent=2,
+            )
+        print(f"Results written to {results_json}")
 
-    artifact_name = f"meaningbert-{checkpoint_short_name}-seed{seed}{fold_str}"
-    artifact = wandb.Artifact(
-        name=artifact_name,
-        type="model",
-        description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
-        metadata=_sanitize_for_json({
-            "checkpoint": checkpoint,
-            "seed": seed,
-            "fold": fold,
-            "learning_rate": lr,
-            "freeze_layers": num_freeze,
-            "effective_batch_size": effective_batch,
-            "early_stopping_patience": es_patience,
-            "data_augmentation": data_augmentation,
-            "best_checkpoint_path": trainer.state.best_model_checkpoint,
-            "best_eval_loss": trainer.state.best_metric,
-            "test_results": test_results,
-            "holdout_identical_results": identical_results,
-            "holdout_unrelated_results": unrelated_results,
-        }),
+    # --- Save & log artifact ---
+    # The variant and the head belong in the name. Without them every run of the grid
+    # writes to the same directory and silently overwrites the previous one, leaving a
+    # single checkpoint per architecture with no way to tell which configuration produced
+    # it. The whole point of the grid is to publish the winner.
+    best_model_dir = os.path.join(
+        os.environ.get("MEANINGBERT_MODEL_DIR", "models"),
+        f"{checkpoint_short_name}_{variant_tag}_{output_head}_seed{seed}{fold_str}",
     )
-    artifact.add_dir(best_model_dir)
-    wandb.log_artifact(artifact)
-    print(f"Model artifact logged to wandb: {artifact_name}")
+    if not keep_best_model:
+        print(f"Skipping the model save: --keep_best_model=false. Metrics are in {results_json}.")
+    if keep_best_model:
+        os.makedirs(best_model_dir, exist_ok=True)
+        # Stamp the output head into the config BEFORE saving. The head is applied outside the
+        # model, so a checkpoint trained with `sigmoid` emits raw logits, not a 0-100 score.
+        # Published as-is, `scores.logits.tolist()` from the model card would return values
+        # like -2.3. The config is the only thing that travels with the weights, so it has to
+        # carry the answer; `meaningbert.scorer` reads it back.
+        trainer.model.config.meaningbert_output_head = output_head
+        trainer.model.config.meaningbert_score_range = [0.0, 100.0]
+        trainer.save_model(best_model_dir)
+        tokenizer.save_pretrained(best_model_dir)
+
+        artifact_name = f"meaningbert-{checkpoint_short_name}-{variant_tag}-{output_head}-seed{seed}{fold_str}"
+        artifact = wandb.Artifact(
+            name=artifact_name,
+            type="model",
+            description=f"Best MeaningBERT model fine-tuned from {checkpoint}",
+            metadata=_sanitize_for_json(
+                {
+                    "checkpoint": checkpoint,
+                    "seed": seed,
+                    "fold": fold,
+                    "learning_rate": lr,
+                    "freeze_layers": num_freeze,
+                    "effective_batch_size": effective_batch,
+                    "early_stopping_patience": es_patience,
+                    "collapse_patience": collapse_patience,
+                    "collapse_stop_reason": collapse_reason,
+                    "output_head": output_head,
+                    "data_augmentation": data_augmentation,
+                    "best_checkpoint_path": trainer.state.best_model_checkpoint,
+                    "best_eval_loss": trainer.state.best_metric,
+                    "test_results": test_results,
+                    "holdout_identical_results": identical_results,
+                    "holdout_unrelated_results": unrelated_results,
+                }
+            ),
+        )
+        artifact.add_dir(best_model_dir)
+        wandb.log_artifact(artifact)
+        print(f"Model artifact logged to wandb: {artifact_name}")
 
     # Clean up intermediate checkpoints to save disk space
     output_dir = f"meaning_bert_train_{checkpoint_short_name}"

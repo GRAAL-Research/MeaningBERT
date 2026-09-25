@@ -1,0 +1,75 @@
+{
+  "probe": {
+    "host": "renard",
+    "hostname": "renard",
+    "gpus": [
+      {
+        "index": 0,
+        "name": "NVIDIA GeForce GTX 1080 Ti",
+        "memory_mib": 11264,
+        "compute_capability": 6.1
+      },
+      {
+        "index": 1,
+        "name": "Quadro P5000",
+        "memory_mib": 16384,
+        "compute_capability": 6.1
+      }
+    ],
+    "driver": "535.309.01",
+    "cuda_toolkit": "11.8",
+    "python_version": "3.11.2",
+    "torch_version": "",
+    "torch_cuda": "",
+    "cpu_count": "12",
+    "memory_gb": "62",
+    "disk_free": "388G",
+    "errors": []
+  },
+  "verdict": {
+    "selected_gpu_indices": [
+      1
+    ],
+    "bf16": false,
+    "fp16_tensor_cores": false,
+    "recommended_precision": "fp32",
+    "checkpoint_fit": {
+      "microsoft/deberta-v3-small": {
+        "1": {
+          "fits": true,
+          "state_gb": 2.1
+        }
+      },
+      "microsoft/deberta-v3-base": {
+        "1": {
+          "fits": true,
+          "state_gb": 2.7
+        }
+      },
+      "microsoft/deberta-v3-large": {
+        "1": {
+          "fits": true,
+          "state_gb": 6.5
+        }
+      },
+      "microsoft/deberta-v2-xlarge": {
+        "1": {
+          "fits": false,
+          "state_gb": 13.4
+        }
+      },
+      "answerdotai/ModernBERT-large": {
+        "1": {
+          "fits": true,
+          "state_gb": 5.9
+        }
+      },
+      "bert-base-uncased": {
+        "1": {
+          "fits": true,
+          "state_gb": 1.6
+        }
+      }
+    }
+  }
+}

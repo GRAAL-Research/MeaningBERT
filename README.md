@@ -34,8 +34,9 @@ checks. For more details, refer to our publicly available article.
 
 Correlation to human judgment is one way to evaluate the quality of a meaning preservation metric.
 However, it is inherently subjective, since it uses human judgment as a gold standard, and expensive since it requires
-a large dataset annotated by several humans. As an alternative, we designed two automated tests: evaluating meaning preservation between
-identical sentences (which should be 100% preserving) and between unrelated sentences (which should be 0% preserving).
+a large dataset annotated by several humans. As an alternative, we designed three automated tests: evaluating meaning
+preservation between identical sentences (which should be 100% preserving), between unrelated sentences (which should be
+0% preserving), and between the same pair given in both orders (which should return the same score twice).
 In these tests, the meaning preservation target value is not subjective and does not require human annotation to
 be measured. They represent a trivial and minimal threshold a good automatic meaning preservation metric should be able to
 achieve. Namely, a metric should be minimally able to return a perfect score (i.e., 100%) if two identical sentences are
@@ -57,6 +58,97 @@ irrelevant sentence mainly composed of irrelevant words (also known as word soup
 0, we check that the metric rating is lower or equal to a threshold value X∈[5, 1].
 Again, to account for computer floating-point inaccuracy, we round the ratings to the nearest integer and do not use
 a threshold value of 0%.
+
+### Symmetry
+
+Our third test evaluates a property of the metric rather than of a sentence pair. `meaning(A, B)` and `meaning(B, A)`
+ask the same question, how much of the meaning is shared, and the position of a sentence in the call carries no semantic
+information. The two calls should therefore return the same number. Unlike the two tests above, this one needs no
+generated data at all: it re-scores the evaluation pairs in the reverse order and measures the absolute difference,
+which has an expected value of exactly 0.
+
+A metric can pass the first two tests and fail this one. It is worth measuring because the failure is silent: two
+studies using the same metric, one calling `meaning(source, simplification)` and the other `meaning(simplification,
+source)`, would report different numbers with nothing signalling the discrepancy.
+
+Measured on 1652 test pairs, mean absolute difference between the two orders:
+
+| model | mean | median | pairs differing by more than 10 points |
+|---|---|---|---|
+| MeaningBERT v1, as published | 6.12 | 3.12 | **20.8 %** |
+| v2 trained without mirrored pairs | 7.79 | 4.88 | 31.1 % |
+| **v2 as released** | **1.48** | **0.74** | **0.6 %** |
+
+The property is taught, not enforced: the training corpus contains the mirror of every non-identical pair, with the
+label carried over unchanged. That brings the violation down by a factor of five, and it does not remove it. The scorer
+deliberately runs a single direction, the one you pass, rather than averaging both: averaging would make the property
+exact at twice the inference cost, and would hide in the wrapper a residual violation that belongs in the results. Pass
+your pairs in a consistent order.
+
+## MeaningBERT v2: which checkpoint to use
+
+Two checkpoints are released, trained on the same v2 corpus with the same recipe and
+differing only in their encoder. Every number below is measured on the same held-out test
+set of 1536 human-annotated pairs, with the control pairs reported separately rather than
+folded into the correlation.
+
+| | **best** | **fastest** |
+|---|---|---|
+| encoder | `deberta-v3-large` | `bert-base-uncased` |
+| parameters | 435 M | 110 M |
+| Pearson *r* | **0.704 ± 0.009** (10 seeds) | 0.637 (1 seed) |
+| RMSE | 18.20 ± 0.56 | 20.23 |
+| identical pairs scored above 95 | **97.1 % ± 1.4** | 70.4 % |
+| unrelated pairs scored below 5 | **99.2 % ± 0.4** | 97.2 % |
+| 100 pairs, GPU | 1.16 s | **0.36 s** |
+| 100 pairs, CPU | 9.49 s | **1.99 s** |
+| weights | 1740 MB | **438 MB** |
+| peak VRAM | 2181 MB | **514 MB** |
+
+### The delta, and what it costs
+
+The large encoder buys **+0.067 Pearson** and, more importantly, **+26.7 points on the
+identical-pair check**. It costs 3.2 times the inference time on GPU, 4.8 times on CPU,
+and 4 times the memory.
+
+The correlation gap is the smaller half of the story. `bert-base-uncased` scores a sentence
+against *itself* below 95 almost a third of the time, which is a failure mode a user meets
+on real input, not a second-decimal difference on a benchmark. If a wrong score on an
+identical pair matters for your use, the gap is not 0.067, it is disqualifying.
+
+Two caveats travel with the fast checkpoint. It was trained on **one seed** where the large
+one has ten, so its numbers carry no spread and may move by the ±0.016 seen elsewhere. And
+on GPU it is not meaningfully faster than the middle option below.
+
+### A middle option worth knowing about
+
+`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`, fine-tuned on the same v2 corpus, reaches
+**0.679 ± 0.008** over 9 seeds with sanity checks statistically indistinguishable from the
+large model. It runs at **0.37 s per 100 pairs on GPU**, which is the same speed as
+`bert-base-uncased` (0.36 s), and 2.84 s on CPU against 1.99 s.
+
+So on a GPU there is no speed argument for the BERT checkpoint: the NLI-pretrained base
+model is as fast, correlates 0.042 higher, and passes the sanity checks. The BERT
+checkpoint is the right choice only on CPU, and only when 1.4 times the latency matters
+more than the identical-pair failures.
+
+### Where the gain comes from
+
+Measured on the same test set, at constant recipe:
+
+| | Pearson |
+|---|---|
+| v1 as published: `bert-base` + v1 corpus + linear head | 0.323 |
+| `bert-base` + **v2 corpus** + clamped head + augmentation | 0.637 |
+| `deberta-v3-large`, same recipe | 0.704 |
+
+The corpus and the training recipe account for **+0.314**; the larger encoder adds
+**+0.067**. Scaling the model is the small lever here.
+
+### One property the metric does not guarantee
+
+See [Symmetry](#symmetry) above: the released model differs by 1.48 points on average between the two argument orders,
+against 6.12 for the published v1 model. The scorer runs one direction, the one you pass.
 
 ## Use MeaningBERT
 
@@ -104,10 +196,37 @@ documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "H
 simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
                    "Whatever, whenever, this is a sentence."]
 
+# There are TWO variants, selected by the second argument of evaluate.load.
+# "best" is the default: deberta-v3-large, the accurate one.
 meaning_bert = evaluate.load("davebulaval/meaningbert")
+meaning_bert = evaluate.load("davebulaval/meaningbert", "best")  # the same thing, explicitly
+
+# "fastest" is bert-base-uncased: 3.2x faster on GPU, 4.8x on CPU, a quarter of the memory.
+meaning_bert_fast = evaluate.load("davebulaval/meaningbert", "fastest")
 
 print(meaning_bert.compute(references=documents, predictions=simplifications))
 ```
+
+### Which variant to load
+
+`evaluate.load` accepts a variant name as its second argument, and the two variants do not
+return the same scores. An unknown name raises rather than falling back to the default: a
+typo that silently swapped the model would produce wrong numbers with nothing to show for
+it.
+
+| | `best` (default) | `fastest` |
+|---|---|---|
+| encoder | `deberta-v3-large` | `bert-base-uncased` |
+| correlation with human judgment | **+0.067** | |
+| identical pairs scored above 95 | **97.1 %** | 70.4 % |
+| 100 pairs, GPU / CPU | 1.16 s / 9.49 s | **0.36 s / 1.99 s** |
+| weights | 1740 MB | **438 MB** |
+
+Load `fastest` when you score at volume or have no GPU. Load `best` when a wrong score
+costs you something: the small model rates a sentence against *itself* below 95 almost a
+third of the time, which no amount of averaging over a corpus will wash out.
+
+The numbers above are detailed in [MeaningBERT v2: which checkpoint to use](#meaningbert-v2-which-checkpoint-to-use).
 
 
 ------------------

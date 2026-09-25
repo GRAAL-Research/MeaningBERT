@@ -1,0 +1,40 @@
+# Contraintes d'entree pour renard (Python 3.11, Pascal sm_61).
+# On epingle ce qui doit l'etre, on laisse pip resoudre le reste, puis on gele le
+# resultat reel dans env/renard-lock.txt. Epingler a la main depuis une autre machine
+# produit des versions qui n'existent pas pour la version de Python cible : c'est ce
+# qui s'est passe au premier essai, avec scipy 1.18 qui exige Python 3.12.
+
+# La seule epingle vraiment critique : derniere version du canal cu126, donc derniere
+# qui embarque des noyaux sm_61. PyTorch 2.15 retire Pascal. Voir env/README.md.
+torch==2.14.0+cu126
+
+transformers>=4.50,<5
+tokenizers>=0.21
+datasets>=4.0
+accelerate>=1.0
+safetensors>=0.5
+sentencepiece>=0.2
+
+scikit-learn>=1.5
+scipy>=1.14
+numpy>=2.0,<3
+pandas>=2.2
+evaluate>=0.4
+
+wandb>=0.19
+poutyne>=1.17
+tqdm>=4.66
+python-dotenv>=1.0
+
+pytest>=8
+pytest-cov>=5
+
+# Dependances des metriques de comparaison de src/training/metrics/ : sans elles,
+# tests/test_implemented_metrics.py et tests/test_utils_masking.py ne se collectent
+# meme pas. Elles ne servent pas a l'entrainement, mais la suite doit passer en entier.
+nltk>=3.9
+sentence-transformers>=3.0
+textstat>=0.7
+sacremoses>=0.1
+rake-nltk>=1.0
+rouge-score>=0.1
