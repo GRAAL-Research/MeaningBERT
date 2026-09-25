@@ -53,12 +53,13 @@ deviendra faux, on saura laquelle des deux a bouge.
 ## Les corpus, et ce qu'ils apportent vraiment
 
 Verifies le 2026-09-25 par `src/diagnostics/releve_corpus_v3.py`, qui lit les donnees et
-non les fiches. Les neuf s'ouvrent, 634 818 lignes.
+non les fiches. Les neuf s'ouvrent, 634 818 lignes. **PAWS a ensuite ete ecarte**, voir
+plus bas, ce qui ramene la campagne a huit corpus et 569 417 lignes.
 
 | corpus | lignes | paire | etiquette | apport |
 |---|---|---|---|---|
 | `tals/vitaminc` | 488 904 | `claim` / `evidence` | `SUPPORTS` / `REFUTES` / `NOT ENOUGH INFO` | le gros de la polarite, editions minimales de Wikipedia |
-| `google-research-datasets/paws` | 65 401 | `sentence1` / `sentence2` | `0` / `1` | fort recouvrement lexical SANS contradiction : le controle qui empeche de confondre les deux |
+| ~~`google-research-datasets/paws`~~ | ~~65 401~~ | | | **ecarte le 2026-09-25**, voir ci-dessous |
 | `nikitam/ACES` | 36 476 | `source` / `good-translation` / `incorrect-translation` | 68 phenomenes | negation, antonymes, nombres, entites, ordre des arguments |
 | `lasha-nlp/CONDAQA` | 14 182 | question + passage | `YES` / `NO` / `DON'T KNOW` | portee de la negation |
 | `mteb/sickr-sts` | 9 927 | `sentence1` / `sentence2` | score continu 1 a 5 | **le pont**, moitie proximite |
@@ -78,11 +79,18 @@ positif. Il demande aussi un nom de configuration, il en a plusieurs. **CONDAQA*
 comprehension de lecture, question plus passage, avec des reponses libres melees aux
 `YES` / `NO` : ce n'est pas une paire de phrases et il faudra decider s'il entre du tout.
 
-**PAWS merite une mise en garde.** Binaire paraphrase ou non, ce qui n'est pas la meme
-question que la polarite : deux phrases non-paraphrases peuvent tres bien ne pas se
-contredire. Il sert de source de paires a fort recouvrement lexical, et surtout de controle
-negatif. Un modele qui le classe comme contradictoire a appris le recouvrement lexical et
-non le sens, ce qui est exactement le defaut que LexFlip reproche aux metriques actuelles.
+### PAWS est ecarte. Decision de David, 2026-09-25
+
+Binaire paraphrase ou non, ce qui n'est pas la meme question que la polarite : deux phrases
+non-paraphrases peuvent tres bien ne pas se contredire. Le corpus avait ete retenu comme
+controle negatif, mais il ne repond pas a la question que la v3 pose, et le garder aurait
+demande de decider ce que « pas une paraphrase » vaut sur une echelle de polarite. Cette
+decision n'a pas de bonne reponse, donc le corpus sort du perimetre.
+
+Ce qui reste vrai et qu'il faudra couvrir autrement : le risque que la metrique lise du
+recouvrement lexical au lieu du sens. C'est deja ce que mesure le test de dissociation sur
+des paires minimales, et VitaminC en fournit 489 000, editees a un mot pres. Le controle
+n'est pas perdu, il change de source.
 
 ## Le quatrieme test de bon sens
 
@@ -153,9 +161,10 @@ que le 32 % ne donne pas, et c'est ce qui justifie la version.
 2. **Chargeurs et contrat.** Comme en v2 : un chargeur par corpus, une seule harmonisation.
    La nouveaute est qu'il y a deux cibles et non une, donc le contrat doit porter
    `polarity_raw` a cote de `label_raw`.
-3. **Tete polarite seule.** Trois classes, entrainee sur VitaminC plus SICK plus MoNLI plus
-   NaN-NLI, mesuree en exactitude et en matrice de confusion. Elle doit d'abord marcher
-   comme classifieur avant de servir a composer quoi que ce soit.
+3. **Tete polarite seule.** Trois classes, entrainee sur VitaminC plus SICK, MoNLI et
+   NaN-NLI servant de sondes tenues a l'ecart, mesuree en exactitude et en matrice de
+   confusion. Elle doit d'abord marcher comme classifieur avant de servir a composer quoi
+   que ce soit.
 4. **Calibration de la composition.** Sur SICK, le seul corpus ou les deux dimensions
    portent sur les memes paires. C'est la que la forme `magnitude x (1 - 2p)` se verifie ou
    se remplace.
@@ -164,7 +173,7 @@ que le 32 % ne donne pas, et c'est ce qui justifie la version.
 
 ## Porte avant les chargeurs : les licences
 
-Decision de David, 2026-09-25. Aucun des neuf corpus ne declare sa licence dans ses
+Decision de David, 2026-09-25. Aucun des corpus ne declare sa licence dans ses
 metadonnees, et la verification se fait **avant** d'ecrire un chargeur, une verification
 par corpus sur la page du jeu et sur l'article d'origine.
 
@@ -182,12 +191,11 @@ la publication couterait beaucoup plus que la verification.
 | `mteb/sickr-sts` | **CC BY-NC-SA 3.0** | **non commercial** |
 | `joey234/nan-nli` | CC BY-SA 4.0 | redistribuable, partage a l'identique |
 | `lasha-nlp/CONDAQA` | Apache 2.0 | redistribuable sans contrainte |
-| `google-research-datasets/paws` | « other » | a lire a la source |
 | `yangwang825/sick` | aucune | aucune permission par defaut |
 | `sentence-transformers/stsb` | aucune | aucune permission par defaut |
 | `tasksource/monli` | aucune | aucune permission par defaut |
 
-### Decision de David, 2026-09-25 : on garde les neuf
+### Decision de David, 2026-09-25 : on garde les huit restants
 
 Le cadre est academique, ce qui leve la contrainte qui comptait : la clause non commerciale
 d'ACES et de SICK-proximite n'empeche ni l'entrainement, ni la publication des resultats,

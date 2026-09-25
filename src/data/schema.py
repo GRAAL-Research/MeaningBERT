@@ -44,7 +44,7 @@ SCALES: Final[dict[str, ScaleSpec]] = {
     "binary": ScaleSpec(0.0, 1.0, True),
     "error_count": ScaleSpec(0.0, math.inf, False),
     # v3. A corpus with no meaning-preservation annotation at all, only polarity: VitaminC,
-    # PAWS, MoNLI, NaN-NLI, ACES. Its ``label_raw`` must be NaN on every row. Declaring the
+    # MoNLI, NaN-NLI, ACES. Its ``label_raw`` must be NaN on every row. Declaring the
     # absence rather than defaulting to 0.0 is the point: a silent zero would read as "no
     # meaning preserved", which is the opposite of "not measured".
     "none": ScaleSpec(math.nan, math.nan, True),
@@ -75,10 +75,6 @@ POLARITY_SCHEMES: Final[dict[str, frozenset[str]]] = {
     # Fact verification: VitaminC. A claim supported or refuted BY its evidence, which is
     # the same relation under another name.
     "fact3": frozenset({"SUPPORTS", "NOT ENOUGH INFO", "REFUTES"}),
-    # Paraphrase identification: PAWS. Deliberately NOT mapped onto nli3 by the loader.
-    # "not a paraphrase" is not "a contradiction", and conflating the two is the precise
-    # error this corpus exists to detect.
-    "paraphrase2": frozenset({"paraphrase", "not_paraphrase"}),
     # Translation adequacy: ACES, whose rows carry a good and an incorrect translation of
     # the same source rather than a class.
     "mt_pair2": frozenset({"good", "incorrect"}),

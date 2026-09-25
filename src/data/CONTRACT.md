@@ -146,6 +146,11 @@ incompatibles ; personne n'a la vue d'ensemble sauf `harmonize.py`, donc lui seu
 `polarity_raw` est une **identification** : quel entier de ce corpus-ci veut dire
 contradiction. Seul le loader le sait, et le mettre ailleurs le rend invisible.
 
+PAWS a ete retire de la campagne v3 par decision de David le 2026-09-25 : paraphrase
+contre non-paraphrase n'est pas une polarite, et le corpus sortait du perimetre.
+C'est cette porte-la que le schema par corpus sert a ouvrir, avant qu'un mapping
+implicite ait deja ete ecrit.
+
 Le cout de se tromper est documente. `yangwang825/sick` encode ses classes en 0, 1, 2 et
 la correspondance n'est ecrite nulle part sur la fiche du jeu. L'inversion est silencieuse :
 le pipeline tourne, le modele s'entraine, et le seul symptome est un chiffre decevant. Elle
@@ -164,14 +169,7 @@ arbitrage entre corpus, il appartient a `harmonize.py`.
 | `none` | `""` | les quatre corpus v2 |
 | `nli3` | `entailment`, `neutral`, `contradiction` | SICK, MoNLI, NaN-NLI |
 | `fact3` | `SUPPORTS`, `NOT ENOUGH INFO`, `REFUTES` | VitaminC |
-| `paraphrase2` | `paraphrase`, `not_paraphrase` | PAWS |
 | `mt_pair2` | `good`, `incorrect` | ACES |
-
-**PAWS n'a pas le droit d'appeler ses negatifs des contradictions.** Deux phrases qui ne
-sont pas des paraphrases ne se contredisent pas pour autant, et ce corpus existe justement
-pour attraper un modele qui lit le recouvrement lexical comme du sens. Le faire pointer sur
-`nli3` au chargement detruirait le controle avant qu'il serve. Il garde son schema, et
-`harmonize.py` tranche a decouvert.
 
 MoNLI ne porte pas de classe `contradiction` : c'est une propriete du corpus, pas du
 schema, donc il declare `nli3` et n'emet que deux de ses trois valeurs.

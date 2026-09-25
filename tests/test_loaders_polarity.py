@@ -1,6 +1,6 @@
-"""Tests for the four polarity-only v3 loaders.
+"""Tests for the three polarity-only v3 loaders.
 
-VitaminC, PAWS, MoNLI and NaN-NLI share one shape: they annotate polarity and nothing
+VitaminC, MoNLI and NaN-NLI share one shape: they annotate polarity and nothing
 else, so they all declare ``scale = "none"`` with ``label_raw`` NaN. They are tested
 together because what is worth testing in each is its *specific* risk, not the shape they
 share. SICK is the exception and keeps its own file: it carries both targets and has a
@@ -15,8 +15,8 @@ import math
 
 import pytest
 
-from data.loaders import monli, nan_nli, paws, vitaminc
-from data.schema import POLARITY_SCHEMES, build, validate
+from data.loaders import monli, nan_nli, vitaminc
+from data.schema import build, validate
 
 # --- VitaminC: the direction of the pair ---------------------------------------------
 
@@ -73,53 +73,6 @@ def test_vitaminc_validates_against_the_contract():
     dataset = build(vitaminc._rows(_VITAMINC, "train"), corpus="vitaminc")
     validate(dataset)
     assert set(dataset["polarity_scheme"]) == {"fact3"}
-
-
-# --- PAWS: the control that must not be turned into contradictions -------------------
-
-_PAWS = [
-    {
-        "id": 1,
-        "label": 0,
-        "sentence1": "he asked him for a passport to return to England through Scotland .",
-        "sentence2": "he asked him for a passport to return to Scotland through England .",
-    },
-    {
-        "id": 2,
-        "label": 1,
-        "sentence1": "The NBA season of 1975 -- 76 was the 30th season of the National Basketball Association .",
-        "sentence2": "The 1975 -- 76 season of the National Basketball Association was the 30th season of the NBA .",
-    },
-]
-
-
-def test_paws_encodes_zero_as_not_a_paraphrase_and_one_as_a_paraphrase():
-    # Verified in the data on 2026-09-25: label 0 is the England/Scotland swap, which is
-    # not a paraphrase. The dataset card names the classes '0' and '1', which says nothing.
-    rows = paws._rows(_PAWS, "train")
-    assert [row["polarity_raw"] for row in rows] == ["not_paraphrase", "paraphrase"]
-
-
-def test_paws_never_calls_its_negatives_contradictions():
-    # The corpus exists to catch a model reading lexical overlap as meaning. Mapping
-    # not_paraphrase onto contradiction at load time destroys the control before it is
-    # used, and teaches the polarity head that "different" means "opposite".
-    rows = paws._rows(_PAWS, "train")
-    assert "contradiction" not in {row["polarity_raw"] for row in rows}
-    assert "contradiction" not in POLARITY_SCHEMES["paraphrase2"]
-
-
-def test_paws_stops_on_a_label_it_has_not_verified():
-    with pytest.raises(paws.LabelSpaceError, match="outside the verified encoding"):
-        paws._rows([dict(_PAWS[0], label=2)], "train")
-
-
-def test_paws_validates_against_the_contract():
-    dataset = build(paws._rows(_PAWS, "train"), corpus="paws")
-    validate(dataset)
-    assert set(dataset["polarity_scheme"]) == {"paraphrase2"}
-    assert set(dataset["scale"]) == {"none"}
-    assert all(math.isnan(value) for value in dataset["label_raw"])
 
 
 # --- MoNLI: two classes, and the assumption that it stays that way -------------------

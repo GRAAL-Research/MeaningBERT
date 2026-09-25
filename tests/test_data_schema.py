@@ -5,7 +5,7 @@ import math
 import pytest
 from datasets import Dataset
 
-from data.schema import POLARITY_SCHEMES, SCALES, ContractError, build, validate
+from data.schema import SCALES, ContractError, build, validate
 
 
 def _row(**overrides) -> dict:
@@ -277,11 +277,3 @@ def test_validate_rejects_a_corpus_that_annotates_neither_target():
     rows = [_row(scale="none", label_raw=float("nan"))]
     with pytest.raises(ContractError, match="at least one target"):
         validate(_dataset(rows))
-
-
-def test_paws_is_not_allowed_to_call_its_negatives_contradictions():
-    # The corpus exists to catch a model that reads lexical overlap as meaning. Mapping
-    # not_paraphrase onto contradiction at load time would destroy exactly that control,
-    # so the scheme keeps them apart and harmonize.py has to decide in the open.
-    assert "contradiction" not in POLARITY_SCHEMES["paraphrase2"]
-    validate(_dataset([_polar(polarity_scheme="paraphrase2", polarity_raw="not_paraphrase")]))

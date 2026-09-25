@@ -35,7 +35,10 @@ import click
 CANDIDATES = [
     ("tals/vitaminc", None, "450k contrastive claim-evidence pairs; the largest minimal-pair corpus there is"),
     ("nikitam/ACES", None, "36k examples over 68 phenomena: negation, antonyms, numbers, entities, argument order"),
-    ("google-research-datasets/paws", "labeled_final", "108k pairs with high lexical overlap that are NOT paraphrases"),
+    # Probed and then dropped from the campaign on 2026-09-25: paraphrase against
+    # non-paraphrase is not a polarity judgement, so the corpus was out of scope. Kept
+    # in the survey because a corpus considered and rejected is a finding too.
+    ("google-research-datasets/paws", "labeled_final", "ECARTE: paraphrase vs non-paraphrase n'est pas une polarite"),
     # SICK is the bridge between the two heads, and no single English copy of it opens any
     # more: the canonical one still ships a loading script, which HuggingFace dropped. The
     # two halves survive as separate datasets over the SAME pairs, so joining them on the

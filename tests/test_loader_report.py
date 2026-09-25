@@ -100,7 +100,7 @@ def test_a_corpus_without_polarity_says_so_explicitly():
 def test_each_declared_corpus_carries_a_source_url_and_a_redistribution_verdict():
     # A report that does not say where the bytes came from cannot be re-checked, and one
     # that does not answer H4 cannot tell the merge what it may ship.
-    for corpus in ("sick", "vitaminc", "paws", "monli", "nan_nli"):
+    for corpus in ("sick", "vitaminc", "monli", "nan_nli"):
         assert SOURCE_URLS[corpus].startswith("https://")
         assert corpus in REDISTRIBUTION
 

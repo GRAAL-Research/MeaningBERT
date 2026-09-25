@@ -34,7 +34,6 @@ from data.schema import validate
 SOURCE_URLS: dict[str, str] = {
     "sick": "https://huggingface.co/datasets/yangwang825/sick + https://huggingface.co/datasets/mteb/sickr-sts",
     "vitaminc": "https://huggingface.co/datasets/tals/vitaminc",
-    "paws": "https://huggingface.co/datasets/google-research-datasets/paws",
     "monli": "https://huggingface.co/datasets/tasksource/monli",
     "nan_nli": "https://huggingface.co/datasets/joey234/nan-nli",
 }
@@ -46,7 +45,6 @@ SOURCE_URLS: dict[str, str] = {
 REDISTRIBUTION: dict[str, bool] = {
     "sick": False,
     "vitaminc": True,
-    "paws": False,
     "monli": False,
     "nan_nli": True,
 }
