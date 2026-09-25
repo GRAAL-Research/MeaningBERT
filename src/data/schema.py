@@ -1,8 +1,14 @@
-"""Normalised schema shared by every CSMD v2 corpus loader.
+"""Normalised schema shared by every CSMD corpus loader, v2 and v3.
 
 See ``src/data/CONTRACT.md`` for the rationale. The short version: a loader emits
 ``label_raw`` in its native scale and leaves ``label`` as NaN. Only
 ``src/data/harmonize.py`` is allowed to fill ``label``.
+
+v3 carries a second target on the same rows. The score became signed, and a signed score
+is two questions and not one: how much meaning the pair shares, and whether it is asserted
+or denied. So the schema gained ``polarity_raw`` beside ``label_raw``, under the same
+discipline, and a corpus is now allowed to answer only one of the two. VitaminC has no
+preservation annotation and CSMD has no polarity annotation; both are valid.
 """
 
 from __future__ import annotations
@@ -37,6 +43,45 @@ SCALES: Final[dict[str, ScaleSpec]] = {
     "likert3_signed": ScaleSpec(-1.0, 1.0, True),
     "binary": ScaleSpec(0.0, 1.0, True),
     "error_count": ScaleSpec(0.0, math.inf, False),
+    # v3. A corpus with no meaning-preservation annotation at all, only polarity: VitaminC,
+    # PAWS, MoNLI, NaN-NLI, ACES. Its ``label_raw`` must be NaN on every row. Declaring the
+    # absence rather than defaulting to 0.0 is the point: a silent zero would read as "no
+    # meaning preserved", which is the opposite of "not measured".
+    "none": ScaleSpec(math.nan, math.nan, True),
+}
+
+#: Native polarity label spaces, one per family of corpora, each with its CLOSED set of
+#: permitted raw values.
+#:
+#: Why the raw value is a name and not the native integer. ``yangwang825/sick`` encodes its
+#: classes as 0, 1 and 2, and which integer means contradiction is not written anywhere in
+#: the dataset card. Getting it backwards is silent: the pipeline runs, the model trains,
+#: and the only symptom is a number that looks merely disappointing. It already happened
+#: once on this project, in ``src/diagnostics/dissociation.py``, where the swap surfaced as
+#: an AUC of 0.021 and was caught only because a near-perfectly inverted ranking is too
+#: strange to ignore. Forcing the loader to write ``"contradiction"`` puts that decision in
+#: the one place that can justify it, next to a report that records the evidence.
+#:
+#: What the loader does NOT decide is how a scheme maps onto the unified three classes:
+#: that belongs to ``harmonize.py``, exactly as the 0-100 rescaling does. The split is
+#: between naming a native class, which only the loader can do, and reconciling schemes,
+#: which needs the whole picture.
+POLARITY_SCHEMES: Final[dict[str, frozenset[str]]] = {
+    # A corpus that annotates meaning preservation but never polarity: all four v2 corpora.
+    "none": frozenset({""}),
+    # The NLI convention: SICK, MoNLI, NaN-NLI. MoNLI carries no contradiction class, which
+    # is a property of that corpus and not of the scheme.
+    "nli3": frozenset({"entailment", "neutral", "contradiction"}),
+    # Fact verification: VitaminC. A claim supported or refuted BY its evidence, which is
+    # the same relation under another name.
+    "fact3": frozenset({"SUPPORTS", "NOT ENOUGH INFO", "REFUTES"}),
+    # Paraphrase identification: PAWS. Deliberately NOT mapped onto nli3 by the loader.
+    # "not a paraphrase" is not "a contradiction", and conflating the two is the precise
+    # error this corpus exists to detect.
+    "paraphrase2": frozenset({"paraphrase", "not_paraphrase"}),
+    # Translation adequacy: ACES, whose rows carry a good and an incorrect translation of
+    # the same source rather than a class.
+    "mt_pair2": frozenset({"good", "incorrect"}),
 }
 
 SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "swapped", "back_translated"})
@@ -54,8 +99,10 @@ STR_COLUMNS: Final[tuple[str, ...]] = (
     "system",
     "split_hint",
     "license",
+    "polarity_raw",
+    "polarity_scheme",
 )
-FLOAT_COLUMNS: Final[tuple[str, ...]] = ("label_raw", "label", "label_std")
+FLOAT_COLUMNS: Final[tuple[str, ...]] = ("label_raw", "label", "label_std", "polarity")
 INT_COLUMNS: Final[tuple[str, ...]] = ("n_annotators",)
 
 COLUMNS: Final[tuple[str, ...]] = STR_COLUMNS + FLOAT_COLUMNS + INT_COLUMNS
@@ -71,8 +118,10 @@ class ContractError(ValueError):
 def build(rows: list[dict], corpus: str) -> Dataset:
     """Build a contract-compliant :class:`Dataset` from loosely typed rows.
 
-    Fills the columns a loader should never have to think about (``label`` is always NaN,
-    ``corpus`` is constant) and applies the defaults documented in the contract.
+    Fills the columns a loader should never have to think about (``label`` and ``polarity``
+    are always NaN, ``corpus`` is constant) and applies the defaults documented in the
+    contract. The polarity defaults are what keep the v2 loaders valid untouched: a row
+    that says nothing about polarity gets scheme ``none``.
 
     Args:
         rows: One dict per pair. Must carry at least ``item_id``, ``original``,
@@ -108,6 +157,9 @@ def build(rows: list[dict], corpus: str) -> Dataset:
         built["system"].append(str(row.get("system", "")))
         built["split_hint"].append(str(row.get("split_hint", "")))
         built["license"].append(str(row["license"]))
+        built["polarity_raw"].append(str(row.get("polarity_raw", "")))
+        built["polarity_scheme"].append(str(row.get("polarity_scheme", "none")))
+        built["polarity"].append(float("nan"))
 
     return Dataset.from_dict(built)
 
@@ -139,7 +191,17 @@ def _check_scales(dataset: Dataset, problems: list[str]) -> None:
         problems.append(f"a loader must emit a single scale, found {sorted(scales)}")
         return
 
-    spec = SCALES[next(iter(scales))]
+    scale = next(iter(scales))
+    if scale == "none":
+        measured = sum(1 for value in dataset["label_raw"] if not math.isnan(value))
+        if measured:
+            problems.append(
+                f"scale 'none' declares no meaning-preservation annotation, but {measured} "
+                "label_raw value(s) are not NaN"
+            )
+        return
+
+    spec = SCALES[scale]
     out_of_bounds = [
         value for value in dataset["label_raw"] if not math.isfinite(value) or not spec.low <= value <= spec.high
     ]
@@ -198,6 +260,38 @@ def _check_labels(dataset: Dataset, problems: list[str]) -> None:
         problems.append(f"label_std: {bad_std} negative value(s)")
 
 
+def _check_polarity(dataset: Dataset, problems: list[str]) -> None:
+    """Append problems about ``polarity_scheme``, ``polarity_raw`` and ``polarity``."""
+    schemes = set(dataset["polarity_scheme"])
+    unknown = schemes - POLARITY_SCHEMES.keys()
+    if unknown:
+        problems.append(f"unknown polarity_scheme(s) {sorted(unknown)}; permitted: {sorted(POLARITY_SCHEMES)}")
+        return
+    if len(schemes) > 1:
+        problems.append(f"a loader must emit a single polarity_scheme, found {sorted(schemes)}")
+        return
+
+    scheme = next(iter(schemes))
+    permitted = POLARITY_SCHEMES[scheme]
+    off_vocabulary = sorted(set(dataset["polarity_raw"]) - permitted)
+    if off_vocabulary:
+        problems.append(
+            f"polarity_raw: value(s) {off_vocabulary} outside scheme '{scheme}'; permitted: {sorted(permitted)}"
+        )
+
+    # A corpus that annotates neither target is not a corpus this project can train on, and
+    # the failure is worth catching at the loader rather than three steps later as an
+    # all-NaN batch.
+    if scheme == "none" and set(dataset["scale"]) == {"none"}:
+        problems.append("a loader must annotate at least one target: scale and polarity_scheme are both 'none'")
+
+    filled = sum(1 for value in dataset["polarity"] if not math.isnan(value))
+    if filled:
+        problems.append(
+            f"polarity must be NaN in a loader ({filled} value(s) filled); harmonize.py owns that column"
+        )
+
+
 def validate(dataset: Dataset) -> None:
     """Raise :class:`ContractError` listing every way *dataset* breaks the loader contract.
 
@@ -220,6 +314,7 @@ def validate(dataset: Dataset) -> None:
     _check_scales(dataset, problems)
     _check_vocabularies(dataset, problems)
     _check_labels(dataset, problems)
+    _check_polarity(dataset, problems)
 
     if problems:
         raise ContractError("contract violated:\n  - " + "\n  - ".join(problems))

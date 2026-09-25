@@ -5,7 +5,7 @@ import math
 import pytest
 from datasets import Dataset
 
-from data.schema import SCALES, ContractError, build, validate
+from data.schema import POLARITY_SCHEMES, SCALES, ContractError, build, validate
 
 
 def _row(**overrides) -> dict:
@@ -73,7 +73,11 @@ def test_validate_accepts_a_well_formed_dataset():
 
 
 def test_validate_accepts_every_declared_scale_at_its_bounds():
+    # 'none' is excluded on purpose: it declares the ABSENCE of a meaning-preservation
+    # annotation, so it has no bounds to sit at. Its own rule is tested just below.
     for scale, spec in SCALES.items():
+        if scale == "none":
+            continue
         high = spec.high if math.isfinite(spec.high) else 99.0
         rows = [
             _row(item_id="lo", scale=scale, label_raw=spec.low),
@@ -204,3 +208,80 @@ def test_the_signed_likert_scale_is_oriented_higher_is_better():
     """Unlike severity3, which shares its cardinality but not its orientation."""
     assert SCALES["likert3_signed"].higher_is_better
     assert not SCALES["severity3"].higher_is_better
+
+
+# --- v3: the polarity half of the contract -------------------------------------------
+
+
+def _polar(**overrides) -> dict:
+    """A row from a polarity-only corpus: no preservation label, an NLI class."""
+    defaults = {
+        "scale": "none",
+        "label_raw": float("nan"),
+        "polarity_scheme": "nli3",
+        "polarity_raw": "contradiction",
+    }
+    defaults.update(overrides)
+    return _row(**defaults)
+
+
+def test_a_polarity_only_corpus_is_valid_without_any_preservation_label():
+    validate(_dataset([_polar(item_id="a"), _polar(item_id="b", polarity_raw="entailment")]))
+
+
+def test_scale_none_rejects_a_label_raw_that_is_not_nan():
+    # The failure this guards against is a loader defaulting label_raw to 0.0, which reads
+    # as "no meaning preserved" instead of "not measured" and trains the model on a lie.
+    with pytest.raises(ContractError, match="not NaN"):
+        validate(_dataset([_polar(label_raw=0.0)]))
+
+
+def test_a_v2_loader_that_says_nothing_about_polarity_stays_valid():
+    # The whole point of the defaults: the four v2 loaders were not touched for v3.
+    dataset = _dataset([_row()])
+    assert set(dataset["polarity_scheme"]) == {"none"}
+    assert set(dataset["polarity_raw"]) == {""}
+    validate(dataset)
+
+
+def test_build_leaves_polarity_nan_so_harmonize_owns_it():
+    dataset = _dataset([_polar()])
+    assert all(math.isnan(value) for value in dataset["polarity"])
+
+
+def test_validate_rejects_a_filled_polarity():
+    dataset = _dataset([_polar()]).map(lambda _: {"polarity": 2.0})
+    with pytest.raises(ContractError, match="harmonize.py owns that column"):
+        validate(dataset)
+
+
+def test_validate_rejects_a_raw_value_outside_its_declared_scheme():
+    # REFUTES is a real polarity class, but it belongs to fact3 and not to nli3. Accepting
+    # it here is how two label spaces quietly merge into one incoherent one.
+    with pytest.raises(ContractError, match="outside scheme 'nli3'"):
+        validate(_dataset([_polar(polarity_raw="REFUTES")]))
+
+
+def test_validate_rejects_an_unknown_polarity_scheme():
+    with pytest.raises(ContractError, match="unknown polarity_scheme"):
+        validate(_dataset([_polar(polarity_scheme="entail_or_not")]))
+
+
+def test_validate_rejects_a_loader_mixing_two_polarity_schemes():
+    rows = [_polar(item_id="a"), _polar(item_id="b", polarity_scheme="fact3", polarity_raw="REFUTES")]
+    with pytest.raises(ContractError, match="single polarity_scheme"):
+        validate(_dataset(rows))
+
+
+def test_validate_rejects_a_corpus_that_annotates_neither_target():
+    rows = [_row(scale="none", label_raw=float("nan"))]
+    with pytest.raises(ContractError, match="at least one target"):
+        validate(_dataset(rows))
+
+
+def test_paws_is_not_allowed_to_call_its_negatives_contradictions():
+    # The corpus exists to catch a model that reads lexical overlap as meaning. Mapping
+    # not_paraphrase onto contradiction at load time would destroy exactly that control,
+    # so the scheme keeps them apart and harmonize.py has to decide in the open.
+    assert "contradiction" not in POLARITY_SCHEMES["paraphrase2"]
+    validate(_dataset([_polar(polarity_scheme="paraphrase2", polarity_raw="not_paraphrase")]))
