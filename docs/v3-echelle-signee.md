@@ -98,6 +98,35 @@ Ce test se mesure **avant d'entrainer quoi que ce soit**, sur les modeles deja p
 donne la ligne de base que la v3 doit battre, et il coute une evaluation, pas un
 entrainement.
 
+## Ligne de base, mesuree le 2026-09-25
+
+`src/diagnostics/dissociation.py`, sur les modeles publies, sans aucun entrainement.
+Amplitude consommee entre accord et contradiction, en part de l'echelle :
+
+| | v1 publie | v2 `large` |
+|---|---|---|
+| SICK | **-1,8 %** (AUC 0,480) | **32,0 %** (AUC 0,979) |
+| NaN-NLI, negation | **-1,4 %** (AUC 0,487) | **18,1 %** (AUC 0,796) |
+| MoNLI, implication contre neutre | 5,0 % | -1,5 % |
+
+Le modele en production est au hasard et son amplitude est negative : il note la
+contradiction legerement plus haut que l'accord. La v2 separe deja, sans avoir jamais vu
+une etiquette de polarite, ce qui est un resultat a part entiere : la v3 part de 32 % et
+non de zero, et sa cible devient les 67 % des modeles NLI bidirectionnels.
+
+MoNLI recule pour les deux, et c'est attendu : il oppose implication et NEUTRE. Une phrase
+neutre partage le sens, donc une metrique de preservation a raison de ne pas la punir.
+
+## Ce que la v3 doit demontrer
+
+Decision de David, 2026-09-25, apres la ligne de base : **l'objectif reste l'echelle signee
+complete**, pas une amplitude plus large sur `[0, 100]`.
+
+La raison tient dans un chiffre. La v2 note aujourd'hui une contradiction de SICK a 51,71,
+donc **du cote positif**. Pour l'utilisateur, cela veut dire que le sens est a moitie
+preserve, alors qu'il est inverse. Separer ne suffit pas : le signe doit changer. C'est ce
+que le 32 % ne donne pas, et c'est ce qui justifie la version.
+
 ## Les experiences, dans l'ordre
 
 1. **Diagnostic de dissociation sur l'existant.** MeaningBERT v1, v2 `large`, et le modele
@@ -116,8 +145,13 @@ entrainement.
 5. **Grille complete**, dix graines, protocole d'evaluation de la v2 augmente du test de
    dissociation.
 
-## Ce qui reste a trancher
+## Porte avant les chargeurs : les licences
 
-La licence des neuf corpus : aucun ne la declare dans ses metadonnees. La v2 avait pose la
-question comme hypothese H4 et elle avait decide de ce qui etait redistribuable. A refaire
-ici, avant et non apres.
+Decision de David, 2026-09-25. Aucun des neuf corpus ne declare sa licence dans ses
+metadonnees, et la verification se fait **avant** d'ecrire un chargeur, une verification
+par corpus sur la page du jeu et sur l'article d'origine.
+
+C'est elle qui decide si la v3 peut redistribuer un corpus fusionne comme la v2 l'a fait,
+ou seulement publier le code qui va le chercher. Decouvrir tard qu'un corpus central comme
+VitaminC, qui pese 489 000 des 635 000 lignes, impose une contrainte changeant la forme de
+la publication couterait beaucoup plus que la verification.
