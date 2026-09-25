@@ -186,8 +186,12 @@ documents = ["He wanted to make them pay.", "This sandwich looks delicious.", "H
 simplifications = ["He wanted to make them pay.", "This sandwich looks delicious.",
                    "Whatever, whenever, this is a sentence."]
 
-# We tokenize the text as a pair and return Pytorch Tensors
-tokenize_text = tokenizer(documents, simplifications, truncation=True, padding=True, return_tensors="pt")
+# We tokenize the text as a pair and return Pytorch Tensors.
+# max_length is explicit on purpose: deberta-v3-large declares no maximum length, so
+# truncation=True alone silently does nothing and a long pair reaches the model whole.
+# 256 is the bound the v2 checkpoints were trained under.
+tokenize_text = tokenizer(documents, simplifications, truncation=True, max_length=256,
+                          padding=True, return_tensors="pt")
 
 with torch.no_grad():
     # We process the text
