@@ -116,9 +116,12 @@ class Model:
                 out.append(self.model(**batch).logits.float().cpu().numpy())
         return np.concatenate(out) if out else np.zeros((0, self.n_labels))
 
-    def meaning_score(self, left: list[str], right: list[str]) -> np.ndarray:
+    def logits(self, left: list[str], right: list[str]) -> np.ndarray:
+        """Raw model output for the pairs, computed once so the callers can share it."""
+        return self._logits(left, right)
+
+    def meaning_score(self, logits: np.ndarray) -> np.ndarray:
         """A 0-100 meaning-preservation score, whatever the checkpoint's shape."""
-        logits = self._logits(left, right)
         if self.is_polarity:
             # Derived, and labelled as derived: the probability the candidate follows from
             # the source is the closest a polarity head comes to "the meaning survived".
@@ -133,34 +136,35 @@ class Model:
             values = values * 100.0
         return np.clip(values, 0.0, 100.0)
 
-    def agreement_score(self, left: list[str], right: list[str]) -> np.ndarray:
+    def agreement_score(self, logits: np.ndarray) -> np.ndarray:
         """A scalar that should be high on entailment and low on contradiction."""
-        logits = self._logits(left, right)
         if self.is_polarity:
             return logits[:, POLARITY_CLASSES["entailment"]] - logits[:, POLARITY_CLASSES["contradiction"]]
-        return self.meaning_score(left, right)
+        return self.meaning_score(logits)
 
-    def polarity_classes(self, left: list[str], right: list[str]) -> Optional[np.ndarray]:
+    def polarity_classes(self, logits: np.ndarray) -> Optional[np.ndarray]:
         """Predicted class indices, or None for a checkpoint that has no classes."""
-        if not self.is_polarity:
-            return None
-        return self._logits(left, right).argmax(axis=1)
+        return logits.argmax(axis=1) if self.is_polarity else None
 
 
 def evaluate(model: Model, v2_test, v3_test) -> dict[str, Any]:
     """Score *model* on both tasks."""
-    predicted = model.meaning_score(list(v2_test["original"]), list(v2_test["simplification"]))
+    # One forward pass per split, shared by every metric derived from it. Asking the model
+    # twice for the same batch doubled the cost of a run that already contends with the
+    # training grid for the card.
+    predicted = model.meaning_score(model.logits(list(v2_test["original"]), list(v2_test["simplification"])))
     labels = np.array(v2_test["label"], dtype=float)
     keep = np.isfinite(predicted) & np.isfinite(labels)
     pearson = float(pearsonr(predicted[keep], labels[keep])[0]) if keep.sum() > 2 else float("nan")
 
     left, right = list(v3_test["original"]), list(v3_test["simplification"])
     truth = np.array(v3_test["polarity"], dtype=float).astype(int)
-    agreement = model.agreement_score(left, right)
+    v3_logits = model.logits(left, right)
+    agreement = model.agreement_score(v3_logits)
     entail = agreement[truth == POLARITY_CLASSES["entailment"]]
     contra = agreement[truth == POLARITY_CLASSES["contradiction"]]
 
-    classes = model.polarity_classes(left, right)
+    classes = model.polarity_classes(v3_logits)
     return {
         "is_polarity_head": model.is_polarity,
         "v2_pearson": pearson,
