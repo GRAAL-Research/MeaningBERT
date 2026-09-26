@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from typing import Any, Final, Optional
 
 import click
@@ -291,6 +292,10 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
             eval_strategy="epoch",
             save_strategy="epoch",
             save_total_limit=1,
+            # The optimiser and scheduler states double a checkpoint's size and are useless
+            # here: nothing resumes a run mid-training, a killed cell restarts from zero.
+            # On deberta-v3-large that is the difference between 2.5 and 4.9 GB per cell.
+            save_only_model=True,
             load_best_model_at_end=True,
             metric_for_best_model="macro_f1",
             greater_is_better=True,
@@ -330,6 +335,12 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
     if keep_model:
         trainer.save_model(f"{output_dir}/model")
         tokenizer.save_pretrained(f"{output_dir}/model")
+
+    # The Trainer's own checkpoint directory exists so that load_best_model_at_end has
+    # something to reload from. Once the best model is in memory and the metrics are
+    # written, it is dead weight: 4.9 GB per large cell, which over a 140-cell grid is
+    # 300 GB nobody budgeted for. It filled souris to zero bytes on the first night.
+    shutil.rmtree(f"{output_dir}/hf", ignore_errors=True)
 
     test = results["test"]
     click.echo(f"test     exactitude {test['accuracy']:.4f}  macro-F1 {test['macro_f1']:.4f}  {test['f1']}")
