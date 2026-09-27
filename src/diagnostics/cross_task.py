@@ -8,7 +8,12 @@ polarity, and nobody can say what either costs the other.
 This puts every checkpoint through both:
 
 **The v2 task, meaning preservation.** Pearson against human judgements on the v2 test
-split. A regression checkpoint answers directly. A three-class polarity checkpoint has no
+split, reported on the **true pairs only** and, separately, on everything. The distinction
+is not cosmetic: the split carries 1 536 human-annotated pairs plus 116 generated controls,
+58 identical and 58 unrelated, which sit at the two ends of the scale and are trivial to
+order. Including them is what inflated the v2 campaign's headline Pearson by 0.088 before
+anyone noticed. The true-pair figure is the one comparable to the published numbers; the
+other is kept beside it so the gap stays visible instead of being rediscovered. A regression checkpoint answers directly. A three-class polarity checkpoint has no
 such output, so its score is ``100 x P(entailment)``: the probability the candidate follows
 from the source, which is the closest thing a polarity head has to "the meaning survived".
 It is a derived quantity and is labelled as one, never presented as what the model was
@@ -154,8 +159,13 @@ def evaluate(model: Model, v2_test, v3_test) -> dict[str, Any]:
     # training grid for the card.
     predicted = model.meaning_score(model.logits(list(v2_test["original"]), list(v2_test["simplification"])))
     labels = np.array(v2_test["label"], dtype=float)
-    keep = np.isfinite(predicted) & np.isfinite(labels)
-    pearson = float(pearsonr(predicted[keep], labels[keep])[0]) if keep.sum() > 2 else float("nan")
+    finite = np.isfinite(predicted) & np.isfinite(labels)
+    # The generated controls sit at the two ends of the scale and are trivial to order, so
+    # they pull the correlation up without saying anything about the model's judgement.
+    true_pairs = finite & (np.array(v2_test["source"]) == "original")
+
+    def correlation(mask: np.ndarray) -> float:
+        return float(pearsonr(predicted[mask], labels[mask])[0]) if mask.sum() > 2 else float("nan")
 
     left, right = list(v3_test["original"]), list(v3_test["simplification"])
     truth = np.array(v3_test["polarity"], dtype=float).astype(int)
@@ -167,8 +177,10 @@ def evaluate(model: Model, v2_test, v3_test) -> dict[str, Any]:
     classes = model.polarity_classes(v3_logits)
     return {
         "is_polarity_head": model.is_polarity,
-        "v2_pearson": pearson,
-        "v2_n": int(keep.sum()),
+        "v2_pearson_true_pairs": correlation(true_pairs),
+        "v2_pearson_with_controls": correlation(finite),
+        "v2_n_true_pairs": int(true_pairs.sum()),
+        "v2_n_with_controls": int(finite.sum()),
         "v3_auc_entail_vs_contra": auc(entail, contra),
         "v3_amplitude_share": float(entail.mean() - contra.mean()) / 100.0 if not model.is_polarity else None,
         "v3_macro_f1": macro_f1(classes, truth) if classes is not None else None,
@@ -193,10 +205,13 @@ def main(checkpoints, subfolders, labels, v2_corpus: str, v3_corpus: str, json_o
 
     v2_test = load_from_disk(v2_corpus)["test"]
     v3_test = load_from_disk(v3_corpus)["test"]
-    click.echo(f"tache v2 : {len(v2_test)} paires   tache v3 : {len(v3_test)} paires\n")
+    n_true = sum(1 for source in v2_test["source"] if source == "original")
+    click.echo(
+        f"tache v2 : {n_true} vraies paires sur {len(v2_test)}   tache v3 : {len(v3_test)} paires\n"
+    )
 
-    header = ("modele", "tache v2 Pearson", "v3 AUC", "v3 macro-F1", "v3 exact.")
-    click.echo("%-34s %16s %8s %12s %10s" % header)
+    header = ("modele", "v2 Pearson", "(+controles)", "v3 AUC", "v3 macro-F1", "v3 exact.")
+    click.echo("%-30s %11s %13s %8s %12s %10s" % header)
 
     findings = []
     for checkpoint, subfolder, label in zip(checkpoints, subfolders, labels):
@@ -204,10 +219,11 @@ def main(checkpoints, subfolders, labels, v2_corpus: str, v3_corpus: str, json_o
         got.update({"checkpoint": checkpoint, "subfolder": subfolder, "label": label})
         findings.append(got)
         click.echo(
-            "%-34s %16.4f %8.4f %12s %10s"
+            "%-30s %11.4f %13.4f %8.4f %12s %10s"
             % (
-                label[:34],
-                got["v2_pearson"],
+                label[:30],
+                got["v2_pearson_true_pairs"],
+                got["v2_pearson_with_controls"],
                 got["v3_auc_entail_vs_contra"],
                 f"{got['v3_macro_f1']:.4f}" if got["v3_macro_f1"] is not None else "--",
                 f"{got['v3_accuracy']:.4f}" if got["v3_accuracy"] is not None else "--",

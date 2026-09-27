@@ -69,9 +69,13 @@ def test_every_cell_is_placed_exactly_once():
 
 
 def test_the_load_is_balanced_across_the_workers():
+    # Within a fifth of the mean, not exactly equal. Two of the four base architectures are
+    # barred from renard-gpu0 because they wedge it, so that card cannot take its arithmetic
+    # share of the cheap work and the imbalance is the price of not losing cells. A tighter
+    # bound here would be a test asserting that the constraints do not exist.
     placed = assign(_grid(seeds=range(42, 52)), PASCAL)
     loads = [sum(cost for *_, cost in slice_) for slice_ in placed.values()]
-    assert max(loads) - min(loads) <= max(cost for *_, cost in _grid())
+    assert max(loads) - min(loads) <= 0.2 * (sum(loads) / len(loads))
 
 
 def test_a_large_cell_avoids_the_smallest_card():
@@ -147,3 +151,23 @@ def test_a_forbidden_pairing_does_not_make_the_cell_disappear():
 def test_a_cell_forbidden_everywhere_is_refused_rather_than_dropped():
     with pytest.raises(ValueError, match="no worker can take it"):
         assign(_grid(archs=["bert"], seeds=(42,)), ["renard-gpu0"])
+
+
+def test_stsb_is_also_kept_off_the_card_it_wedges():
+    # Ten cells lost on the night of 2026-09-26: every seed wedged on renard-gpu0 and the
+    # watchdog killed each after about 47 minutes. Same signature as bert on that card.
+    from training.plan_polarity_grid import FORBIDDEN
+
+    assert ("stsb-roberta-base", "renard-gpu0") in FORBIDDEN
+    placed = assign(_grid(archs=["stsb-roberta-base"], seeds=range(42, 52)), PASCAL)
+    assert placed["renard-gpu0"] == []
+    assert sum(len(slice_) for slice_ in placed.values()) == 20
+
+
+def test_deberta_still_runs_on_that_card():
+    # The constraint must stay a pairing and not become "nothing runs on gpu0": the two
+    # DeBERTa architectures have been running on it all along.
+    from training.plan_polarity_grid import FORBIDDEN
+
+    for arch in ("deberta-v3-base", "nli-deberta-v3-base"):
+        assert (arch, "renard-gpu0") not in FORBIDDEN

@@ -67,7 +67,15 @@ WORKERS: Final[dict[str, tuple[int, int]]] = {
 #: it, and other architectures run on the same card, so it is this pairing and not the card
 #: alone. Nobody has a root cause; what exists is a reproduction and a cost, so it is
 #: written down here rather than rediscovered next campaign.
-FORBIDDEN: Final[frozenset[tuple[str, str]]] = frozenset({("bert", "renard-gpu0")})
+#:
+#: ``stsb-roberta-base`` does the same thing on the same card, and it cost ten cells on the
+#: night of 2026-09-26: every seed wedged, the watchdog killed each after about 47 minutes,
+#: and the grid moved on without them. Two of the four base architectures now hang on that
+#: GPU while ``deberta-v3-base`` and the NLI DeBERTa run on it fine, so whatever the cause
+#: is, it separates DeBERTa from BERT and RoBERTa on this card.
+FORBIDDEN: Final[frozenset[tuple[str, str]]] = frozenset(
+    {("bert", "renard-gpu0"), ("stsb-roberta-base", "renard-gpu0")}
+)
 
 
 def parse_seeds(text: str) -> list[int]:
