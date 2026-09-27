@@ -165,9 +165,28 @@ que le 32 % ne donne pas, et c'est ce qui justifie la version.
    NaN-NLI servant de sondes tenues a l'ecart, mesuree en exactitude et en matrice de
    confusion. Elle doit d'abord marcher comme classifieur avant de servir a composer quoi
    que ce soit.
-4. **Calibration de la composition.** Sur SICK, le seul corpus ou les deux dimensions
-   portent sur les memes paires. C'est la que la forme `magnitude x (1 - 2p)` se verifie ou
-   se remplace.
+4. **Calibration de la composition.** FAIT cote outillage, `src/diagnostics/composition.py`.
+   Sur SICK, le seul corpus ou les deux dimensions portent sur les memes paires : 4 116 du
+   test v3, dont 712 contradictions. **Aucun reentrainement** : on lit deux points de
+   controle qui existent deja et on ajuste une seule pente.
+
+   Ce que calibrer peut vouloir dire ici, et ce que ca ne peut pas. Aucun corpus ne porte
+   d'annotation humaine signee, donc il n'y a rien contre quoi regresser ; ajuster sur une
+   cible fabriquee mesurerait notre propre regle de conversion. Ce que SICK donne, et lui
+   seul, ce sont les deux annotations sur les memes paires. La forme se choisit donc contre
+   trois exigences a la fois, multipliees comme l'objectif de la campagne v2 pour qu'en
+   sacrifier une ne puisse pas se cacher derriere les autres :
+
+   - les contradictions doivent passer **sous zero** ;
+   - les implications doivent rester **au-dessus** ;
+   - sur les paires dont le signe ne bascule pas, le score doit continuer de suivre la
+     proximite humaine, parce qu'une composition qui detruit la magnitude a paye le signe
+     avec ce qu'elle etait censee proteger.
+
+   La pente `alpha` est balayee de 1 a 3. Sous 1 le score ne peut jamais devenir negatif,
+   ce qui vide l'exercice de son sens ; au-dessus de 3 une contradiction seulement probable
+   suffit a retourner une magnitude confiante. En cas d'egalite, la plus courte gagne :
+   c'est la magnitude qui porte l'annotation humaine, on la derange le moins possible.
 5. **Grille complete**, dix graines, protocole d'evaluation de la v2 augmente du test de
    dissociation.
 
