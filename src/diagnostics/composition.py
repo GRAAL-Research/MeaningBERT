@@ -17,6 +17,14 @@ unrelated pair drift negative, which is the distinction the whole scale rests on
 **No retraining is involved.** This reads two existing checkpoints and combines their
 outputs; the only thing fitted is ``alpha``, and it is fitted on a few thousand rows.
 
+**One requirement is a constraint and not a trade.** The slope must let the score reach
+-100, which happens from ``alpha = 2`` upwards. Below it the negative half is capped: at
+1.5 a certain contradiction on a perfect magnitude lands at -50, and the scale is announced
+as [-100, 100]. The v2 campaign paid for that lesson once already, when its sigmoid head
+plateaued at 96.36 on identical pairs and had to be replaced. So reachability filters the
+grid rather than joining the objective, because it is the definition of the scale and not
+a quantity to weigh against the others.
+
 **What calibration can and cannot mean here.** No corpus carries a human-annotated signed
 score, so there is nothing to regress against; fitting to a fabricated target would measure
 our own conversion rule. What SICK does give, uniquely, is both annotations on the same
@@ -60,6 +68,40 @@ DEFAULT_ALPHA: float = 2.0
 #: Slopes to sweep. Below 1 the score can never go negative, which defeats the purpose;
 #: above 3 a merely probable contradiction is enough to invert a confident magnitude.
 ALPHA_GRID: tuple[float, ...] = (1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0)
+
+
+def scale_floor(alpha: float) -> float:
+    """The most negative score this slope can ever produce.
+
+    A certain contradiction on a pair whose magnitude is 100 lands at
+    ``100 x (1 - alpha)``. So the negative half of the scale is only usable end to end from
+    ``alpha = 2`` upwards; below it the scale is one-eyed. At 1.5 the floor is -50, and the
+    document defines -100 as "sens oppose", the score that "je bois du lait" against "je ne
+    bois pas du lait" is supposed to receive.
+
+    Args:
+        alpha: The slope.
+
+    Returns:
+        The floor, clipped to the declared range.
+    """
+    return max(100.0 * (1.0 - alpha), -100.0)
+
+
+def reaches_full_scale(alpha: float) -> bool:
+    """Whether *alpha* lets the score reach -100.
+
+    Decision of David, 2026-09-28. The calibration, left to the three original
+    requirements, preferred 1.5 by 1.7 percent relative, and 1.5 caps the negative half at
+    -50. That is the defect the v2 campaign already paid for once: its sigmoid head
+    plateaued at 96.36 on identical pairs and was replaced by a bounded one precisely so
+    the endpoints could be reached. Publishing a scale announced as [-100, 100] whose lower
+    third is never used would repeat it on the other side.
+
+    So reachability is a constraint on the grid rather than a term added to the objective:
+    it is not a quantity to trade against the others, it is the definition of the scale.
+    """
+    return scale_floor(alpha) <= -100.0
 
 
 def compose(magnitude: np.ndarray, p_contradiction: np.ndarray, alpha: float = DEFAULT_ALPHA) -> np.ndarray:
@@ -130,19 +172,40 @@ def calibrate(
     relatedness: np.ndarray,
     truth: np.ndarray,
     grid: tuple[float, ...] = ALPHA_GRID,
+    require_full_scale: bool = True,
 ) -> tuple[float, list[dict[str, Any]]]:
-    """Pick the slope that satisfies the three requirements best.
+    """Pick the slope that satisfies the three requirements best, among the usable ones.
+
+    Args:
+        magnitude: Meaning-preservation scores.
+        p_contradiction: Contradiction probabilities.
+        relatedness: Human relatedness, for the counterweight.
+        truth: Polarity class indices.
+        grid: Slopes to try.
+        require_full_scale: Keep only the slopes that can reach -100. See
+            :func:`reaches_full_scale` for why this is a constraint and not a fourth term.
 
     Returns:
-        The winning alpha and the full curve, so the choice can be argued with rather than
-        taken on trust.
+        The winning alpha and the WHOLE curve, rejected slopes included, so the choice can
+        be argued with rather than taken on trust.
+
+    Raises:
+        ValueError: If no slope in the grid can reach the full scale.
     """
     curve = []
     for alpha in grid:
         got = objective(compose(magnitude, p_contradiction, alpha), relatedness, truth)
         got["alpha"] = alpha
+        got["plancher"] = scale_floor(alpha)
+        got["echelle_complete"] = reaches_full_scale(alpha)
         curve.append(got)
-    best = max(curve, key=lambda row: (row["objectif"], -row["alpha"]))
+
+    eligible = [row for row in curve if row["echelle_complete"]] if require_full_scale else curve
+    if not eligible:
+        raise ValueError(
+            f"aucune pente de {grid} n'atteint -100 ; la moitie negative de l'echelle serait inutilisable"
+        )
+    best = max(eligible, key=lambda row: (row["objectif"], -row["alpha"]))
     return float(best["alpha"]), curve
 
 
@@ -186,13 +249,16 @@ def main(magnitude: str, magnitude_subfolder: str, polarity: str, corpus: str, j
     del polarity_model
 
     best, curve = calibrate(scores, p_contradiction, relatedness, truth)
-    click.echo("%6s %14s %14s %12s %10s" % ("alpha", "contra < 0", "implic. > 0", "Pearson prox.", "objectif"))
+    click.echo(
+        "%6s %14s %14s %12s %10s %9s"
+        % ("alpha", "contra < 0", "implic. > 0", "Pearson prox.", "objectif", "plancher")
+    )
     for row in curve:
-        mark = " <-" if row["alpha"] == best else ""
+        mark = " <-" if row["alpha"] == best else ("" if row["echelle_complete"] else "  (echelle borgne)")
         click.echo(
-            "%6.2f %14.4f %14.4f %12.4f %10.4f%s"
+            "%6.2f %14.4f %14.4f %12.4f %10.4f %9.0f%s"
             % (row["alpha"], row["contradictions_negatives"], row["implications_positives"],
-               row["pearson_proximite"], row["objectif"], mark)
+               row["pearson_proximite"], row["objectif"], row["plancher"], mark)
         )
 
     signed = compose(scores, p_contradiction, best)

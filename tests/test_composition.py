@@ -168,5 +168,68 @@ def test_a_shorter_slope_wins_ties():
     # magnitude least, since the magnitude carries the human annotation.
     magnitude, p, relatedness, truth = _bridge()
     best, curve = calibrate(magnitude, p, relatedness, truth)
-    winners = [row["alpha"] for row in curve if row["objectif"] == pytest.approx(max(r["objectif"] for r in curve))]
+    # Among the slopes that keep the scale whole: the rejected ones are still in the curve,
+    # but they were never candidates.
+    eligible = [row for row in curve if row["echelle_complete"]]
+    winners = [row["alpha"] for row in eligible if row["objectif"] == pytest.approx(max(r["objectif"] for r in eligible))]
     assert best == min(winners)
+
+
+# --- reachability of the scale, a constraint and not a trade -------------------------
+
+from diagnostics.composition import reaches_full_scale, scale_floor  # noqa: E402
+
+
+def test_the_floor_is_what_a_certain_contradiction_can_reach():
+    # 100 x (1 - alpha), which is the whole arithmetic of the question.
+    assert scale_floor(1.5) == pytest.approx(-50.0)
+    assert scale_floor(2.0) == pytest.approx(-100.0)
+
+
+def test_a_slope_below_two_leaves_the_negative_half_unusable():
+    # At 1.5 a certain contradiction on a perfect magnitude lands at -50, so a scale
+    # announced as [-100, 100] never uses its lower third.
+    assert not reaches_full_scale(1.5)
+    assert not reaches_full_scale(1.99)
+
+
+def test_two_is_exactly_where_the_scale_becomes_whole():
+    assert reaches_full_scale(2.0)
+    assert reaches_full_scale(3.0)
+
+
+def test_a_steeper_slope_cannot_push_the_score_past_the_declared_range():
+    assert scale_floor(5.0) == pytest.approx(-100.0)
+
+
+def test_calibration_refuses_a_slope_that_truncates_the_scale():
+    # The decision of 2026-09-28: the three requirements preferred 1.5, and 1.5 caps the
+    # negative half. Reachability is the definition of the scale, not a term to weigh
+    # against the rest, so it filters the grid.
+    magnitude, p, relatedness, truth = _bridge()
+    best, curve = calibrate(magnitude, p, relatedness, truth)
+    assert best >= 2.0
+    assert reaches_full_scale(best)
+    # The rejected slopes stay in the curve so the choice can be argued with.
+    assert any(not row["echelle_complete"] for row in curve)
+
+
+def test_the_curve_reports_the_floor_of_every_slope():
+    _, curve = calibrate(*_bridge())
+    assert all("plancher" in row and "echelle_complete" in row for row in curve)
+    assert next(row for row in curve if row["alpha"] == 1.5)["plancher"] == pytest.approx(-50.0)
+
+
+def test_the_constraint_can_be_lifted_explicitly():
+    # Kept switchable so the cost of the decision stays measurable, not to be used by
+    # default.
+    magnitude, p, relatedness, truth = _bridge()
+    free, _ = calibrate(magnitude, p, relatedness, truth, require_full_scale=False)
+    constrained, _ = calibrate(magnitude, p, relatedness, truth)
+    assert free <= constrained
+
+
+def test_a_grid_with_no_usable_slope_is_refused_rather_than_silently_truncating():
+    magnitude, p, relatedness, truth = _bridge()
+    with pytest.raises(ValueError, match="inutilisable"):
+        calibrate(magnitude, p, relatedness, truth, grid=(1.0, 1.5), require_full_scale=True)
