@@ -48,6 +48,26 @@ roberta-large-mnli|roberta-large-mnli|4|8|0
 modernbert-base|answerdotai/ModernBERT-base|8|4|80
 modernbert-large|answerdotai/ModernBERT-large|4|8|80"
 
+# Architectures that wedge a given card, as "<arch tag>|<substring of the GPU name>".
+#
+# The process stays runnable, the GPU reads 100 % utilisation, and the step counter never
+# advances again. Observed on bert three times out of three during the v2 campaign and
+# again on 2026-09-25, and on stsb-roberta-base across all ten of its seeds on 2026-09-26.
+# Nobody has a root cause; what exists is a reproduction and a cost.
+#
+# The check lives HERE and not only in the planner, which is the lesson of 2026-09-30: the
+# backlog-pickup script replays another card's cell list on this card, so a constraint
+# enforced at planning time is bypassed by design. Four bert cells were lost that way. The
+# runner is the only place that knows both the architecture and the card it is about to
+# use, so it is the only place the rule cannot be routed around.
+WEDGING="\
+bert|GTX 1080 Ti
+stsb-roberta-base|GTX 1080 Ti"
+
+gpu_name() {
+    nvidia-smi --id="$GPU" --query-gpu=name --format=csv,noheader 2>/dev/null | head -1
+}
+
 compute_capability() {
     nvidia-smi --id="$GPU" --query-gpu=compute_cap --format=csv,noheader 2>/dev/null \
         | tr -d '. ' | head -1
@@ -59,7 +79,8 @@ arch_line() {
 
 mkdir -p "$ROOT"
 CAPABILITY=$(compute_capability)
-echo "[$(date '+%F %T')] worker $NAME, GPU $GPU (compute ${CAPABILITY:-inconnu}), condition $CONDITION"
+GPU_NAME=$(gpu_name)
+echo "[$(date '+%F %T')] worker $NAME, GPU $GPU (${GPU_NAME:-inconnu}, compute ${CAPABILITY:-inconnu}), condition $CONDITION"
 echo "  corpus  : $CORPUS"
 echo "  cellules: $CELLS"
 
@@ -76,6 +97,15 @@ run_cell() {
         echo "[GATE] $tag : demande compute $needed, ce GPU est a $CAPABILITY. Refuse."
         return 0
     fi
+
+    local pair
+    while IFS= read -r pair; do
+        [ -n "$pair" ] || continue
+        if [ "$tag" = "${pair%%|*}" ] && [ -n "$GPU_NAME" ] && [[ "$GPU_NAME" == *"${pair##*|}"* ]]; then
+            echo "[GATE] $tag seed $seed : fige une $GPU_NAME. Refuse, la cellule ira ailleurs."
+            return 0
+        fi
+    done <<< "$WEDGING"
 
     local out="$ROOT/$tag-$CONDITION/seed$seed"
     local log="$out.log"
