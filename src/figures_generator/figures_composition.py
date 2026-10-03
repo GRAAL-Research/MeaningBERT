@@ -90,9 +90,10 @@ def distribution_figure(pairs: dict, path: str) -> None:
         r"\end{axis}",
         r"\end{tikzpicture}",
         r"\caption{Signed score by gold class on the SICK half of the test split, "
-        r"$\alpha = 2$, binned at width $5$. Contradictions concentrate near $-50$, "
-        r"entailments near $+80$, and neutral pairs stay positive instead of being dragged "
-        r"across zero, which is the behaviour the product form is chosen for.}",
+        r"$\alpha = 2$, binned at width $5$. Contradictions concentrate near $-50$ and "
+        r"entailments near $+80$. SICK neutral pairs are related captions rather than "
+        r"unrelated sentences, so they belong near the middle of the positive half and "
+        r"not at zero; what matters is that the product does not drag them across it.}",
         r"\label{fig:distribution}",
         r"\end{figure}",
     ]
