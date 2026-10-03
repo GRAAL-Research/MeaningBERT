@@ -1,0 +1,47 @@
+[
+  {
+    "is_polarity_head": false,
+    "v2_pearson_true_pairs": 0.3231558566434215,
+    "v2_pearson_with_controls": 0.5283837527546562,
+    "v2_n_true_pairs": 1536,
+    "v2_n_with_controls": 1652,
+    "v3_auc_entail_vs_contra": 0.608103625,
+    "v3_amplitude_share": 0.08586044311523437,
+    "v3_macro_f1": null,
+    "v3_accuracy": null,
+    "v3_n": 12000,
+    "checkpoint": "davebulaval/MeaningBERT",
+    "subfolder": "",
+    "label": "v1 publie"
+  },
+  {
+    "is_polarity_head": false,
+    "v2_pearson_true_pairs": 0.705395753221292,
+    "v2_pearson_with_controls": 0.8005958532717424,
+    "v2_n_true_pairs": 1536,
+    "v2_n_with_controls": 1652,
+    "v3_auc_entail_vs_contra": 0.815065125,
+    "v3_amplitude_share": 0.21322265625,
+    "v3_macro_f1": null,
+    "v3_accuracy": null,
+    "v3_n": 12000,
+    "checkpoint": "davebulaval/MeaningBERT",
+    "subfolder": "large",
+    "label": "v2 large"
+  },
+  {
+    "is_polarity_head": false,
+    "v2_pearson_true_pairs": 0.6398497526723663,
+    "v2_pearson_with_controls": 0.7541540451645881,
+    "v2_n_true_pairs": 1536,
+    "v2_n_with_controls": 1652,
+    "v3_auc_entail_vs_contra": 0.5372935625,
+    "v3_amplitude_share": 0.029465179443359375,
+    "v3_macro_f1": null,
+    "v3_accuracy": null,
+    "v3_n": 12000,
+    "checkpoint": "/tmp/v3-bert",
+    "subfolder": "",
+    "label": "v2 base"
+  }
+]

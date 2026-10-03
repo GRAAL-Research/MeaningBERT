@@ -1,0 +1,45 @@
+% Genere par src/figures_generator/analyse_v3.py. Ne pas editer a la main.
+% Palette Okabe-Ito, validee : bande de clarte, plancher de chroma, separation
+% daltonienne et contraste. La forme du marqueur double la couleur, pour que
+% l'identite ne repose jamais sur elle seule.
+\definecolor{condraw}{HTML}{0072B2}
+\definecolor{condaug}{HTML}{E69F00}
+\begin{figure*}[t]
+\centering
+% Declares globalement : une option de tikzpicture n'est pas visible depuis
+% \addplot a l'interieur d'un groupplot.
+\tikzset{
+  raw/.style={mark=*, mark size=2.2pt, only marks, color=condraw},
+  aug/.style={mark=square*, mark size=2.1pt, only marks, color=condaug},
+}
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 1, horizontal sep=0.6cm, y descriptions at=edge left},
+  width=0.365\textwidth, height=6.2cm,
+  scale only axis,
+  % Tufte : pas de cadre, une seule ligne d'axe, aucune regle verticale. Les
+  % graduations suffisent a situer un point, et la grille entrait en competition
+  % avec les marques qu'elle devait aider a lire.
+  axis line style={draw=black!45, line width=0.3pt},
+  % L'axe y ne porte pas de ligne, mais il porte les noms d'encodeurs : les
+  % supprimer avec la ligne laisse sept rangees de points que rien n'identifie.
+  axis x line*=bottom, axis y line*=left,
+  y axis line style={draw=none},
+  xmajorgrids=false, ymajorgrids=false,
+  tick align=outside, ytick style={draw=none},
+  tick label style={font=\small}, title style={font=\small, yshift=-2pt},
+  ymin=-0.7, ymax=6.7, ytick={0,1,2,3,4,5,6},
+  yticklabels={BERT-base, RoBERTa-base\textsubscript{STS-B}, DeBERTa-v3-base, DeBERTa-v3-base\textsubscript{NLI}, RoBERTa-large\textsubscript{MNLI}, DeBERTa-v3-large, DeBERTa-v3-large\textsubscript{NLI}}, yticklabel style={font=\small},
+  every axis plot/.append style={line width=0.7pt},
+]
+\nextgroupplot[title={macro-F$_1$ (\%)}, xmin=76, xmax=93]
+\addplot+[raw] plot [error bars/.cd, x dir=both, x explicit] coordinates {(77.72,-0.19) +- (0.38,0) (85.91,0.81) +- (0.15,0) (88.81,1.81) +- (0.63,0) (89.48,2.81) +- (0.15,0) (89.52,3.81) +- (0.10,0) (90.91,4.81) +- (0.10,0) (91.10,5.81) +- (0.14,0)};
+\addplot+[aug] plot [error bars/.cd, x dir=both, x explicit] coordinates {(78.45,0.19) +- (0.26,0) (86.22,1.19) +- (0.13,0) (88.73,2.19) +- (0.35,0) (89.56,3.19) +- (0.17,0) (89.70,4.19) +- (0.10,0) (90.70,5.19) +- (0.43,0) (90.98,6.19) +- (0.31,0)};
+\nextgroupplot[title={Sanity suites (\%)}, xmin=77, xmax=101]
+\addplot+[raw] plot [error bars/.cd, x dir=both, x explicit] coordinates {(79.38,-0.19) +- (0.65,0) (78.67,0.81) +- (0.34,0) (86.32,1.81) +- (1.74,0) (87.46,2.81) +- (0.37,0) (84.59,3.81) +- (1.07,0) (88.89,4.81) +- (0.42,0) (90.35,5.81) +- (0.47,0)};
+\addplot+[aug] plot [error bars/.cd, x dir=both, x explicit] coordinates {(98.31,0.19) +- (0.10,0) (98.65,1.19) +- (0.08,0) (98.60,2.19) +- (0.13,0) (98.74,3.19) +- (0.08,0) (98.69,4.19) +- (0.07,0) (98.70,5.19) +- (0.40,0) (98.76,6.19) +- (0.04,0)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Augmentation moves one axis and not the other. Blue circles are the \textsc{raw} condition, without augmentation; orange squares the \textsc{aug} condition, with it. Points are means over ten seeds and bars one standard deviation. On the task axis the two conditions overlap for every encoder; on the sanity axis they converge to one value from seven different starting points. Note the two panels do not share an $x$ range.}
+\label{fig:augmentation}
+\end{figure*}

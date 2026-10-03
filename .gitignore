@@ -47,3 +47,15 @@ results/figures/
 results/tables/
 results/*.html
 archives/
+
+# Journaux et auxiliaires : regeneres par la compilation ou par les runs, jamais
+# versionnes. Les resultats eux-memes sont les .json, qui restent suivis.
+*.log
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc

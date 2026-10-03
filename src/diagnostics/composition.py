@@ -220,12 +220,29 @@ def _probabilities(logits: np.ndarray) -> np.ndarray:
 @click.option("--magnitude-subfolder", default="large", show_default=True)
 @click.option("--polarity", required=True, help="Checkpoint of the v3 polarity head.")
 @click.option("--corpus", default="datastore/polarity/corpus", show_default=True)
+@click.option(
+    "--split",
+    default="dev",
+    show_default=True,
+    help="Split the slope is fitted on. Fitting on test would be tuning on the test set.",
+)
 @click.option("--json-out", default=None)
-def main(magnitude: str, magnitude_subfolder: str, polarity: str, corpus: str, json_out: Optional[str]) -> None:
-    """Calibrate the composition on the SICK half of the v3 test split."""
+def main(
+    magnitude: str,
+    magnitude_subfolder: str,
+    polarity: str,
+    corpus: str,
+    split: str,
+    json_out: Optional[str],
+) -> None:
+    """Calibrate the composition on the SICK half of one split.
+
+    The default is the development split. Fitting the slope on test and then reporting on
+    test is tuning on the test set, even for a single parameter over a coarse grid.
+    """
     from datasets import load_from_disk
 
-    test = load_from_disk(corpus)["test"]
+    test = load_from_disk(corpus)[split]
     # SICK only: it is the one corpus carrying a relatedness score AND an inference label on
     # the same pairs, which is the only thing that makes this calibration possible at all.
     bridge = test.filter(lambda row: row["corpus"] == "sick")
@@ -234,7 +251,7 @@ def main(magnitude: str, magnitude_subfolder: str, polarity: str, corpus: str, j
     # SICK relatedness is a 1-5 Likert; the scale itself does not matter to a correlation,
     # only its ordering, so it is used as published.
     relatedness = np.array(bridge["label_raw"], dtype=float)
-    click.echo(f"pont SICK : {len(bridge)} paires, dont {int((truth == POLARITY_CLASSES['contradiction']).sum())} contradictions\n")
+    click.echo(f"pont SICK ({split}) : {len(bridge)} paires, dont {int((truth == POLARITY_CLASSES['contradiction']).sum())} contradictions\n")
 
     magnitude_model = Model(magnitude, magnitude_subfolder or None)
     if magnitude_model.is_polarity:

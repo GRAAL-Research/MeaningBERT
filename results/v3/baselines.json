@@ -1,0 +1,22 @@
+{
+  "majority": {
+    "predicted_class": 1,
+    "accuracy": 0.3333333333333333,
+    "macro_f1": 0.16666666666666666
+  },
+  "overlap": {
+    "low": 0.13636363636363635,
+    "high": 0.28,
+    "dev_macro_f1": 0.417730170314807,
+    "accuracy": 0.4035,
+    "macro_f1": 0.3935503265982659,
+    "auc_entailment_vs_contradiction": 0.634903625
+  },
+  "tfidf_logreg": {
+    "features": 200000,
+    "accuracy": 0.4861666666666667,
+    "macro_f1": 0.4563882449013192,
+    "auc_entailment_vs_contradiction": 0.68526765625
+  },
+  "n_test": 12000
+}
