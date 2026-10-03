@@ -184,7 +184,9 @@ def stratify(dataset: Dataset, per_class: int, seed: int) -> Dataset:
         remaining, pending = per_class, dict(available)
         # Water-filling: smallest corpus first, so the share it cannot use is redistributed
         # rather than lost.
-        for corpus in sorted(pending, key=lambda name: len(pending[name])):
+        # Le dictionnaire est lie par defaut : sorted() le consomme immediatement, mais
+        # une fermeture qui capture une variable de boucle est un piege a chaque relecture.
+        for corpus in sorted(pending, key=lambda name, left=pending: len(left[name])):
             share = remaining // max(len(pending), 1)
             indices = pending.pop(corpus)
             take = min(share, len(indices))
@@ -442,7 +444,7 @@ def build(
         census["corpora"][name] = {}
         for split in SPLITS:
             rows = unified.filter(lambda row, s=split: row["split_hint"] == s)
-            if not len(rows):
+            if rows.num_rows == 0:
                 continue
             # Only the training split is capped. Shrinking an evaluation split would make
             # the numbers cheaper to compute and harder to compare with anything.

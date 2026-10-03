@@ -53,9 +53,9 @@ class SplitReport:
         lines = [f"dropped exact duplicate pairs: {self.dropped_duplicate_pairs}", ""]
         lines.append(f"{'split':10} {'rows':>7} {'groups':>8}  source tags")
         lines.append("-" * 70)
-        for split in self.rows:
+        for split, count in self.rows.items():
             tags = ", ".join(f"{k}={v}" for k, v in sorted(self.sources.get(split, {}).items()))
-            lines.append(f"{split:10} {self.rows[split]:>7} {self.groups[split]:>8}  {tags}")
+            lines.append(f"{split:10} {count:>7} {self.groups[split]:>8}  {tags}")
         return "\n".join(lines)
 
 
@@ -106,7 +106,7 @@ def _assign_greedy(
 
     for name in ordered:
         deficits = {split: targets[split] * total - placed[split] for split in targets}
-        best = max(deficits, key=lambda split: deficits[split])
+        best = max(deficits, key=lambda split, gaps=deficits: gaps[split])
         assigned[best].append(name)
         placed[best] += sizes[name]
     return assigned

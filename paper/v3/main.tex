@@ -322,6 +322,29 @@ Magnitude alone & 0.0 & 100.0 & 0.852 & $0$ \\
 
 \autoref{tab:composition} gives the result. Indeed, the magnitude alone puts no contradiction at all below the line, which is not a weakness of that particular model but a property of a non-negative scale. Composition puts $84.4\%$ of them where they belong while retaining $r = 0.760$ with human relatedness on the unflipped pairs. The cost of requiring the full scale is visible and small: $\alpha = 1.25$ scores $2.3\%$ higher on the combined objective and truncates the negative half at $-25$.
 
+\paragraph{What fine-tuning buys the composition.}
+The off-the-shelf inference model ranks polarity at an AUC of $96.6\%$ without training, which invites the question of whether our head earns its cost.
+\autoref{tab:zeroshot} composes each head with the same magnitude model, under the same protocol.
+The off-the-shelf head is the better sign detector: at $\alpha = 2$ it puts $97.6\%$ of contradictions below zero against $84.4\%$.
+However, it costs $0.161$ of correlation with human relatedness on the pairs whose sign does not flip, $0.599$ against $0.760$, and loses the combined objective by $11\%$ relative.
+Consequently, what fine-tuning buys is not the relation but its calibration: an uncalibrated head emits a confident $p_{\mathrm{contra}}$ on pairs that are merely unrelated, and the product then drags their magnitude down.
+This is the third requirement doing exactly the work it was introduced for, and it is why we select $\alpha$ against a product rather than against the sign criterion alone.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{l cc}
+\toprule
+Polarity head & Off-the-shelf & Fine-tuned \\
+\midrule
+Contradictions below zero & \textbf{97.6} & 84.4 \\
+Relatedness $r$ & 0.599 & \textbf{0.760} \\
+Combined objective & 0.574 & \textbf{0.640} \\
+\bottomrule
+\end{tabular}
+\caption{The same magnitude model composed with two polarity heads at $\alpha = 2$, on the SICK half of the test split. The first row is a percentage of the 712 contradictions. The off-the-shelf head is DeBERTa-v3-large\textsubscript{MNLI} used as published; the fine-tuned one is ours. \textbf{Bold} marks the better value of each row, higher being better on all three.}
+\label{tab:zeroshot}
+\end{table}
+
 \section{Limitations}
 
 While we believe the signed scale is a useful contribution to the evaluation of meaning preservation, we acknowledge six limitations that bound our claims and offer avenues for future research.
@@ -332,8 +355,9 @@ Generated identical and unrelated pairs teach the easy ends of the scale, not th
 We report the trade rather than resolve it.
 
 \paragraph{The ranking comparison is one-sided.}
-An off-the-shelf inference model reaches an AUC of $96.6\%$ on our test split, and we do not report the same quantity for our fine-tuned heads, whose stored outputs are predicted classes rather than probabilities.
-Since $p_{\mathrm{contra}}$ is the only thing the composition consumes, the question of whether fine-tuning improves the ranking, and not merely the three-way calibration, is the one measurement this paper most clearly owes its reader.
+We report the off-the-shelf model's AUC and our head's macro-F\textsubscript{1}, because the grid stores predicted classes rather than the probabilities an AUC needs.
+\autoref{tab:zeroshot} answers the practical half of the question, since it composes both heads and measures the result, but it leaves the ranking itself unmeasured on our side.
+Whether fine-tuning improves the ordering of $p_{\mathrm{contra}}$, rather than only its calibration, is the one quantity this paper still owes its reader.
 
 \paragraph{No signed gold standard.}
 The composition is calibrated against three necessary conditions, not against human signed judgements, because none exist.

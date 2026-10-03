@@ -78,7 +78,8 @@ class LeakageReport:
             f"Merged corpus: {self.n_rows} rows over {self.n_groups} distinct source sentences "
             f"({self.n_rows / max(1, self.n_groups):.1f} simplifications per sentence).",
             "",
-            f"{'seed':>5} {'train':>7} {'dev':>6} {'test':>7} {'test rows leaked':>18} {'test groups leaked':>20} {'exact dupes':>12}",
+            f"{'seed':>5} {'train':>7} {'dev':>6} {'test':>7} {'test rows leaked':>18}"
+            f" {'test groups leaked':>20} {'exact dupes':>12}",
             "-" * 82,
         ]
         for fold in self.folds:

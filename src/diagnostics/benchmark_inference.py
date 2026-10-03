@@ -50,8 +50,13 @@ def footprint(scorer: MeaningBERTScorer, device: str) -> dict:
     """
     import torch
 
+    # Le scorer n'expose pas son modele : compter ses parametres demande d'y entrer.
+    # C'est un diagnostic, pas du code de production, et l'alternative serait d'elargir
+    # l'API publique du scorer pour un seul appel.
+    # pylint: disable=protected-access
     params = sum(p.numel() for p in scorer._model.parameters())  # noqa: SLF001
     weights_bytes = sum(p.numel() * p.element_size() for p in scorer._model.parameters())  # noqa: SLF001
+    # pylint: enable=protected-access
     out = {"parameters": params, "weights_mb": weights_bytes / 1e6, "peak_vram_mb": float("nan")}
     if device == "cuda":
         torch.cuda.synchronize()

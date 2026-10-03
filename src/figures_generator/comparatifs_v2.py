@@ -29,10 +29,16 @@ from typing import Iterable, Optional
 import click
 import matplotlib
 
-matplotlib.use("Agg")  # No display on the training hosts, and none needed to write a PDF.
+# Le backend se choisit AVANT le premier import de pyplot, sinon matplotlib en a deja
+# elu un et cherche un affichage que les machines d'entrainement n'ont pas. C'est la
+# seule raison pour laquelle ces trois imports ne sont pas en tete de module.
+matplotlib.use("Agg")
+# pylint: disable=wrong-import-position
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
+
+# pylint: enable=wrong-import-position
 
 try:  # PYTHONPATH=src.
     from figures_generator.analyze_v2_experiment import CONDITION_LABELS, MODE_LABELS, RunResult, load_runs
@@ -215,7 +221,7 @@ def load_from_wandb(entity: str, prefix: str) -> list[RunResult]:
 
 def _run_from_wandb(run) -> Optional[RunResult]:  # noqa: ANN001 - wandb's Run has no public type
     """One wandb run into a RunResult, or None when it never reached its test evaluation."""
-    summary = {k: v for k, v in run.summary.items()} if run.summary is not None else {}
+    summary = dict(run.summary.items()) if run.summary is not None else {}
     config = run.config or {}
     if "test_pearson_corr" not in summary:
         return None  # Crashed, or still running: no test evaluation, nothing to compare.
@@ -238,7 +244,7 @@ def _run_from_wandb(run) -> Optional[RunResult]:  # noqa: ANN001 - wandb's Run h
             return float("nan")
 
     return RunResult(
-        arch=str(config.get("checkpoint", "")).split("/")[-1] or "unknown",
+        arch=str(config.get("checkpoint", "")).rsplit("/", maxsplit=1)[-1] or "unknown",
         variant=variant,
         condition=condition,
         mode=mode,

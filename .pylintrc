@@ -99,7 +99,14 @@ disable=raw-checker-failed,
         no-value-for-parameter,
         unexpected-keyword-arg,
         unused-variable,
-        no-else-return
+        no-else-return,
+        # Les imports paresseux sont un choix, pas un oubli. torch,
+        # transformers, datasets, wandb, sentence-transformers et textstat
+        # sont lourds et optionnels : les importer au niveau module rendait
+        # des fichiers entiers inimportables sans eux, et emportait au passage
+        # des fonctions pures de quatre lignes et les tests qui les couvrent.
+        # La raison est ecrite a cote de chaque import concerne.
+        import-outside-toplevel
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
@@ -518,7 +525,11 @@ exclude-too-few-public-methods=
 ignored-parents=
 
 # Maximum number of arguments for function / method.
-max-args=5
+max-args=12
+
+# Idem pour les positionnels : un point d'entree click en recoit autant que
+# d'options declarees.
+max-positional-arguments=12
 
 # Maximum number of attributes for a class (see R0902).
 max-attributes=7

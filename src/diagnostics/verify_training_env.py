@@ -124,7 +124,9 @@ def verify(index: int, skip_throughput: bool = False) -> tuple[bool, dict[str, A
         assert probe.weight.grad is not None
         _check("a real forward and backward pass runs", True)
         report["fwd_bwd"] = True
-    except Exception as error:  # noqa: BLE001 - any failure here is fatal and worth printing
+    except (
+        Exception
+    ) as error:  # pylint: disable=broad-exception-caught  # noqa: BLE001 - any failure here is fatal and worth printing
         _check("a real forward and backward pass runs", False, f"{type(error).__name__}: {error}")
         report["fwd_bwd"] = False
         return False, report
