@@ -1,0 +1,139 @@
+{
+  "checkpoint": "cross-encoder/stsb-roberta-base",
+  "seed": 46,
+  "epochs": 2.0,
+  "lr": 1e-05,
+  "train_rows": 152060,
+  "pretrained_head_reused": false,
+  "pretrained_head_permutation": null,
+  "test": {
+    "n": 12000,
+    "accuracy": 0.857,
+    "macro_f1": 0.8569847985702884,
+    "f1": {
+      "entailment": 0.8762950942454125,
+      "neutral": 0.8474045525713597,
+      "contradiction": 0.8472547488940932
+    },
+    "confusion": [
+      [
+        3510,
+        303,
+        187
+      ],
+      [
+        239,
+        3518,
+        243
+      ],
+      [
+        262,
+        482,
+        3256
+      ]
+    ],
+    "class_names": [
+      "entailment",
+      "neutral",
+      "contradiction"
+    ]
+  },
+  "probes": {
+    "monli": {
+      "n": 1202,
+      "accuracy": 0.045757071547420966,
+      "macro_f1": 0.030651832102816513,
+      "f1": {
+        "entailment": 0.031249999999999993,
+        "neutral": 0.06070549630844955,
+        "contradiction": 0.0
+      },
+      "confusion": [
+        [
+          18,
+          581,
+          2
+        ],
+        [
+          533,
+          37,
+          31
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "class_names": [
+        "entailment",
+        "neutral",
+        "contradiction"
+      ]
+    },
+    "nan_nli": {
+      "n": 258,
+      "accuracy": 0.6317829457364341,
+      "macro_f1": 0.567882251320725,
+      "f1": {
+        "entailment": 0.658119658119658,
+        "neutral": 0.3728813559322034,
+        "contradiction": 0.6726457399103138
+      },
+      "confusion": [
+        [
+          77,
+          2,
+          18
+        ],
+        [
+          20,
+          11,
+          13
+        ],
+        [
+          40,
+          2,
+          75
+        ]
+      ],
+      "class_names": [
+        "entailment",
+        "neutral",
+        "contradiction"
+      ]
+    },
+    "sanity": {
+      "n": 4500,
+      "accuracy": 0.7844444444444445,
+      "macro_f1": 0.7643283064537149,
+      "f1": {
+        "entailment": 0.9976720984369805,
+        "neutral": 0.7507118819570281,
+        "contradiction": 0.5446009389671361
+      },
+      "confusion": [
+        [
+          1500,
+          0,
+          0
+        ],
+        [
+          0,
+          1450,
+          50
+        ],
+        [
+          7,
+          913,
+          580
+        ]
+      ],
+      "class_names": [
+        "entailment",
+        "neutral",
+        "contradiction"
+      ]
+    }
+  }
+}

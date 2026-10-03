@@ -1,0 +1,20 @@
+\begin{table*}[t]
+\centering\small
+\begin{tabular}{l rr rr rr rr}
+\toprule
+ & \multicolumn{2}{c}{macro-F1} & \multicolumn{2}{c}{Sanity} & \multicolumn{2}{c}{NaN-NLI} & \multicolumn{2}{c}{MoNLI} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+Encoder & \textsc{raw} & \textsc{aug} & \textsc{raw} & \textsc{aug} & \textsc{raw} & \textsc{aug} & \textsc{raw} & \textsc{aug} \\
+\midrule
+DeBERTa-v3-large\textsubscript{NLI} & 0.911 & 0.910 & 0.904 & 0.988 & 0.729 & 0.719 & 0.349 & 0.312 \\
+DeBERTa-v3-large & 0.909 & 0.907 & 0.889 & 0.987 & 0.706 & 0.691 & 0.228 & 0.160 \\
+RoBERTa-large\textsubscript{MNLI} & 0.895 & 0.897 & 0.846 & 0.987 & 0.681 & 0.666 & 0.070 & 0.083 \\
+DeBERTa-v3-base\textsubscript{NLI} & 0.895 & 0.896 & 0.875 & 0.987 & 0.686 & 0.674 & 0.115 & 0.116 \\
+DeBERTa-v3-base & 0.888 & 0.887 & 0.863 & 0.986 & 0.664 & 0.641 & 0.134 & 0.109 \\
+RoBERTa-base\textsubscript{STS-B} & 0.859 & 0.862 & 0.787 & 0.987 & 0.638 & 0.626 & 0.046 & 0.049 \\
+BERT-base & 0.777 & 0.784 & 0.794 & 0.983 & 0.464 & 0.490 & 0.136 & 0.175 \\
+\bottomrule
+\end{tabular}
+\caption{Polarity head, ten seeds per cell. \textsc{raw} trains on the merged corpus, \textsc{aug} adds the derived-polarity augmentation. Sanity is accuracy on the three generated suites; NaN-NLI and MoNLI are held-out probes the models never train on.}
+\label{tab:main}
+\end{table*}

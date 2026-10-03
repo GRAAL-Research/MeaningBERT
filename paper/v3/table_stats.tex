@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{l rr rr}
+\toprule
+ & \multicolumn{2}{c}{macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Encoder & $\Delta$ & $d$ & $\Delta$ & $d$ \\
+\midrule
+DeBERTa-v3-large\textsubscript{NLI} & -0.001$^{\dagger}$ & -0.47 & +0.084 & +25.4 \\
+DeBERTa-v3-large & -0.002$^{\dagger}$ & -0.67 & +0.098 & +24.1 \\
+RoBERTa-large\textsubscript{MNLI} & +0.002 & +1.79 & +0.141 & +18.6 \\
+DeBERTa-v3-base\textsubscript{NLI} & +0.001$^{\dagger}$ & +0.49 & +0.113 & +42.2 \\
+DeBERTa-v3-base & -0.001$^{\dagger}$ & -0.15 & +0.123 & +9.9 \\
+RoBERTa-base\textsubscript{STS-B} & +0.003 & +2.22 & +0.200 & +81.1 \\
+BERT-base & +0.007 & +2.22 & +0.189 & +40.9 \\
+\bottomrule
+\end{tabular}
+\caption{Effect of augmentation, \textsc{aug} minus \textsc{raw}, Welch's $t$-test over ten seeds with Cohen's $d$. $\dagger$ marks a difference that is \emph{not} significant at $p<0.05$. Every sanity difference has $p<10^{-4}$.}
+\label{tab:stats}
+\end{table}
