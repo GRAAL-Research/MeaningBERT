@@ -81,6 +81,33 @@ def load(root: str) -> dict[tuple[str, str], dict[str, list[float]]]:
         out[(arch, condition)]["sanity"].append(probes["sanity"]["accuracy"])
         out[(arch, condition)]["nan_nli"].append(probes["nan_nli"]["accuracy"])
         out[(arch, condition)]["monli"].append(probes["monli"]["accuracy"])
+        for name, recall in suite_recalls(probes["sanity"]).items():
+            out[(arch, condition)][name].append(recall)
+    return out
+
+
+#: The three generated families, and the class each one must be assigned.
+SUITES: dict[str, str] = {
+    "identical": "entailment",
+    "unrelated": "neutral",
+    "mirrored": "contradiction",
+}
+
+
+def suite_recalls(sanity: dict) -> dict[str, float]:
+    """Per-family accuracy inside the sanity suite, read off its confusion matrix.
+
+    Each generated family maps onto exactly one gold class, so the recall of that class
+    is the accuracy on that family. Reading it here rather than typing it into the paper
+    is what keeps the three-family breakdown tied to the runs.
+    """
+    names = sanity["class_names"]
+    matrix = sanity["confusion"]
+    out = {}
+    for suite, gold in SUITES.items():
+        row = matrix[names.index(gold)]
+        total = sum(row)
+        out[suite] = row[names.index(gold)] / total if total else float("nan")
     return out
 
 
@@ -123,32 +150,90 @@ def mean_sd(values: list[float]) -> tuple[float, float]:
     return (st.mean(values), st.stdev(values) if len(values) > 1 else 0.0)
 
 
+def as_percent(values: list[float]) -> str:
+    """Mean and seed standard deviation, both as percentages.
+
+    Percentages rather than the unit interval: three leading zeros in a row of 0.9XX
+    carry no information, and a reader compares 91.10 against 90.98 faster than
+    0.9110 against 0.9098.
+    """
+    if not values:
+        return "--"
+    mean, sd = mean_sd(values)
+    return f"{100 * mean:.1f}\\,$\\pm$\\,{100 * sd:.2f}"
+
+
 def main_table(cells) -> str:
-    """The paper's main results table, both conditions side by side."""
+    """The paper's main results table: one row per encoder and condition.
+
+    One metric per column and the two conditions on consecutive rows, rather than eight
+    numeric columns side by side. With a standard deviation beside every mean the wide
+    layout no longer fits the page, and stacking the conditions keeps the comparison the
+    paper makes -- raw against aug, same encoder -- on adjacent lines.
+    """
+    best = {}
+    for metric in METRICS:
+        pool = [st.mean(v[metric]) for (a, _c), v in cells.items() if v.get(metric)]
+        best[metric] = max(pool) if pool else None
     lines = [
         r"\begin{table*}[t]",
         r"\centering\small",
-        r"\begin{tabular}{l rr rr rr rr}",
+        r"\begin{tabular}{l l cccc}",
         r"\toprule",
-        r" & \multicolumn{2}{c}{macro-F1} & \multicolumn{2}{c}{Sanity}"
-        r" & \multicolumn{2}{c}{NaN-NLI} & \multicolumn{2}{c}{MoNLI} \\",
-        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}",
-        r"Encoder & \textsc{raw} & \textsc{aug} & \textsc{raw} & \textsc{aug}"
-        r" & \textsc{raw} & \textsc{aug} & \textsc{raw} & \textsc{aug} \\",
+        r"Encoder & Condition & macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI \\",
         r"\midrule",
     ]
-    for arch, label in ARCH_LABELS.items():
-        row = [label]
-        for metric in METRICS:
-            for condition in ("none", "full"):
+    present = [(a, label) for a, label in ARCH_LABELS.items()
+               if (a, "none") in cells or (a, "full") in cells]
+    for position, (arch, label) in enumerate(present):
+        if position:
+            lines.append(r"\addlinespace")
+        for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
+            row = [r"\multirow{2}{*}{" + label + "}" if condition == "none" else "", name]
+            for metric in METRICS:
                 values = cells.get((arch, condition), {}).get(metric, [])
-                row.append(f"{st.mean(values):.3f}" if values else "--")
-        lines.append(" & ".join(row) + r" \\")
+                cell = as_percent(values)
+                if values and best[metric] is not None and math.isclose(st.mean(values), best[metric]):
+                    cell = r"\textbf{" + cell + "}"
+                row.append(cell)
+            lines.append(" & ".join(row) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}",
-              r"\caption{Polarity head, ten seeds per cell. \textsc{raw} trains on the merged corpus, "
-              r"\textsc{aug} adds the derived-polarity augmentation. Sanity is accuracy on the three "
-              r"generated suites; NaN-NLI and MoNLI are held-out probes the models never train on.}",
+              r"\caption{Polarity head, mean and standard deviation over ten seeds, in percent. "
+              r"\textsc{raw} trains on the merged corpus, \textsc{aug} adds the derived-polarity "
+              r"augmentation. Sanity is accuracy on the three generated suites; NaN-NLI and MoNLI "
+              r"are held-out probes the models never train on. \textbf{Bold} marks the best value "
+              r"in each column, higher being better everywhere.}",
               r"\label{tab:main}", r"\end{table*}"]
+    return "\n".join(lines)
+
+
+def suites_table(cells) -> str:
+    """The three generated families separately, read off the sanity confusion matrix."""
+    lines = [
+        r"\begin{table*}[t]",
+        r"\centering\small",
+        r"\begin{tabular}{l l ccc}",
+        r"\toprule",
+        r"Encoder & Condition & Identical & Unrelated & Mirrored \\",
+        r"\midrule",
+    ]
+    shown = [a for a in ("nli-deberta-v3-large", "deberta-v3-large", "bert")
+             if (a, "none") in cells or (a, "full") in cells]
+    for position, arch in enumerate(shown):
+        if position:
+            lines.append(r"\addlinespace")
+        for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
+            row = [r"\multirow{2}{*}{" + ARCH_LABELS[arch] + "}" if condition == "none" else "", name]
+            row += [as_percent(cells.get((arch, condition), {}).get(suite, [])) for suite in SUITES]
+            lines.append(" & ".join(row) + r" \\")
+    lines += [
+        r"\bottomrule", r"\end{tabular}",
+        r"\caption{The three generated suites separately, mean and standard deviation over ten "
+        r"seeds, in percent. Identical pairs must be entailment, unrelated pairs neutral, mirrored "
+        r"contradictions still contradiction. The unrelated column is the one the signed scale "
+        r"depends on, since it is where a pair with nothing in common is read as opposed.}",
+        r"\label{tab:suites}", r"\end{table*}",
+    ]
     return "\n".join(lines)
 
 
@@ -159,11 +244,11 @@ def stats_table(cells) -> str:
     the metric that moved would leave the reader to take "nothing changed" on trust.
     """
     lines = [
-        r"\begin{table}[t]", r"\centering\small\setlength{\tabcolsep}{3.5pt}",
-        r"\begin{tabular}{l rr rr}", r"\toprule",
-        r" & \multicolumn{2}{c}{macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity} \\",
+        r"\begin{table*}[t]", r"\centering\small",
+        r"\begin{tabular}{l cc cc}", r"\toprule",
+        r" & \multicolumn{2}{c}{macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity suites} \\",
         r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
-        r"Encoder & $\Delta$ & $d$ & $\Delta$ & $d$ \\", r"\midrule",
+        r"Encoder & $\Delta$ (pp) & $d$ & $\Delta$ (pp) & $d$ \\", r"\midrule",
     ]
     for arch, label in ARCH_LABELS.items():
         raw, aug = cells.get((arch, "none")), cells.get((arch, "full"))
@@ -173,17 +258,55 @@ def stats_table(cells) -> str:
         sanity = welch(aug["sanity"], raw["sanity"])
         mark = "" if task["p"] < 0.05 else r"$^{\dagger}$"
         lines.append(
-            f"{label} & {task['diff']:+.3f}{mark} & {task['d']:+.2f} "
-            f"& {sanity['diff']:+.3f} & {sanity['d']:+.1f} " + r"\\"
+            f"{label} & {100 * task['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['macro_f1'], raw['macro_f1']):.2f}{mark}"
+            f" & {task['d']:+.2f} "
+            f"& {100 * sanity['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['sanity'], raw['sanity']):.2f}"
+            f" & {sanity['d']:+.1f} " + r"\\"
         )
     lines += [
         r"\bottomrule", r"\end{tabular}",
-        r"\caption{Effect of augmentation, \textsc{aug} minus \textsc{raw}, Welch's $t$-test over ten "
-        r"seeds with Cohen's $d$. $\dagger$ marks a difference that is \emph{not} significant at "
-        r"$p<0.05$. Every sanity difference has $p<10^{-4}$.}",
-        r"\label{tab:stats}", r"\end{table}",
+        r"\caption{Effect of augmentation in percentage points, \textsc{aug} minus \textsc{raw}, "
+        r"with the standard error of the difference and Cohen's $d$, from Welch's $t$-test over ten "
+        r"seeds. $\dagger$ marks a difference that is not significant at $p<0.05$. Every sanity "
+        r"difference has $p<10^{-4}$. The two axes are reported together on purpose: the claim is "
+        r"that one moves and the other does not.}",
+        r"\label{tab:stats}", r"\end{table*}",
     ]
     return "\n".join(lines)
+
+
+def error(left: list[float], right: list[float]) -> float:
+    """Standard error of the difference of two means, Welch's form.
+
+    Guarded like the tests it is printed beside: one observation has no variance, and a
+    cell that lost its seeds should put a NaN in the table rather than stop the build of
+    every other table with it.
+    """
+    if len(left) < 2 or len(right) < 2:
+        return float("nan")
+    return math.sqrt(st.variance(left) / len(left) + st.variance(right) / len(right))
+
+
+def axis_range(cells, order, metric: str) -> tuple[int, int]:
+    """The panel's x range, taken from the data rather than written down.
+
+    A hard-coded range silently drops a point that falls outside it, which is the one
+    failure mode of a generated figure that no compiler reports. The bounds include the
+    error bars, round outward to whole points, and stop just past 100 because every
+    metric on these panels is a percentage.
+    """
+    low, high = [], []
+    for arch in order:
+        for condition in ("none", "full"):
+            values = cells.get((arch, condition), {}).get(metric, [])
+            if not values:
+                continue
+            mean, spread = mean_sd(values)
+            low.append(100 * (mean - spread))
+            high.append(100 * (mean + spread))
+    if not low:
+        return (0, 100)
+    return (int(max(0, math.floor(min(low) - 1))), int(min(101, math.ceil(max(high) + 1))))
 
 
 def figure(cells, path: str) -> None:
@@ -199,6 +322,10 @@ def figure(cells, path: str) -> None:
     Two panels sharing one y axis. Horizontal error bars are one standard deviation over
     the ten seeds, which is what makes the comparison legible: on the task panel the two
     conditions overlap, on the sanity panel they do not come close.
+
+    No legend box and no vertical rules. The two conditions are named in the caption,
+    where they cost no space inside the panel; the gridlines were competing with the very
+    marks they were supposed to help locate, so the axis keeps its ticks and nothing else.
     """
     order = [a for a in ARCH_LABELS if (a, "none") in cells and (a, "full") in cells][::-1]
     labels = ", ".join(ARCH_LABELS[a] for a in order)
@@ -207,16 +334,17 @@ def figure(cells, path: str) -> None:
         points = []
         for index, arch in enumerate(order):
             values = cells[(arch, condition)][metric]
-            points.append(f"({st.mean(values):.4f},{index + offset:.2f}) +- ({mean_sd(values)[1]:.4f},0)")
+            points.append(
+                f"({100 * st.mean(values):.2f},{index + offset:.2f})"
+                f" +- ({100 * mean_sd(values)[1]:.2f},0)"
+            )
         return " ".join(points)
 
     panels = []
-    for metric, title, xmin, xmax in (
-        ("macro_f1", r"macro-F$_1$", 0.76, 0.93),
-        ("sanity", "Sanity suites", 0.76, 1.01),
-    ):
+    for metric, title in (("macro_f1", r"macro-F$_1$ (\%)"), ("sanity", r"Sanity suites (\%)")):
+        xmin, xmax = axis_range(cells, order, metric)
         body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
-        for condition, style, offset in (("none", "raw", -0.17), ("full", "aug", 0.17)):
+        for condition, style, offset in (("none", "raw", -0.19), ("full", "aug", 0.19)):
             body.append(
                 f"\\addplot+[{style}] plot [error bars/.cd, x dir=both, x explicit] "
                 f"coordinates {{{series(metric, condition, offset)}}};"
@@ -234,36 +362,39 @@ def figure(cells, path: str) -> None:
         r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
         r"% \addplot a l'interieur d'un groupplot.",
         r"\tikzset{",
-        r"  raw/.style={mark=*, mark size=1.5pt, only marks, color=condraw},",
-        r"  aug/.style={mark=square*, mark size=1.5pt, only marks, color=condaug},",
+        r"  raw/.style={mark=*, mark size=2.2pt, only marks, color=condraw},",
+        r"  aug/.style={mark=square*, mark size=2.1pt, only marks, color=condaug},",
         r"}",
         r"\begin{tikzpicture}",
         r"\begin{groupplot}[",
-        r"  group style={group size=2 by 1, horizontal sep=0.45cm, y descriptions at=edge left},",
-        r"  width=0.36\textwidth, height=4.4cm,",
+        r"  group style={group size=2 by 1, horizontal sep=0.6cm, y descriptions at=edge left},",
+        r"  width=0.365\textwidth, height=6.2cm,",
         r"  scale only axis,",
-        r"  % Tufte : pas de cadre, une seule ligne d'axe, la grille verticale assez pale",
-        r"  % pour guider l'oeil sans entrer en competition avec les points.",
+        r"  % Tufte : pas de cadre, une seule ligne d'axe, aucune regle verticale. Les",
+        r"  % graduations suffisent a situer un point, et la grille entrait en competition",
+        r"  % avec les marques qu'elle devait aider a lire.",
         r"  axis line style={draw=black!45, line width=0.3pt},",
-        r"  axis x line*=bottom, axis y line=none,",
-        r"  xmajorgrids, ymajorgrids=false, grid style={draw=black!10, line width=0.3pt},",
+        r"  % L'axe y ne porte pas de ligne, mais il porte les noms d'encodeurs : les",
+        r"  % supprimer avec la ligne laisse sept rangees de points que rien n'identifie.",
+        r"  axis x line*=bottom, axis y line*=left,",
+        r"  y axis line style={draw=none},",
+        r"  xmajorgrids=false, ymajorgrids=false,",
         r"  tick align=outside, ytick style={draw=none},",
-        r"  tick label style={font=\scriptsize}, title style={font=\small, yshift=-3pt},",
+        r"  tick label style={font=\small}, title style={font=\small, yshift=-2pt},",
         f"  ymin=-0.7, ymax={len(order) - 0.3}, ytick={{{','.join(str(i) for i in range(len(order)))}}},",
-        f"  yticklabels={{{labels}}}, yticklabel style={{font=\scriptsize}},",
+        f"  yticklabels={{{labels}}}, yticklabel style={{font=\\small}},",
         r"  every axis plot/.append style={line width=0.7pt},",
-        r"  legend style={font=\scriptsize, draw=none, fill=none,",
-        r"    at={(0.97,0.04)}, anchor=south east, cells={anchor=west}},",
         r"]",
         panels[0],
         panels[1],
-        r"\legend{without augmentation, with augmentation}",
         r"\end{groupplot}",
         r"\end{tikzpicture}",
-        r"\caption{Augmentation moves one axis and not the other. Points are means over ten "
-        r"seeds, bars one standard deviation. On the task axis the two conditions overlap for "
-        r"every encoder; on the sanity axis they converge to one value from seven different "
-        r"starting points.}",
+        r"\caption{Augmentation moves one axis and not the other. Blue circles are the "
+        r"\textsc{raw} condition, without augmentation; orange squares the \textsc{aug} "
+        r"condition, with it. Points are means over ten seeds and bars one standard deviation. "
+        r"On the task axis the two conditions overlap for every encoder; on the sanity axis they "
+        r"converge to one value from seven different starting points. Note the two panels do not "
+        r"share an $x$ range.}",
         r"\label{fig:augmentation}",
         r"\end{figure*}",
     ]
@@ -328,6 +459,8 @@ def main(results: str, tex_out: Optional[str], json_out: Optional[str]) -> None:
             handle.write(main_table(cells) + "\n")
         with open(os.path.join(tex_out, "table_stats.tex"), "w", encoding="utf-8") as handle:
             handle.write(stats_table(cells) + "\n")
+        with open(os.path.join(tex_out, "table_suites.tex"), "w", encoding="utf-8") as handle:
+            handle.write(suites_table(cells) + "\n")
         figure(cells, os.path.join(tex_out, "figure_augmentation.tex"))
         click.echo(f"\ntables : {tex_out}")
     if json_out:
