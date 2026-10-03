@@ -118,6 +118,7 @@ class TestFigureOutput:
                     "alpha": 1.00,
                     "contradictions_negatives": 0.0,
                     "implications_positives": 1.0,
+                    "neutres_positifs": 0.9835,
                     "pearson_proximite": 0.83,
                     "objectif": 0.0,
                     "plancher": 0.0,
@@ -126,6 +127,7 @@ class TestFigureOutput:
                     "alpha": 2.00,
                     "contradictions_negatives": 0.837,
                     "implications_positives": 1.0,
+                    "neutres_positifs": 0.9745,
                     "pearson_proximite": 0.795,
                     "objectif": 0.665,
                     "plancher": -100.0,
@@ -134,6 +136,7 @@ class TestFigureOutput:
             "magnitude_only": {
                 "contradictions_negatives": 0.0,
                 "implications_positives": 1.0,
+                "neutres_positifs": 0.9835,
                 "pearson_proximite": 0.852,
             },
         }
@@ -141,9 +144,10 @@ class TestFigureOutput:
         composition_table(curve, str(path))
         body = path.read_text(encoding="utf-8")
 
-        assert r"\textbf{83.7}" in body
-        assert r"\textbf{0.0}" not in body
-        assert "Magnitude alone & 0.0" in body
+        assert r"\textbf{83.70}" in body
+        assert r"\textbf{97.45}" in body
+        assert r"\textbf{0.00}" not in body
+        assert "Magnitude alone & 0.00" in body
 
     def test_the_table_survives_a_curve_missing_a_slope(self, tmp_path):
         """A shorter grid should drop rows, not raise on the way to the paper."""
@@ -155,6 +159,7 @@ class TestFigureOutput:
                     "alpha": 2.00,
                     "contradictions_negatives": 0.5,
                     "implications_positives": 1.0,
+                    "neutres_positifs": 0.97,
                     "pearson_proximite": 0.7,
                     "objectif": 0.4,
                     "plancher": -100.0,
@@ -163,6 +168,7 @@ class TestFigureOutput:
             "magnitude_only": {
                 "contradictions_negatives": 0.0,
                 "implications_positives": 1.0,
+                "neutres_positifs": 0.98,
                 "pearson_proximite": 0.8,
             },
         }

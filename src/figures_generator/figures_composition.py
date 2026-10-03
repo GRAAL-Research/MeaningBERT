@@ -172,7 +172,12 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
 
 
 def composition_table(curve: dict, path: str) -> None:
-    """Sensitivity of the composition to the slope, read off the test curve."""
+    """Sensitivity of the composition to the slope, read off the test curve.
+
+    The neutral column is here because the paper's title is about that class: a scale
+    that fixed contradictions by dragging unrelated pairs negative would satisfy the two
+    sign criteria and fail the thing the product form exists for.
+    """
     shown = (1.00, 1.25, 1.50, 1.75, 2.00, 3.00)
     rows = {row["alpha"]: row for row in curve["curve"]}
     lines = [
@@ -181,7 +186,7 @@ def composition_table(curve: dict, path: str) -> None:
         r"\centering\small",
         r"\begin{tabular}{l ccc c}",
         r"\toprule",
-        r" & Contra. & Entail. & Rel. & Floor \\",
+        r" & Contra. & Neutral & Rel. & Floor \\",
         r"Slope & $<0$ & $>0$ & $r$ & \\",
         r"\midrule",
     ]
@@ -191,26 +196,29 @@ def composition_table(curve: dict, path: str) -> None:
             continue
         name = f"$\\alpha = {alpha:.2f}$"
         cells = [
-            f"{100 * row['contradictions_negatives']:.1f}",
-            f"{100 * row['implications_positives']:.1f}",
+            f"{100 * row['contradictions_negatives']:.2f}",
+            f"{100 * row['neutres_positifs']:.2f}",
             f"{row['pearson_proximite']:.3f}",
-            f"${row['plancher']:.0f}$",
         ]
+        floor = f"${row['plancher']:.0f}$"
         if alpha == curve["alpha"]:
             name = f"$\\boldsymbol{{\\alpha = {alpha:.2f}}}$"
-            cells = [r"\textbf{" + cell.strip("$") + "}" for cell in cells[:3]] + [
-                r"$\mathbf{" + f"{row['plancher']:.0f}" + r"}$"
-            ]
-        lines.append(f"{name} & " + " & ".join(cells) + r" \\")
+            cells = [r"\textbf{" + cell + "}" for cell in cells]
+            floor = r"$\mathbf{" + f"{row['plancher']:.0f}" + r"}$"
+        lines.append(f"{name} & " + " & ".join(cells + [floor]) + r" \\")
     only = curve["magnitude_only"]
     lines += [
         r"\addlinespace",
-        f"Magnitude alone & {100 * only['contradictions_negatives']:.1f}"
-        f" & {100 * only['implications_positives']:.1f} & {only['pearson_proximite']:.3f} & $0$ \\\\",
+        f"Magnitude alone & {100 * only['contradictions_negatives']:.2f}"
+        f" & {100 * only['neutres_positifs']:.2f}"
+        f" & {only['pearson_proximite']:.3f} & $0$ \\\\",
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Composition on the SICK test half, in percent. The slope is fitted on "
-        r"development data, which selects $\alpha = 2$ (\textbf{bold}). Floor: the most "
+        r"\caption{Composition on the SICK test half, in percent, over 1\,404 entailments, "
+        r"2\,000 neutral pairs and 712 contradictions. The slope is fitted on development "
+        r"data, which selects $\alpha = 2$ (\textbf{bold}). Neutral: pairs left strictly "
+        r"positive, the class the product form exists to protect. Entailments stay positive "
+        r"throughout, at $100.00$ everywhere except $99.93$ at $\alpha = 3$. Floor: the most "
         r"negative score the scale can reach.}",
         r"\label{tab:composition}",
         r"\end{table}",

@@ -258,6 +258,8 @@ The development split selects $\alpha = 2$, the value the reachability constrain
 \input{table_composition}
 
 \autoref{tab:composition} gives the result and \autoref{fig:distribution} shows it.
+The neutral column is the one the title of this paper is about, and it is also where the composition is slightly worse than what it extends: $97.45\%$ of neutral pairs stay strictly positive against $98.35\%$ for the magnitude alone.
+Nine tenths of a point is the cost of making the scale signed for the class that should never cross zero, and it is a cost rather than a gain because the product can only move a score downwards.
 The magnitude alone puts no contradiction below the line, which is a property of a non-negative scale rather than a weakness of that model.
 Composition puts $83.7\%$ of them where they belong while retaining $r = 0.795$ with human relatedness on the unflipped pairs, against $0.852$ for the magnitude alone.
 The cost of requiring the full scale is visible and small: $\alpha = 1.5$ scores $1.5\%$ higher on the combined objective and truncates the negative half at $-50$.
@@ -301,6 +303,7 @@ A system that accepts a rewriting when the score exceeds a cut accepts, with the
 The reduction is close to sevenfold and it is measured against SICK's own inference labels, not against our conversion rule.
 The entailment column is the control, since a scale that merely shifted everything downwards would also accept fewer contradictions and would pay for it: recall falls from $99.15\%$ to $98.43\%$, which is the whole price.
 At a cut of $70$ the magnitude already admits almost no contradiction and the two scales converge, so the benefit lives where a simplification system actually operates rather than at the top of the range.
+Three cuts were chosen after seeing the data, so the threshold-free statement matters more than any of them: sweeping the cut from $0$ to $95$ in steps of five, the signed scale never accepts a larger share of contradictions than the magnitude, and the entailment recall it gives up never exceeds $1.85$ points.
 
 \input{table_decision}
 
