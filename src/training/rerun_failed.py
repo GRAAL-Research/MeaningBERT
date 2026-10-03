@@ -127,10 +127,7 @@ def get_hardcoded_runs(gpu: int, finished_names: set[str]) -> list[tuple[list[st
         for aug in AUGMENTATIONS:
             for fold, seed in zip(FOLDS, SEEDS):
                 # float(lr) ensures "2e-5" formats as "2e-05", matching few_shot_training.py run names.
-                run_name = (
-                    f"{checkpoint_short}_seed{seed}_lr{float(lr)}_bs{bs}"
-                    f"_freeze{freeze}_aug{aug}_fold{fold}"
-                )
+                run_name = f"{checkpoint_short}_seed{seed}_lr{float(lr)}_bs{bs}" f"_freeze{freeze}_aug{aug}_fold{fold}"
                 if run_name in finished_names:
                     print(f"  SKIP (already finished): {run_name}")
                     continue

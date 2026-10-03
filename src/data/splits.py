@@ -228,9 +228,7 @@ def assert_no_leakage(
             shared_groups = keys[left] & keys[right]
             if shared_groups and frozenset({left, right}) not in allowed_group_overlaps:
                 sample = sorted(shared_groups)[:2]
-                problems.append(
-                    f"{left} and {right} share {len(shared_groups)} source sentence(s), e.g. {sample}"
-                )
+                problems.append(f"{left} and {right} share {len(shared_groups)} source sentence(s), e.g. {sample}")
             shared_pairs = pairs[left] & pairs[right]
             if shared_pairs:
                 problems.append(f"{left} and {right} share {len(shared_pairs)} exact pair(s)")

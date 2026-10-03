@@ -206,9 +206,7 @@ def main(checkpoints, subfolders, labels, v2_corpus: str, v3_corpus: str, json_o
     v2_test = load_from_disk(v2_corpus)["test"]
     v3_test = load_from_disk(v3_corpus)["test"]
     n_true = sum(1 for source in v2_test["source"] if source == "original")
-    click.echo(
-        f"tache v2 : {n_true} vraies paires sur {len(v2_test)}   tache v3 : {len(v3_test)} paires\n"
-    )
+    click.echo(f"tache v2 : {n_true} vraies paires sur {len(v2_test)}   tache v3 : {len(v3_test)} paires\n")
 
     header = ("modele", "v2 Pearson", "(+controles)", "v3 AUC", "v3 macro-F1", "v3 exact.")
     click.echo("%-30s %11s %13s %8s %12s %10s" % header)

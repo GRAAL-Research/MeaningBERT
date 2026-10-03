@@ -133,15 +133,11 @@ def test_no_cap_keeps_everything():
 
 
 def _split(pairs):
-    return Dataset.from_dict(
-        {"original": [left for left, _ in pairs], "simplification": [right for _, right in pairs]}
-    )
+    return Dataset.from_dict({"original": [left for left, _ in pairs], "simplification": [right for _, right in pairs]})
 
 
 def test_disjoint_splits_pass():
-    assert_no_pair_leakage(
-        {"train": _split([("a", "b")]), "dev": _split([("c", "d")]), "test": _split([("e", "f")])}
-    )
+    assert_no_pair_leakage({"train": _split([("a", "b")]), "dev": _split([("c", "d")]), "test": _split([("e", "f")])})
 
 
 def test_a_pair_shared_between_train_and_test_is_refused():
@@ -156,9 +152,11 @@ def test_a_pair_shared_between_train_and_test_is_refused():
 def test_leakage_is_detected_through_case_and_whitespace():
     with pytest.raises(BuildError, match="train and dev"):
         assert_no_pair_leakage(
-            {"train": _split([("A dog barks", "no dog barks")]),
-             "dev": _split([("  a dog barks ", "NO DOG BARKS")]),
-             "test": _split([("e", "f")])}
+            {
+                "train": _split([("A dog barks", "no dog barks")]),
+                "dev": _split([("  a dog barks ", "NO DOG BARKS")]),
+                "test": _split([("e", "f")]),
+            }
         )
 
 
@@ -299,9 +297,7 @@ def test_the_generators_are_asked_for_more_than_the_quota_then_cut_back():
 
 def _eval_split(pairs):
     """A minimal dev/test split: augment_and_verify only reads originals and pairs."""
-    return Dataset.from_dict(
-        {"original": [left for left, _ in pairs], "simplification": [right for _, right in pairs]}
-    )
+    return Dataset.from_dict({"original": [left for left, _ in pairs], "simplification": [right for _, right in pairs]})
 
 
 def test_a_mirror_into_a_held_out_group_is_stopped_before_the_second_check():
@@ -365,8 +361,7 @@ def test_the_two_schemes_mirror_at_the_same_rate():
     # an nli3 corpus must behave identically under augmentation.
     def census_for(raw, scheme):
         rows = [
-            _row(i, raw, scheme=scheme, original=left, simplification=right)
-            for i, (left, right) in enumerate(_TOPICS)
+            _row(i, raw, scheme=scheme, original=left, simplification=right) for i, (left, right) in enumerate(_TOPICS)
         ]
         return augment_polarity(unify(_dataset(rows)), set(), per_class=50, seed=42)[1]["swapped"]
 

@@ -78,9 +78,7 @@ def test_a_class_never_predicted_scores_zero_not_undefined():
 def test_macro_f1_is_the_unweighted_mean_over_the_three_classes():
     matrix = [[2, 0, 0], [0, 1, 1], [0, 0, 2]]
     scores = per_class_f1(matrix)
-    assert scores["macro"] == pytest.approx(
-        sum(scores[name] for name in CLASS_NAMES) / 3
-    )
+    assert scores["macro"] == pytest.approx(sum(scores[name] for name in CLASS_NAMES) / 3)
     assert scores["entailment"] == pytest.approx(1.0)
 
 

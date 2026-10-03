@@ -238,9 +238,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         # is a float because the schema uses NaN to mean "not annotated", which an int
         # column cannot express.
         encoded = dataset.map(
-            lambda batch: tokenizer(
-                batch["original"], batch["simplification"], truncation=True, max_length=max_length
-            ),
+            lambda batch: tokenizer(batch["original"], batch["simplification"], truncation=True, max_length=max_length),
             batched=True,
         )
         encoded = encoded.map(lambda batch: {"labels": [int(value) for value in batch["polarity"]]}, batched=True)

@@ -231,9 +231,15 @@ def main() -> None:
     """Find and optionally delete intermediate checkpoints and failed runs."""
     parser = argparse.ArgumentParser(description="Clean up training artifacts.")
     parser.add_argument("--delete", action="store_true", help="Actually delete files (default: dry run).")
-    parser.add_argument("--keep-best", action="store_true", help="Keep only the best checkpoint per output dir (identified via trainer_state.json).")
+    parser.add_argument(
+        "--keep-best",
+        action="store_true",
+        help="Keep only the best checkpoint per output dir (identified via trainer_state.json).",
+    )
     parser.add_argument("--clean-wandb", action="store_true", help="Also delete crashed/failed wandb runs via API.")
-    parser.add_argument("--dedup-wandb", action="store_true", help="Delete duplicate finished wandb runs (keep most recent per fold).")
+    parser.add_argument(
+        "--dedup-wandb", action="store_true", help="Delete duplicate finished wandb runs (keep most recent per fold)."
+    )
     parser.add_argument("--project", default="davebulaval/meaningbert-checkpoint-sweep", help="Wandb project path.")
     args = parser.parse_args()
 

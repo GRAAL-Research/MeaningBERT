@@ -296,12 +296,8 @@ def test_symmetry_is_decided_on_the_unified_class_not_the_native_name():
 def test_an_entailment_is_not_symmetric_under_either_naming():
     from data.schema import POLARITY_CLASSES, is_symmetric_polarity
 
-    assert not is_symmetric_polarity(
-        {"polarity_raw": "SUPPORTS", "polarity": float(POLARITY_CLASSES["entailment"])}
-    )
-    assert not is_symmetric_polarity(
-        {"polarity_raw": "entailment", "polarity": float(POLARITY_CLASSES["entailment"])}
-    )
+    assert not is_symmetric_polarity({"polarity_raw": "SUPPORTS", "polarity": float(POLARITY_CLASSES["entailment"])})
+    assert not is_symmetric_polarity({"polarity_raw": "entailment", "polarity": float(POLARITY_CLASSES["entailment"])})
 
 
 def test_an_unharmonised_row_falls_back_to_its_native_name():

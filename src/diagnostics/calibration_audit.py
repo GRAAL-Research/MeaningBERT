@@ -152,7 +152,9 @@ def audit_run(
     )
 
 
-def audit_runs(records: Iterable[tuple[str, str, str, dict[str, Any]]], label_mean: float, label_std: float) -> AuditReport:
+def audit_runs(
+    records: Iterable[tuple[str, str, str, dict[str, Any]]], label_mean: float, label_std: float
+) -> AuditReport:
     """Audit an iterable of ``(name, checkpoint, augmentation, summary)`` records."""
     audits = [a for a in (audit_run(*record, label_std=label_std) for record in records) if a is not None]
     return AuditReport(
@@ -189,7 +191,9 @@ def _print_report(report: AuditReport) -> None:
     """Print the human-readable verdict."""
     print(f"Label distribution: mean {report.label_mean:.2f}, std {report.label_std:.2f}\n")
     print(f"Runs audited: {report.n_runs}")
-    print(f"Collapsed to a constant output: {report.n_collapsed} ({100 * report.n_collapsed / max(1, report.n_runs):.1f}%)")
+    print(
+        f"Collapsed to a constant output: {report.n_collapsed} ({100 * report.n_collapsed / max(1, report.n_runs):.1f}%)"
+    )
     print("  A collapsed run has std ~0 or an undefined Pearson. metrics._sanitize_predictions")
     print("  rewrites its NaN predictions to 0.0, so it enters the aggregate as a zero-predictor.\n")
 

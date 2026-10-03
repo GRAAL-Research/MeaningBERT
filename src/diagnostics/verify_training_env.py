@@ -56,9 +56,9 @@ def measure_throughput(index: int, hidden: int = 1024, batch: int = 16, seq: int
 
     device = torch.device(f"cuda:{index}")
     torch.backends.cudnn.benchmark = True
-    layer = torch.nn.TransformerEncoderLayer(
-        d_model=hidden, nhead=16, dim_feedforward=4 * hidden, batch_first=True
-    ).to(device)
+    layer = torch.nn.TransformerEncoderLayer(d_model=hidden, nhead=16, dim_feedforward=4 * hidden, batch_first=True).to(
+        device
+    )
     optimiser = torch.optim.AdamW(layer.parameters(), lr=1e-5)
     data = torch.randn(batch, seq, hidden, device=device)
 

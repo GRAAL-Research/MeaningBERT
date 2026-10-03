@@ -204,8 +204,10 @@ def build_all(output_dir: str, seed: int, conditions: list[str], modes: list[str
                 "final_rows": {split: len(augmented[split]) for split in augmented},
                 "path": path,
             }
-            print(f"  {name:10} train={len(augmented['train']):6} dev={len(augmented['dev']):5} "
-                  f"test={len(augmented['test']):5} sanity={len(augmented['sanity']):5}")
+            print(
+                f"  {name:10} train={len(augmented['train']):6} dev={len(augmented['dev']):5} "
+                f"test={len(augmented['test']):5} sanity={len(augmented['sanity']):5}"
+            )
 
     with open(os.path.join(output_dir, "manifest.json"), "w", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2)
