@@ -48,9 +48,9 @@ results/tables/
 results/*.html
 archives/
 
-# Auxiliaires LaTeX : regeneres a chaque compilation, jamais a versionner.
-# Les journaux d'experimentation sous results/ et wandb/ n'en sont PAS : ce sont
-# des traces de runs et ils restent suivis.
+# Journaux et auxiliaires : regeneres par la compilation ou par les runs, jamais
+# versionnes. Les resultats eux-memes sont les .json, qui restent suivis.
+*.log
 *.aux
 *.bbl
 *.blg
@@ -59,4 +59,3 @@ archives/
 *.out
 *.synctex.gz
 *.toc
-paper/**/main.log
