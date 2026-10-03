@@ -262,3 +262,33 @@ class TestDegenerateCells:
     def test_a_single_seed_puts_a_nan_in_the_table_rather_than_stopping_the_build(self):
         """One run of a cell has no variance; the other six encoders must still print."""
         assert math.isnan(error([0.9], [0.8, 0.81]))
+
+
+class TestUnlabelledCells:
+    """A trained cell nobody declared would vanish from every table without a word."""
+
+    def test_a_tag_absent_from_the_registry_is_reported(self, tmp_path):
+        from figures_generator.analyse_v3 import unlabelled_cells
+
+        root = str(tmp_path)
+        write_cell(root, "bert", "none", 42, macro_f1=0.9, sanity=0.8)
+        write_cell(root, "some-new-encoder", "none", 42, macro_f1=0.9, sanity=0.8)
+
+        assert unlabelled_cells(root) == {"some-new-encoder"}
+
+    def test_a_fully_declared_grid_reports_nothing(self, tmp_path):
+        from figures_generator.analyse_v3 import unlabelled_cells
+
+        root = str(tmp_path)
+        write_cell(root, "smollm2-135m", "full", 42, macro_f1=0.9, sanity=0.8)
+
+        assert unlabelled_cells(root) == set()
+
+    def test_a_directory_that_is_not_a_cell_is_not_reported(self, tmp_path):
+        """The weight-keeping runs use their own condition suffix and are not grid cells."""
+        from figures_generator.analyse_v3 import unlabelled_cells
+
+        root = str(tmp_path)
+        write_cell(root, "nli-deberta-v3-large", "none-poids", 42, macro_f1=0.9, sanity=0.8)
+
+        assert unlabelled_cells(root) == set()

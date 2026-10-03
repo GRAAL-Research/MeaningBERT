@@ -170,3 +170,63 @@ class TestFigureOutput:
         composition_table(curve, str(path))
 
         assert json.dumps(path.read_text(encoding="utf-8")).count("alpha = 1.25") == 0
+
+
+class TestDecisionPoint:
+    """The measurement that turns 'expresses a distinction' into 'is a better metric'."""
+
+    def test_the_signed_scale_rejects_the_contradictions_the_magnitude_accepts(self):
+        from figures_generator.figures_composition import decision_point
+
+        # Two contradictions a magnitude metric waves through, two entailments it should keep.
+        pairs = {
+            "magnitude": [80.0, 75.0, 90.0, 85.0],
+            "signed": [-40.0, -35.0, 89.0, 84.0],
+            "truth": [POLARITY_CLASSES["contradiction"]] * 2 + [POLARITY_CLASSES["entailment"]] * 2,
+        }
+
+        (row,) = decision_point(pairs, thresholds=(50,))
+
+        assert row["magnitude"]["share_contradiction"] == pytest.approx(0.5)
+        assert row["signed"]["share_contradiction"] == pytest.approx(0.0)
+        assert row["signed"]["entailment_recall"] == pytest.approx(1.0)
+
+    def test_a_scale_that_only_shifts_everything_down_is_caught_by_the_control(self):
+        """Rejecting contradictions by rejecting everything must show up as lost recall."""
+        from figures_generator.figures_composition import decision_point
+
+        pairs = {
+            "magnitude": [80.0, 90.0],
+            "signed": [-10.0, -10.0],
+            "truth": [POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]],
+        }
+
+        (row,) = decision_point(pairs, thresholds=(50,))
+
+        assert row["signed"]["share_contradiction"] != row["signed"]["share_contradiction"]  # NaN
+        assert row["signed"]["entailment_recall"] == pytest.approx(0.0)
+
+    def test_an_empty_acceptance_set_gives_nan_rather_than_a_perfect_score(self):
+        """Accepting nothing is not a metric with zero false acceptances."""
+        from figures_generator.figures_composition import decision_point
+
+        pairs = {"magnitude": [10.0], "signed": [10.0], "truth": [POLARITY_CLASSES["contradiction"]]}
+
+        (row,) = decision_point(pairs, thresholds=(50,))
+
+        assert row["magnitude"]["share_contradiction"] != row["magnitude"]["share_contradiction"]
+
+    def test_the_table_bolds_the_quantity_the_paper_argues_about(self, tmp_path):
+        from figures_generator.figures_composition import decision_table
+
+        pairs = {
+            "magnitude": [80.0, 90.0],
+            "signed": [-40.0, 89.0],
+            "truth": [POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]],
+        }
+        path = tmp_path / "t.tex"
+        decision_table(pairs, str(path))
+        body = path.read_text(encoding="utf-8")
+
+        assert r"\textbf{0.00}" in body
+        assert "50.00" in body

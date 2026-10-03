@@ -46,6 +46,9 @@ ARCH_LABELS: dict[str, str] = {
     "deberta-v3-base": "DeBERTa-v3-base",
     "stsb-roberta-base": r"RoBERTa-base\textsubscript{STS-B}",
     "bert": "BERT-base",
+    "smollm2-1.7b": r"SmolLM2-1.7B",
+    "smollm2-360m": r"SmolLM2-360M",
+    "smollm2-135m": r"SmolLM2-135M",
 }
 
 #: What each metric is called in the paper, and whether higher is better.
@@ -55,6 +58,22 @@ METRICS: dict[str, str] = {
     "nan_nli": "NaN-NLI",
     "monli": "MoNLI",
 }
+
+
+def unlabelled_cells(root: str) -> set[str]:
+    """Architecture tags present on disk that no label covers.
+
+    ``load`` filters on ``ARCH_LABELS``, so a cell trained under a tag nobody declared is
+    dropped without a word: every table regenerates identically and nothing says a run was
+    ignored. Adding a model to the grid and forgetting its label is therefore a silent
+    way to publish the wrong numbers, which is what this guards against.
+    """
+    found = set()
+    for path in glob.glob(os.path.join(root, "polarity", "*", "seed*", "metrics.json")):
+        arch, _, condition = os.path.basename(os.path.dirname(os.path.dirname(path))).rpartition("-")
+        if condition in ("none", "full") and arch not in ARCH_LABELS:
+            found.add(arch)
+    return found
 
 
 def load(root: str) -> dict[tuple[str, str], dict[str, list[float]]]:
@@ -425,6 +444,12 @@ def figure(cells, path: str) -> None:
 @click.option("--json-out", default=None)
 def main(results: str, tex_out: Optional[str], json_out: Optional[str]) -> None:
     """Compute every number the paper reports and print it."""
+    orphelines = unlabelled_cells(results)
+    if orphelines:
+        raise click.ClickException(
+            "cellules entrainees sans etiquette dans ARCH_LABELS, elles seraient ignorees "
+            "en silence : " + ", ".join(sorted(orphelines))
+        )
     cells = load(results)
     findings: dict[str, Any] = {"cells": {}, "augmentation": {}, "nli": {}}
 

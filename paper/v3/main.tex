@@ -10,7 +10,7 @@
 \maketitle
 
 \begin{abstract}
-Metrics for meaning preservation report how much meaning two sentences share, on a scale from 0 to 100. That scale cannot express opposition. Because contradicting sentences are about the same thing, they overlap heavily, and a released model scores ``I drink milk'' against ``I do not drink milk'' at 58 out of 100. We propose a signed scale on $[-100,100]$, obtained by multiplying a magnitude head by $1 - \alpha\,p_{\mathrm{contra}}$ from a three-way polarity head. The form is a product so that unrelated sentences score 0 whatever their polarity. Thresholded token overlap ranks polarity better than the released metric does, 63.5\% AUC against 60.8\%. Across 140 runs a polarity head reaches 91.1\% macro-F\textsubscript{1} over ten seeds, derived-polarity augmentation leaves task performance unchanged while raising generated sanity suites from 79--90\% to 98--99\% on all seven encoders, and composition puts 84\% of SICK contradictions below zero where the magnitude alone puts none.
+Metrics for meaning preservation report how much meaning two sentences share, on a scale from 0 to 100. That scale cannot express opposition. Because contradicting sentences are about the same thing, they overlap heavily, and a released model scores ``I drink milk'' against ``I do not drink milk'' at 58 out of 100. We propose a signed scale on $[-100,100]$, obtained by multiplying a magnitude head by $1 - \alpha\,p_{\mathrm{contra}}$ from a three-way polarity head. The form is a product so that unrelated sentences score 0 whatever their polarity. Thresholded token overlap ranks polarity better than the released metric does, 63.5\% AUC against 60.8\%. Across 140 runs a polarity head reaches 91.1\% macro-F\textsubscript{1} over ten seeds, derived-polarity augmentation leaves task performance unchanged while raising generated sanity suites from 79--90\% to 98--99\% on all seven encoders, and composition puts 84\% of SICK contradictions below zero where the magnitude alone puts none, cutting from 14.1\% to 2.1\% the contradictions a system would accept as preserved meaning.
 \end{abstract}
 
 \section{Introduction}
@@ -36,7 +36,7 @@ Our contributions are:
 
 \begin{enumerate}\itemsep1pt
 \item \textbf{A diagnosis of the failure, measured rather than argued} (\autoref{sec:results}). On a class-balanced split of 12\,000 pairs, a deployed meaning-preservation metric orders polarity no better than counting shared words, and on SICK it orders it backwards. The failure follows from the output shape and not from one model's training, which is why no amount of preservation data repairs it.
-\item \textbf{A signed scale obtained by composition} (\autoref{sec:scale}, \autoref{sec:composition}). No corpus carries human-annotated signed scores, so learning the scale end to end would fit a model to our own conversion rule. We instead multiply a magnitude head by a polarity term, fix the slope by requiring the negative half to be reachable, and calibrate against three necessary conditions on the only corpus annotating both dimensions. The result moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none, and trains nothing beyond a three-way classifier.
+\item \textbf{A signed scale obtained by composition} (\autoref{sec:scale}, \autoref{sec:composition}). No corpus carries human-annotated signed scores, so learning the scale end to end would fit a model to our own conversion rule. We instead multiply a magnitude head by a polarity term, fix the slope by requiring the negative half to be reachable, and calibrate against three necessary conditions on the only corpus annotating both dimensions. The result moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none, and at a fixed acceptance threshold it cuts the share of contradictions wrongly accepted as preserved meaning from $14.1\%$ to $2.1\%$ for seven tenths of a point of entailment recall. It trains nothing beyond a three-way classifier.
 \end{enumerate}
 
 \section{Related Work}
@@ -294,6 +294,16 @@ Combined objective & 0.574 & \textbf{0.665} \\
 \label{tab:zeroshot}
 \end{table}
 
+\paragraph{What the sign buys at the decision point.}
+Expressing a distinction is not the same as being a better metric, and the comparisons above do not establish the second.
+\autoref{tab:decision} does, by asking what each scale lets through.
+A system that accepts a rewriting when the score exceeds a cut accepts, with the magnitude alone at a cut of $50$, a set in which $14.10\%$ of the pairs are contradictions; the same cut on the signed scale leaves $2.13\%$.
+The reduction is close to sevenfold and it is measured against SICK's own inference labels, not against our conversion rule.
+The entailment column is the control, since a scale that merely shifted everything downwards would also accept fewer contradictions and would pay for it: recall falls from $99.15\%$ to $98.43\%$, which is the whole price.
+At a cut of $70$ the magnitude already admits almost no contradiction and the two scales converge, so the benefit lives where a simplification system actually operates rather than at the top of the range.
+
+\input{table_decision}
+
 \paragraph{The scale on simplification output.}
 SICK and VitaminC are inference corpora; the metric is meant for the output of a simplification system.
 Scoring the 407 human-annotated pairs of the preservation test set with the composed scale sends $4.2\%$ of them below zero, and those pairs carry a mean human rating of $38.3$ against $71.0$ for the rest.
@@ -325,8 +335,9 @@ Model selection is therefore driven by VitaminC while the slope is fitted on SIC
 
 \paragraph{The sign costs correlation.}
 On both human-rated quantities the composition correlates worse than the magnitude alone: $0.795$ against $0.852$ on SICK relatedness, and $0.637$ against $0.697$ on preservation ratings.
-This is what should happen, since neither rating scale is signed and a correct negative score can only move a pair away from a non-negative target, but it means no existing human judgement can establish that the signed scale is the better metric.
-Only a signed annotation could, which is the first limitation above.
+This is what should happen, since neither rating scale is signed and a correct negative score can only move a pair away from a non-negative target.
+Correlation with a non-negative rating is therefore the wrong instrument here, and \autoref{tab:decision} measures the benefit where it exists instead.
+What no existing human judgement can settle is whether the \emph{magnitude} of a negative score is right, which a signed annotation would.
 
 \paragraph{The sign rests on one head.}
 Because the composition is a product with $m \geq 0$, the sign of the score is decided entirely by $p_{\mathrm{contra}}$.

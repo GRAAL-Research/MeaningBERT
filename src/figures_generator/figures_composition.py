@@ -219,6 +219,80 @@ def composition_table(curve: dict, path: str) -> None:
         handle.write("\n".join(lines) + "\n")
 
 
+def decision_point(pairs: dict, thresholds=(25, 50, 70)) -> list[dict]:
+    """What a system accepts as preserved meaning, under each scale, at the same cut.
+
+    The article's claim until now was that the signed scale expresses a distinction the
+    magnitude cannot, which is a statement about expressiveness and not about being a
+    better metric. This is the measurement that makes it one: at a fixed acceptance
+    threshold, how many of the pairs waved through are in fact contradictions, judged by
+    SICK's own inference labels rather than by our conversion rule.
+
+    The entailment column is the control. A scale that simply shifts everything downwards
+    would also accept fewer contradictions, and would pay for it by rejecting entailments.
+    """
+    magnitude = np.array(pairs["magnitude"], dtype=float)
+    signed = np.array(pairs["signed"], dtype=float)
+    truth = np.array(pairs["truth"], dtype=int)
+    entailments = (truth == POLARITY_CLASSES["entailment"]).sum()
+
+    out = []
+    for cut in thresholds:
+        row = {"threshold": cut}
+        for name, score in (("magnitude", magnitude), ("signed", signed)):
+            accepted = score > cut
+            row[name] = {
+                "accepted": int(accepted.sum()),
+                "share_contradiction": (
+                    float((truth[accepted] == POLARITY_CLASSES["contradiction"]).mean())
+                    if accepted.any()
+                    else float("nan")
+                ),
+                "entailment_recall": (
+                    float((accepted & (truth == POLARITY_CLASSES["entailment"])).sum() / entailments)
+                    if entailments
+                    else float("nan")
+                ),
+            }
+        out.append(row)
+    return out
+
+
+def decision_table(pairs: dict, path: str) -> None:
+    """The decision-point comparison as a table."""
+    rows = decision_point(pairs)
+    lines = [
+        r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
+        r"\begin{table}[t]",
+        r"\centering\small",
+        r"\begin{tabular}{l cc cc}",
+        r"\toprule",
+        r" & \multicolumn{2}{c}{Magnitude alone} & \multicolumn{2}{c}{Signed scale} \\",
+        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
+        r"Cut & Contra. & Entail. & Contra. & Entail. \\",
+        r"\midrule",
+    ]
+    for row in rows:
+        cells = []
+        for name in ("magnitude", "signed"):
+            got = row[name]
+            cells += [f"{100 * got['share_contradiction']:.2f}", f"{100 * got['entailment_recall']:.2f}"]
+        best = r"\textbf{" + cells[2] + "}"
+        lines.append(f"$s > {row['threshold']}$ & " + " & ".join([cells[0], cells[1], best, cells[3]]) + r" \\")
+    lines += [
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\caption{What each scale accepts as preserved meaning on the SICK test half, in "
+        r"percent. Contra.: share of accepted pairs that are contradictions, the error the "
+        r"paper is about. Entail.: share of entailments still accepted, the control against "
+        r"a scale that merely shifts everything down.}",
+        r"\label{tab:decision}",
+        r"\end{table}",
+    ]
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
 @click.command()
 @click.option("--pairs", required=True, help="Per-pair dump for the fine-tuned head.")
 @click.option("--curve", "curve_path", default=None, help="Composition curve of the fine-tuned head.")
@@ -232,6 +306,9 @@ def main(pairs: str, curve_path: Optional[str], zero_shot: Optional[str], tex_ou
 
     distribution_figure(tuned, os.path.join(tex_out, "figure_distribution.tex"))
     click.echo(f"distribution : {tex_out}/figure_distribution.tex")
+
+    decision_table(tuned, os.path.join(tex_out, "table_decision.tex"))
+    click.echo(f"point de decision : {tex_out}/table_decision.tex")
 
     if curve_path:
         with open(curve_path, encoding="utf-8") as handle:
