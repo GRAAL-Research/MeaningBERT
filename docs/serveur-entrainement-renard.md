@@ -121,3 +121,38 @@ Les resultats vivent sur trois machines. Pour les rassembler et les analyser :
 ```
 bash src/training/collect_results.sh
 ```
+
+### Trois recettes qui trainaient a la racine
+
+Elles vivaient dans `check_nvrtc.txt`, `update_cuda.txt` et `launch_sweeps.txt`, trois
+fichiers sans extension de code ni place dans l'arborescence. Le contenu valait d'etre
+garde, pas les fichiers.
+
+**Pilote CUDA.** Mettre a jour le pilote et redemarrer :
+
+```
+sudo apt update
+sudo apt upgrade nvidia-driver nvidia-driver-cuda nvidia-driver-libs
+sudo reboot
+```
+
+**`libnvrtc-builtins` introuvable.** PyTorch cherche la bibliotheque sous le numero de
+version de CUDA avec lequel il a ete compile, qui n'est pas forcement celui installe. Le
+lien symbolique coute moins cher qu'une reinstallation :
+
+```
+find / -name "libnvrtc-builtins.so*" 2>/dev/null
+python -c "import torch; print(torch.version.cuda)"
+ln -s /usr/local/cuda-13.0/targets/x86_64-linux/lib/libnvrtc-builtins.so.13.0 \
+  $(python -c "import torch; print(torch.__file__.rsplit('/',1)[0])")/libnvrtc-builtins.so.13.0
+```
+
+**Balayages v2.** Les trois scripts `src/training/sweep_gpu{0,1,2}.sh` se lancent detaches,
+un par carte :
+
+```
+for gpu in 0 1 2; do
+  nohup bash src/training/sweep_gpu$gpu.sh > sweep_gpu$gpu.log 2>&1 &
+done
+tail -f sweep_gpu*.log
+```

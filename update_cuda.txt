@@ -1,3 +1,0 @@
-sudo apt update
-sudo apt upgrade nvidia-driver nvidia-driver-cuda nvidia-driver-libs
-sudo reboot
