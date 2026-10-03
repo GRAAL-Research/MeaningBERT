@@ -402,8 +402,11 @@ def figure(cells, path: str) -> None:
         xmin, xmax = axis_range(cells, order, metric)
         body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
         for condition, style, offset in (("none", "raw", -0.19), ("full", "aug", 0.19)):
+            # Les options de barres d'erreur vivent dans \addplot et non dans un
+            # plot [...] : la seconde forme depend de la version de pgfplots et casse
+            # ailleurs que sur la machine ou la figure a ete ecrite.
             body.append(
-                f"\\addplot+[{style}] plot [error bars/.cd, x dir=both, x explicit] "
+                f"\\addplot+[{style}, error bars/.cd, x dir=both, x explicit] "
                 f"coordinates {{{series(metric, condition, offset)}}};"
             )
         panels.append("\n".join(body))
@@ -447,12 +450,11 @@ def figure(cells, path: str) -> None:
         panels[1],
         r"\end{groupplot}",
         r"\end{tikzpicture}",
-        r"\caption{Augmentation moves one axis and not the other. Blue circles are the "
-        r"\textsc{raw} condition, without augmentation; orange squares the \textsc{aug} "
-        r"condition, with it. Points are means over ten seeds and bars one standard deviation. "
-        r"On the task axis the two conditions overlap for every encoder; on the sanity axis they "
-        r"converge to one value from seven different starting points. Note the two panels do not "
-        r"share an $x$ range.}",
+        r"\caption{Augmentation moves one axis and not the other. "
+        r"\textcolor{condraw}{\textbf{Blue circles}} are \textsc{raw}, without augmentation; "
+        r"\textcolor{condaug}{\textbf{orange squares}} are \textsc{aug}, with it. Points are "
+        r"means over ten seeds, bars one standard deviation. The two panels do not share an "
+        r"$x$ range.}",
         r"\label{fig:augmentation}",
         r"\end{figure*}",
     ]
