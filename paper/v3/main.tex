@@ -16,13 +16,24 @@ Metrics for meaning preservation report how much meaning two sentences share, on
 \section{Introduction}
 \label{sec:intro}
 
-Assessing whether a rewritten sentence preserves the meaning of its source is a prerequisite for evaluating text simplification, summarisation and translation \citep{saggion2017automatic}. The metrics built for it, whether embedding-based \citep{zhang2020bertscore,reimers2019sbert}, question-based \citep{scialom2021questeval} or trained end to end \citep{maddela2023lens,beauchemin2023meaningbert}, all return a single non-negative number. A score of 0 means the sentences have nothing in common and a score of 100 means the meaning is intact.
+Assessing whether a rewritten sentence preserves the meaning of its source is a prerequisite for evaluating text simplification, summarisation and translation \citep{saggion2017automatic}.
+The metrics built for it, whether embedding-based \citep{zhang2020bertscore,reimers2019sbert}, question-based \citep{scialom2021questeval} or trained end to end \citep{maddela2023lens,beauchemin2023meaningbert}, all return a single non-negative number.
+A score of 0 means the sentences have nothing in common and a score of 100 means the meaning is intact.
 
-That output shape has a consequence that is easy to state and hard to see in aggregate correlations. The scale has no room for opposition. Two sentences that contradict each other are, by construction, about the same thing, so they share most of their lexical material and most of their subject matter; a magnitude metric reads that overlap and reports a middling-to-high score. Measured rather than supposed: a released model scores ``I drink milk'' against ``I do not drink milk'' at $58.3$, and the SICK contradiction ``two dogs are wrestling and hugging'' against ``there is no dog wrestling and hugging'' at $51.7$. Both sit on the positive half of a scale on which the positive half is the half that means the meaning survived. \citet{baral2026lexflip} quantified the effect on legal text: across minimal perturbations that reverse legal force while preserving most tokens, embedding metrics and BERTScore move over a small fraction of their range, while bidirectional inference models move substantially. The metrics are not merely imprecise on these pairs; they are confidently wrong in the direction that matters.
+That output shape has a consequence that is easy to state and hard to see in aggregate correlations.
+The scale has no room for opposition.
+Two sentences that contradict each other are, by construction, about the same thing, so they share most of their lexical material and most of their subject matter; a magnitude metric reads that overlap and reports a middling-to-high score.
+Measured rather than supposed: a released model scores ``I drink milk'' against ``I do not drink milk'' at $58.3$, and the SICK contradiction ``two dogs are wrestling and hugging'' against ``there is no dog wrestling and hugging'' at $51.7$.
+Both sit on the positive half of a scale on which the positive half is the half that means the meaning survived.
+\citet{baral2026lexflip} quantified the effect on legal text: across minimal perturbations that reverse legal force while preserving most tokens, embedding metrics and BERTScore move over a small fraction of their range, while bidirectional inference models move substantially.
+The metrics are not merely imprecise on these pairs; they are confidently wrong in the direction that matters.
 
-We begin by measuring the failure on the metric we build on. The published MeaningBERT model, evaluated on a held-out set of 12\,000 class-balanced pairs, ranks agreement above contradiction with an AUC of $0.608$, and on SICK \citep{marelli2014sick} alone it reaches $0.480$ with an amplitude that is negative: it scores contradictions marginally higher than agreements. A metric in production today tells its users that a negated sentence preserves the meaning of its source.
+We begin by measuring the failure on the metric we build on.
+The published MeaningBERT model, evaluated on a held-out set of 12\,000 class-balanced pairs, ranks agreement above contradiction with an AUC of $0.608$, and on SICK \citep{marelli2014sick} alone it reaches $0.480$ with an amplitude that is negative: it scores contradictions marginally higher than agreements.
+A metric in production today tells its users that a negated sentence preserves the meaning of its source.
 
-This paper proposes to make the scale signed, $[-100, 100]$, where $-100$ denotes opposed meaning and $0$ denotes no relation. Our contributions are:
+This paper proposes to make the scale signed, $[-100, 100]$, where $-100$ denotes opposed meaning and $0$ denotes no relation.
+Our contributions are:
 
 \begin{enumerate}\itemsep1pt
 \item \textbf{A signed scale obtained by composition, not by direct supervision} (\autoref{sec:scale}). We found no corpus carrying human-annotated signed scores, so fitting one would train a model on our own conversion rule. We instead compose two heads whose targets both have abundant human labels, and calibrate the composition on the single corpus that annotates both dimensions over the same pairs.
@@ -44,7 +55,9 @@ This paper proposes to make the scale signed, $[-100, 100]$, where $-100$ denote
 
 \paragraph{What the number means.} We define the score so that $+100$ is identical meaning, $0$ is no relation, and $-100$ is opposed meaning. The decisive property is that the negative half measures active contradiction, not the absence of shared meaning. Two sentences about different topics score $0$, not $-100$: to contradict each other, two sentences must first be about the same thing.
 
-It follows that the score carries two pieces of information. The magnitude asks what the sentences talk about together, and is exactly the quantity existing metrics estimate. The polarity asks, once the subject is shared, whether they assert the same thing or its negation.
+It follows that the score carries two pieces of information.
+The magnitude asks what the sentences talk about together, and is exactly the quantity existing metrics estimate.
+The polarity asks, once the subject is shared, whether they assert the same thing or its negation.
 
 \paragraph{Alternatives.} Two other designs were considered. Typed penalties in the style of MQM, subtracting a cost per error category from a perfect score, give an interpretable and natively negative output, but they require an error taxonomy annotated over the same pairs and they change the target rather than extend it. Learning the signed scale end to end is discussed next and rejected for a reason that applies to any such target.
 
@@ -55,7 +68,9 @@ It follows that the score carries two pieces of information. The magnitude asks 
 s = \mathrm{clip}_{[-100,100]}\!\left(m \times (1 - \alpha\, p_{\mathrm{contra}})\right),
 \label{eq:compose}
 \end{equation}
-with magnitude $m \in [0,100]$ and $p_{\mathrm{contra}} \in [0,1]$ from the polarity head. A product, not a difference: an unrelated pair has $m \approx 0$ and therefore scores near zero whatever its polarity, whereas a subtraction would let it drift negative and destroy the distinction the scale rests on. \autoref{tab:scale} works three cases.
+with magnitude $m \in [0,100]$ and $p_{\mathrm{contra}} \in [0,1]$ from the polarity head.
+A product, not a difference: an unrelated pair has $m \approx 0$ and therefore scores near zero whatever its polarity, whereas a subtraction would let it drift negative and destroy the distinction the scale rests on.
+\autoref{tab:scale} works three cases.
 
 \begin{table}[t]
 \centering\small
@@ -96,7 +111,8 @@ NaN-NLI & 258 & \textsc{nli3} & probe \\
 \label{tab:corpora}
 \end{table}
 
-We considered and rejected PAWS. Its binary paraphrase label is not a polarity judgement: two sentences that are not paraphrases need not contradict each other, and mapping not a paraphrase onto contradiction would teach the head that difference amounts to opposition, which is the failure the work exists to remove.
+We considered and rejected PAWS.
+Its binary paraphrase label is not a polarity judgement: two sentences that are not paraphrases need not contradict each other, and mapping not a paraphrase onto contradiction would teach the head that difference amounts to opposition, which is the failure the work exists to remove.
 
 \paragraph{Derived-polarity augmentation.} Our second corpus condition adds generated pairs. Every added row has its polarity derived, never copied, which matters because polarity is not symmetric the way magnitude is. If $A$ contradicts $B$ then $B$ contradicts $A$, so a mirrored contradiction remains one; but ``a dog is running'' entails ``an animal is running'' and the converse is false, so a mirrored entailment loses its label rather than carrying a wrong one. We add three families in equal quotas of 25\,000: mirrored contradictions, identical pairs labelled entailment, and low-overlap random pairs labelled neutral. The last is the one the signed scale depends on, since it is what teaches that unrelated is not opposed. Equal quotas are necessary: mirroring alone would take the contradiction class from 50\,641 to 101\,282 against 51\,274 entailments and teach the head to over-predict the one class whose sign inverts the score.
 
@@ -105,13 +121,17 @@ We considered and rejected PAWS. Its binary paraphrase label is not a polarity j
 \section{Experimental Setup}
 \label{sec:setup}
 
-We train a three-way classification head on seven encoders $\times$ ten seeds (42--51) $\times$ two corpus conditions, for 140 runs. The conditions are \textsc{raw} (152\,060 training rows) and \textsc{aug} (227\,060). Encoders span three families and two sizes, and include both plain and inference-pretrained variants of the same architecture so the effect of inference pretraining is measured at constant size.
+We train a three-way classification head on seven encoders $\times$ ten seeds (42--51) $\times$ two corpus conditions, for 140 runs.
+The conditions are \textsc{raw} (152\,060 training rows) and \textsc{aug} (227\,060).
+Encoders span three families and two sizes, and include both plain and inference-pretrained variants of the same architecture so the effect of inference pretraining is measured at constant size.
 
-Checkpoints already fine-tuned for three-way inference keep their head when its class order matches ours, which is free and on-task supervision; where the published order is reversed we permute the classifier rows rather than silently training from a permuted head. All runs use two epochs, learning rate $10^{-5}$, effective batch 32 and a maximum length of 256 tokens, on fp32 Pascal hardware.
+Checkpoints already fine-tuned for three-way inference keep their head when its class order matches ours, which is free and on-task supervision; where the published order is reversed we permute the classifier rows rather than silently training from a permuted head.
+All runs use two epochs, learning rate $10^{-5}$, effective batch 32 and a maximum length of 256 tokens, on fp32 Pascal hardware.
 
 \paragraph{Compute.} The grid is 140 training runs, roughly 500 GPU-hours in fp32 on two Pascal cards (GTX 1080 Ti, Quadro P5000) and one Titan Xp. A base-encoder run takes 68 minutes on the \textsc{raw} condition and 109 on \textsc{aug}; a large-encoder run takes 318 and 489. The composition in \autoref{sec:composition} trains nothing and fits one parameter: it is two forward passes over 4\,116 pairs and runs on CPU in under half an hour. We report this because the asymmetry is the practical argument for composition over end-to-end training of a signed target.
 
-We report macro-F\textsubscript{1} on the stratified test split, accuracy on three generated sanity suites built from test-split sentences (identical, unrelated, mirrored), and accuracy on the two held-out probes. Significance uses Welch's $t$-test \citep{welch1947} between conditions and a paired test by seed between architectures, with Cohen's $d$ beside every $p$-value: with ten seeds and standard deviations near $0.002$, a difference of $0.001$ reaches significance while meaning nothing.
+We report macro-F\textsubscript{1} on the stratified test split, accuracy on three generated sanity suites built from test-split sentences (identical, unrelated, mirrored), and accuracy on the two held-out probes.
+Significance uses Welch's $t$-test \citep{welch1947} between conditions and a paired test by seed between architectures, with Cohen's $d$ beside every $p$-value: with ten seeds and standard deviations near $0.002$, a difference of $0.001$ reaches significance while meaning nothing.
 
 \input{table_main}
 
@@ -126,9 +146,13 @@ We report macro-F\textsubscript{1} on the stratified test split, accuracy on thr
 
 \paragraph{Augmentation buys sanity, not performance.} On the four DeBERTa encoders the macro-F\textsubscript{1} difference between conditions lies between $-0.002$ and $+0.001$ and is not significant ($p$ from $0.17$ to $0.74$); on the other three it is significant but under one hundredth. The sanity suites move in a different regime entirely (\autoref{tab:stats}, \autoref{fig:augmentation}): $+0.084$ to $+0.200$, $p < 10^{-4}$ on all seven encoders, with $d$ from $9.9$ to $81.1$. The effect sizes are what settle the matter. On RoBERTa-base\textsubscript{STS-B}, $d = 81$ places the shift two orders of magnitude above the seed-to-seed noise, whereas the largest task effect anywhere in the grid is $d = 2.2$ for a difference of $0.007$. Every encoder converges to $0.983$--$0.988$ regardless of where it started, and the clearest cases are the weakest models: RoBERTa-base\textsubscript{STS-B} moves from $0.787$ to $0.987$ and BERT-base from $0.794$ to $0.983$.
 
-This is the behaviour the augmentation was built for. It does not make the head better at the task; it repairs how the head behaves at the ends of the scale, which is where a signed metric is read and where the unrelated-as-opposed failure lives.
+This is the behaviour the augmentation was built for.
+It does not make the head better at the task; it repairs how the head behaves at the ends of the scale, which is where a signed metric is read and where the unrelated-as-opposed failure lives.
 
-One caveat belongs here rather than in a footnote. The sanity suites are built by the same three generators that produce the augmented training rows, over different sentences but by the same construction. An \textsc{aug} model is therefore evaluated partly on a distribution it has seen the shape of, and the gain in \autoref{tab:suites} is not a claim of generalisation to arbitrary degenerate pairs. What the comparison does establish is that the behaviour at the ends of the scale is learnable at all and is not acquired incidentally: seven encoders trained without these rows converge nowhere near $0.98$, and the two that start lowest are the two that end up moving most.
+One caveat belongs here rather than in a footnote.
+The sanity suites are built by the same three generators that produce the augmented training rows, over different sentences but by the same construction.
+An \textsc{aug} model is therefore evaluated partly on a distribution it has seen the shape of, and the gain in \autoref{tab:suites} is not a claim of generalisation to arbitrary degenerate pairs.
+What the comparison does establish is that the behaviour at the ends of the scale is learnable at all and is not acquired incidentally: seven encoders trained without these rows converge nowhere near $0.98$, and the two that start lowest are the two that end up moving most.
 
 \paragraph{Which suite moves.} The aggregate hides where the gain comes from, so \autoref{tab:suites} separates the three families. Identical pairs are essentially solved before augmentation, which is the result one should expect from a trivial case. The gain is concentrated on the other two. Unrelated pairs rise from $0.92$--$0.96$ to $0.997$: before augmentation, between four and eight percent of sentence pairs with nothing in common are read as contradictory, which on the signed scale means returning a negative score where the truth is zero. Mirrored contradictions rise from $0.74$ to $0.96$, and on BERT-base from $0.50$, meaning that the symmetry of contradiction is not something these encoders hold on their own.
 
@@ -175,16 +199,29 @@ DeBERTa-v3-base\textsubscript{MNLI} & -- & 0.960 \\
 \label{tab:cross}
 \end{table}
 
-Two rows at the bottom answer the question this invites. An off-the-shelf inference model, used as published with no training of ours, ranks entailment above contradiction on our test split at an AUC of $0.966$, well above every magnitude model. Its three-way accuracy is another matter: $0.684$ macro-F\textsubscript{1} against $0.911$ for the same encoder fine-tuned on our corpus. The distinction is worth stating plainly, because it bounds what this paper contributes. For the ranking question alone, which is all the composition consumes through $p_{\mathrm{contra}}$, a released inference model is already strong and fine-tuning adds little; the $+0.227$ macro-F\textsubscript{1} that fine-tuning buys is calibration of three classes onto this domain, not the discovery of the relation. A practitioner who wants only the sign, and is willing to fit $\alpha$ against a miscalibrated probability, may not need to train anything at all.
+Two rows at the bottom answer the question this invites.
+An off-the-shelf inference model, used as published with no training of ours, ranks entailment above contradiction on our test split at an AUC of $0.966$, well above every magnitude model.
+Its three-way accuracy is another matter: $0.684$ macro-F\textsubscript{1} against $0.911$ for the same encoder fine-tuned on our corpus.
+The distinction is worth stating plainly, because it bounds what this paper contributes.
+For the ranking question alone, which is all the composition consumes through $p_{\mathrm{contra}}$, a released inference model is already strong and fine-tuning adds little; the $+0.227$ macro-F\textsubscript{1} that fine-tuning buys is calibration of three classes onto this domain, not the discovery of the relation.
+A practitioner who wants only the sign, and is willing to fit $\alpha$ against a miscalibrated probability, may not need to train anything at all.
 
-The exception among the magnitude models is instructive. DeBERTa-v3-large reaches $0.815$ without ever seeing a polarity label, and the BERT-base model trained on the same corpus with the same recipe reaches $0.537$. The separation therefore comes from the encoder's pretraining, not from the preservation data. Nothing in a magnitude metric's training signal distinguishes a contradiction from a failed paraphrase, since both receive the same low human rating, so no quantity of meaning-preservation data can produce polarity. That is the argument for a second head rather than a better-trained first one.
+The exception among the magnitude models is instructive.
+DeBERTa-v3-large reaches $0.815$ without ever seeing a polarity label, and the BERT-base model trained on the same corpus with the same recipe reaches $0.537$.
+The separation therefore comes from the encoder's pretraining, not from the preservation data.
+Nothing in a magnitude metric's training signal distinguishes a contradiction from a failed paraphrase, since both receive the same low human rating, so no quantity of meaning-preservation data can produce polarity.
+That is the argument for a second head rather than a better-trained first one.
 
 \section{Composing the Two Heads}
 \label{sec:composition}
 
-We fit $\alpha$ on the SICK half of the development split and report on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions. Fitting on test and reporting on test would be tuning on the test set, even for one parameter over a coarse grid. The components are a released magnitude model and our best polarity head, DeBERTa-v3-large\textsubscript{NLI}.
+We fit $\alpha$ on the SICK half of the development split and report on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions.
+Fitting on test and reporting on test would be tuning on the test set, even for one parameter over a coarse grid.
+The components are a released magnitude model and our best polarity head, DeBERTa-v3-large\textsubscript{NLI}.
 
-Because no signed gold score exists, we select $\alpha$ against three requirements multiplied together, so that sacrificing one cannot hide behind the others: contradictions must fall below zero, entailments must stay above it, and on the pairs whose sign does not flip the score must still track human relatedness. A composition that sends every contradiction to $-100$ and everything else to noise would satisfy the first two and is excluded by the third. The development split selects $\alpha = 2$, the same value the reachability constraint of \autoref{sec:scale} forces, so the two arguments agree rather than compete.
+Because no signed gold score exists, we select $\alpha$ against three requirements multiplied together, so that sacrificing one cannot hide behind the others: contradictions must fall below zero, entailments must stay above it, and on the pairs whose sign does not flip the score must still track human relatedness.
+A composition that sends every contradiction to $-100$ and everything else to noise would satisfy the first two and is excluded by the third.
+The development split selects $\alpha = 2$, the same value the reachability constraint of \autoref{sec:scale} forces, so the two arguments agree rather than compete.
 
 \begin{table}[t]
 \centering\small\setlength{\tabcolsep}{3.5pt}
@@ -209,6 +246,8 @@ magnitude only & 0.000 & 1.000 & 0.852 & $0$ \\
 
 \section{Limitations}
 
+While we believe the signed scale is a useful contribution to the evaluation of meaning preservation, we acknowledge five limitations that bound our claims and offer avenues for future research.
+
 \paragraph{Augmentation costs monotonicity.} The gain in sanity is paid for on MoNLI, which drops on six of seven encoders, by $-0.068$ on DeBERTa-v3-large and $-0.037$ on its inference-pretrained variant. Generated identical and unrelated pairs teach the easy ends of the scale, not the reversal of entailment under negation. We report the trade rather than resolve it.
 
 \paragraph{No signed gold standard.} The composition is calibrated against three necessary conditions, not against human signed judgements, because none exist. A corpus of human-rated signed pairs would let the form of \autoref{eq:compose} be tested rather than argued, and we regard collecting one as the natural next step.
@@ -219,13 +258,32 @@ magnitude only & 0.000 & 1.000 & 0.852 & $0$ \\
 
 \paragraph{Scope.} All experiments are English, sentence-level, and run in fp32 on Pascal GPUs; we did not evaluate encoders requiring more recent hardware. Two of the seven encoders wedge one of our cards reproducibly, which we worked around by hardware gating rather than diagnosed.
 
-\section{Conclusion}
+\section{Conclusion and Future Works}
 
-A meaning-preservation metric that cannot distinguish a paraphrase from a negation is not imprecise, it is confidently wrong on the pairs where precision matters, and we show that the metric deployed today has exactly this property. Making the scale signed does not require a better magnitude model; it requires a second head and an explicit rule for combining them. The combination is cheap, since it trains nothing beyond a three-way classifier and fits one parameter, and it moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none. What it does not yet have is a human-annotated signed target against which the combining rule itself could be tested.
+A meaning-preservation metric that cannot distinguish a paraphrase from a negation is not imprecise, it is confidently wrong on the pairs where precision matters, and we show that the metric deployed today has exactly this property.
+Making the scale signed does not require a better magnitude model; it requires a second head and an explicit rule for combining them.
+The combination is cheap, since it trains nothing beyond a three-way classifier and fits one parameter, and it moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none.
+What it does not yet have is a human-annotated signed target against which the combining rule itself could be tested.
+
+\section*{Ethical Considerations}
+A meaning-preservation metric is deployed to decide whether a rewritten sentence may be shown to a reader in place of the original.
+When such a metric reports that a negated sentence preserves the meaning of its source, as we measure released models doing, the error reaches the reader rather than the engineer.
+The risk is concrete in the settings where simplification is most useful, where a layperson may rely on the rewritten text without access to the original \citep{beauchemin2023meaningbert}.
+A signed scale does not remove that risk, but it makes the failure visible to the system that consumes the score instead of hiding it inside a positive number.
+Our corpora inherit the biases of the Wikipedia revisions and the caption corpora they are drawn from, and a polarity head trained on them will carry those biases into whatever it gates \citep{bender2021dangers}.
 
 \section*{Availability}
+The corpus builder, the loaders, the training and composition code, the 140 result files and the script that generates every table and figure in this paper will be released under an open licence on acceptance.
+The merged corpus inherits the most restrictive licence among its sources and will be redistributed under CC BY-NC-SA 4.0.
+The loaders are released separately so the corpus can be rebuilt from the original sources.
 
-The corpus builder, the loaders, the training and composition code, the 140 result files and the script that generates every table and figure in this paper will be released under an open licence on acceptance. The merged corpus inherits the most restrictive licence among its sources and will be redistributed under CC BY-NC-SA 4.0; the loaders are released separately so the corpus can be rebuilt from the original sources.
+\section*{Use of Large Language Models}
+This work utilized Large Language Models to assist with the linguistic refinement, typographical errors, and LaTeX formatting of the manuscript (table generation, figure improvements).
+The authors retained full control over the scientific content, data analysis, and conclusions.
+
+\section*{Acknowledgements}
+This research was made possible thanks to the support of NSERC and FRQNT research grants.
+We thank the reviewers for their comments regarding our work.
 
 \bibliography{refs}
 
