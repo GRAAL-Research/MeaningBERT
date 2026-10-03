@@ -47,3 +47,16 @@ results/figures/
 results/tables/
 results/*.html
 archives/
+
+# Auxiliaires LaTeX : regeneres a chaque compilation, jamais a versionner.
+# Les journaux d'experimentation sous results/ et wandb/ n'en sont PAS : ce sont
+# des traces de runs et ils restent suivis.
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+paper/**/main.log
