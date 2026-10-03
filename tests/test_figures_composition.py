@@ -85,25 +85,29 @@ def pairs_fixture() -> dict:
 
 
 class TestFigureOutput:
-    def test_the_distribution_names_every_class_with_its_count(self, tmp_path):
+    def test_the_classes_are_named_in_the_caption_and_not_in_the_panel(self, tmp_path):
+        """Three legend entries took a quarter of the panel and covered the left peak."""
         path = tmp_path / "d.tex"
 
         distribution_figure(pairs_fixture(), str(path))
         body = path.read_text(encoding="utf-8")
 
-        assert "entailment ($n = 3$)" in body
-        assert "contradiction ($n = 2$)" in body
-        assert r"\addlegendentry" in body and ";" not in body.split(r"\addlegendentry")[1][:40]
+        assert r"\addlegendentry" not in body and "legend style" not in body
+        caption = body.split(r"\caption{")[1]
+        assert r"\textcolor{centailment}{\textbf{entailment}} ($n = 3$)" in caption
+        assert r"\textcolor{ccontradiction}{\textbf{contradiction}} ($n = 2$)" in caption
 
-    def test_the_reliability_diagonal_takes_no_legend_slot(self, tmp_path):
-        """Giving it one shifted both curves and labelled each with the other's name."""
+    def test_the_reliability_curves_are_named_in_the_caption_in_their_own_colour(self, tmp_path):
+        """Colour is the only thing telling the two curves apart, so it must travel with the name."""
         path = tmp_path / "r.tex"
 
         reliability_figure(pairs_fixture(), pairs_fixture(), str(path))
         body = path.read_text(encoding="utf-8")
 
+        assert r"\addlegendentry" not in body and "legend style" not in body
         assert "forget plot" in body
-        assert body.count(r"\addlegendentry") == 2
+        assert r"\textcolor{reltuned}{\textbf{fine-tuned head}}" in body
+        assert r"\textcolor{relshelf}{\textbf{off-the-shelf head}}" in body
 
     def test_the_composition_table_bolds_the_slope_that_was_fitted(self, tmp_path):
         path = tmp_path / "t.tex"

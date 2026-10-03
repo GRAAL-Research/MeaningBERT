@@ -159,7 +159,7 @@ def as_percent(values: list[float]) -> str:
     if not values:
         return "--"
     mean, sd = mean_sd(values)
-    return f"{100 * mean:.1f}\\,$\\pm$\\,{100 * sd:.2f}"
+    return f"{100 * mean:.2f}\\,$\\pm$\\,{100 * sd:.2f}"
 
 
 def main_table(cells) -> str:
@@ -199,10 +199,8 @@ def main_table(cells) -> str:
         r"\bottomrule",
         r"\end{tabular}",
         r"\caption{Polarity head, mean and standard deviation over ten seeds, in percent. "
-        r"\textsc{raw} trains on the merged corpus, \textsc{aug} adds the derived-polarity "
-        r"augmentation. Sanity is accuracy on the three generated suites; NaN-NLI and MoNLI "
-        r"are held-out probes the models never train on. \textbf{Bold} marks the best value "
-        r"in each column, higher being better everywhere.}",
+        r"\textsc{aug} adds the derived-polarity augmentation to \textsc{raw}. NaN-NLI and "
+        r"MoNLI are held-out sets. \textbf{Bold}: best per column.}",
         r"\label{tab:main}",
         r"\end{table*}",
     ]
@@ -232,60 +230,10 @@ def suites_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{The three generated suites separately, mean and standard deviation over ten "
-        r"seeds, in percent. Identical pairs must be entailment, unrelated pairs neutral, mirrored "
-        r"contradictions still contradiction. The unrelated column is the one the signed scale "
-        r"depends on, since it is where a pair with nothing in common is read as opposed.}",
+        r"\caption{The three generated suites separately, ten seeds, in percent. Identical "
+        r"pairs must be entailment, unrelated pairs neutral, mirrored pairs contradiction.}",
         r"\label{tab:suites}",
         r"\end{table*}",
-    ]
-    return "\n".join(lines)
-
-
-def baselines_table(cells, path: str) -> Optional[str]:
-    """What the fine-tuned head is worth against things that are not it.
-
-    Read from the file ``baselines_polarity.py`` writes, so the table cannot drift from
-    the run that produced it, and silently absent when that file is: a missing baseline
-    should cost the paper a table, not a wrong one.
-    """
-    if not os.path.exists(path):
-        return None
-    with open(path, encoding="utf-8") as handle:
-        got = json.load(handle)
-    best = max((st.mean(v["macro_f1"]) for v in cells.values() if v.get("macro_f1")), default=None)
-
-    def line(label: str, record: dict, auc: Optional[float]) -> str:
-        shown = f"{100 * auc:.1f}" if auc is not None and not math.isnan(auc) else "--"
-        return f"{label} & {100 * record['macro_f1']:.1f} & {shown} " + r"\\"
-
-    lines = [
-        r"\begin{table}[t]",
-        r"\centering\small",
-        r"\begin{tabular}{l cc}",
-        r"\toprule",
-        r"Model & macro-F\textsubscript{1} & AUC \\",
-        r"\midrule",
-        line("Majority class", got["majority"], None),
-        line("Token overlap", got["overlap"], got["overlap"]["auc_entailment_vs_contradiction"]),
-        line(
-            "TF-IDF, logistic regression", got["tfidf_logreg"], got["tfidf_logreg"]["auc_entailment_vs_contradiction"]
-        ),
-        r"\addlinespace",
-    ]
-    if best is not None:
-        lines.append(r"Best fine-tuned head & " + f"\\textbf{{{100 * best:.1f}}}" + r" & -- \\")
-    lines += [
-        r"\bottomrule",
-        r"\end{tabular}",
-        r"\caption{Baselines on the same test split, in percent. The majority class is the "
-        r"arithmetic floor of a split balanced at 4\,000 per class, where it also scores "
-        r"33.3 accuracy. Token overlap is Jaccard "
-        r"over the two token sets, cut by two thresholds fitted on development data. AUC ranks "
-        r"entailment above contradiction and leaves neutral pairs out. \textbf{Bold} marks the "
-        r"best macro-F\textsubscript{1}, which is the fine-tuned head of \autoref{tab:main}.}",
-        r"\label{tab:baselines}",
-        r"\end{table}",
     ]
     return "\n".join(lines)
 
@@ -317,16 +265,14 @@ def stats_table(cells) -> str:
             f"{label} & {100 * task['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['macro_f1'], raw['macro_f1']):.2f}{mark}"
             f" & {task['d']:+.2f} "
             f"& {100 * sanity['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['sanity'], raw['sanity']):.2f}"
-            f" & {sanity['d']:+.1f} " + r"\\"
+            f" & {sanity['d']:+.2f} " + r"\\"
         )
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Effect of augmentation in percentage points, \textsc{aug} minus \textsc{raw}, "
-        r"with the standard error of the difference and Cohen's $d$, from Welch's $t$-test over ten "
-        r"seeds. $\dagger$ marks a difference that is not significant at $p<0.05$. Every sanity "
-        r"difference has $p<10^{-4}$. The two axes are reported together on purpose: the claim is "
-        r"that one moves and the other does not.}",
+        r"\caption{Effect of augmentation in points, \textsc{aug} minus \textsc{raw}, with "
+        r"the standard error of the difference and Cohen's $d$ (Welch, ten seeds). "
+        r"$\dagger$: not significant at $p<0.05$. Every sanity difference has $p<10^{-4}$.}",
         r"\label{tab:stats}",
         r"\end{table*}",
     ]
@@ -398,15 +344,23 @@ def figure(cells, path: str) -> None:
         return " ".join(points)
 
     panels = []
-    for metric, title in (("macro_f1", r"macro-F$_1$ (\%)"), ("sanity", r"Sanity suites (\%)")):
+    for metric, title in (("macro_f1", r"Macro-F$_1$ (\%)"), ("sanity", r"Sanity suites (\%)")):
         xmin, xmax = axis_range(cells, order, metric)
         body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
         for condition, style, offset in (("none", "raw", -0.19), ("full", "aug", 0.19)):
-            # Les options de barres d'erreur vivent dans \addplot et non dans un
-            # plot [...] : la seconde forme depend de la version de pgfplots et casse
-            # ailleurs que sur la machine ou la figure a ete ecrite.
+            # Deux pieges de portabilite, tous deux vus sur Overleaf et non ici.
+            #
+            # Pas de "error bars/.cd" : le .cd deplace le chemin de cles pour TOUT ce qui
+            # suit dans la liste d'options, y compris les cles que "\addplot+" y ajoute
+            # depuis la liste cyclique. Selon la version de pgfplots, mark et color se
+            # retrouvent cherches sous /pgfplots/error bars/, ou ils n'existent pas ; le
+            # chemin avorte et TikZ rend "Giving up on this path" sur la ligne SUIVANTE.
+            # Les chemins de cles sont donc ecrits au long.
+            #
+            # Pas de "+" non plus : le style pose deja la marque et la couleur, donc la
+            # liste cyclique n'a rien a apporter et tout a casser.
             body.append(
-                f"\\addplot+[{style}, error bars/.cd, x dir=both, x explicit] "
+                f"\\addplot[{style}, error bars/x dir=both, error bars/x explicit] "
                 f"coordinates {{{series(metric, condition, offset)}}};"
             )
         panels.append("\n".join(body))
@@ -423,8 +377,10 @@ def figure(cells, path: str) -> None:
         r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
         r"% \addplot a l'interieur d'un groupplot.",
         r"\tikzset{",
-        r"  raw/.style={mark=*, mark size=2.2pt, only marks, color=condraw},",
-        r"  aug/.style={mark=square*, mark size=2.1pt, only marks, color=condaug},",
+        r"  raw/.style={mark=*, mark size=2.2pt, only marks, color=condraw,"
+        r" mark options={draw=condraw, fill=condraw}},",
+        r"  aug/.style={mark=square*, mark size=2.1pt, only marks, color=condaug,"
+        r" mark options={draw=condaug, fill=condaug}},",
         r"}",
         r"\begin{tikzpicture}",
         r"\begin{groupplot}[",
@@ -451,10 +407,9 @@ def figure(cells, path: str) -> None:
         r"\end{groupplot}",
         r"\end{tikzpicture}",
         r"\caption{Augmentation moves one axis and not the other. "
-        r"\textcolor{condraw}{\textbf{Blue circles}} are \textsc{raw}, without augmentation; "
-        r"\textcolor{condaug}{\textbf{orange squares}} are \textsc{aug}, with it. Points are "
-        r"means over ten seeds, bars one standard deviation. The two panels do not share an "
-        r"$x$ range.}",
+        r"\textcolor{condraw}{\textbf{\textsc{raw}}} and "
+        r"\textcolor{condaug}{\textbf{\textsc{aug}}}: means over ten seeds, bars one "
+        r"standard deviation. The panels do not share an $x$ range.}",
         r"\label{fig:augmentation}",
         r"\end{figure*}",
     ]
@@ -526,10 +481,6 @@ def main(results: str, tex_out: Optional[str], json_out: Optional[str]) -> None:
             handle.write(stats_table(cells) + "\n")
         with open(os.path.join(tex_out, "table_suites.tex"), "w", encoding="utf-8") as handle:
             handle.write(suites_table(cells) + "\n")
-        baselines = baselines_table(cells, os.path.join(results, "baselines.json"))
-        if baselines:
-            with open(os.path.join(tex_out, "table_baselines.tex"), "w", encoding="utf-8") as handle:
-                handle.write(baselines + "\n")
         figure(cells, os.path.join(tex_out, "figure_augmentation.tex"))
         click.echo(f"\ntables : {tex_out}")
     if json_out:

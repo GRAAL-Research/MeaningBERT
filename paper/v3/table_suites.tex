@@ -4,16 +4,16 @@
 \toprule
 Encoder & Condition & Identical & Unrelated & Mirrored \\
 \midrule
-\multirow{2}{*}{DeBERTa-v3-large\textsubscript{NLI}} & \textsc{raw} & 100.0\,$\pm$\,0.00 & 95.9\,$\pm$\,0.78 & 75.1\,$\pm$\,1.20 \\
- & \textsc{aug} & 100.0\,$\pm$\,0.00 & 99.7\,$\pm$\,0.07 & 96.5\,$\pm$\,0.13 \\
+\multirow{2}{*}{DeBERTa-v3-large\textsubscript{NLI}} & \textsc{raw} & 100.00\,$\pm$\,0.00 & 95.91\,$\pm$\,0.78 & 75.14\,$\pm$\,1.20 \\
+ & \textsc{aug} & 100.00\,$\pm$\,0.00 & 99.73\,$\pm$\,0.07 & 96.54\,$\pm$\,0.13 \\
 \addlinespace
-\multirow{2}{*}{DeBERTa-v3-large} & \textsc{raw} & 100.0\,$\pm$\,0.00 & 92.7\,$\pm$\,0.60 & 73.9\,$\pm$\,1.46 \\
- & \textsc{aug} & 100.0\,$\pm$\,0.04 & 99.7\,$\pm$\,0.13 & 96.4\,$\pm$\,1.14 \\
+\multirow{2}{*}{DeBERTa-v3-large} & \textsc{raw} & 100.00\,$\pm$\,0.00 & 92.75\,$\pm$\,0.60 & 73.93\,$\pm$\,1.46 \\
+ & \textsc{aug} & 99.99\,$\pm$\,0.04 & 99.71\,$\pm$\,0.13 & 96.41\,$\pm$\,1.14 \\
 \addlinespace
-\multirow{2}{*}{BERT-base} & \textsc{raw} & 96.5\,$\pm$\,0.16 & 92.0\,$\pm$\,0.67 & 49.7\,$\pm$\,1.74 \\
- & \textsc{aug} & 100.0\,$\pm$\,0.00 & 99.3\,$\pm$\,0.09 & 95.6\,$\pm$\,0.29 \\
+\multirow{2}{*}{BERT-base} & \textsc{raw} & 96.46\,$\pm$\,0.16 & 91.99\,$\pm$\,0.67 & 49.68\,$\pm$\,1.74 \\
+ & \textsc{aug} & 100.00\,$\pm$\,0.00 & 99.33\,$\pm$\,0.09 & 95.61\,$\pm$\,0.29 \\
 \bottomrule
 \end{tabular}
-\caption{The three generated suites separately, mean and standard deviation over ten seeds, in percent. Identical pairs must be entailment, unrelated pairs neutral, mirrored contradictions still contradiction. The unrelated column is the one the signed scale depends on, since it is where a pair with nothing in common is read as opposed.}
+\caption{The three generated suites separately, ten seeds, in percent. Identical pairs must be entailment, unrelated pairs neutral, mirrored pairs contradiction.}
 \label{tab:suites}
 \end{table*}

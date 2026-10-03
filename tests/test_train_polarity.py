@@ -221,3 +221,65 @@ def test_a_roberta_head_hides_its_linear_layer_in_out_proj():
 def test_an_unrecognised_head_raises_instead_of_permuting_the_wrong_tensor():
     with pytest.raises(AttributeError, match="no output linear layer"):
         output_layer(_Opaque())
+
+
+class _StubTokenizer:
+    def __init__(self, pad=None, eos="</s>", eos_id=2):
+        self.pad_token = pad
+        self.pad_token_id = None if pad is None else 0
+        self.eos_token = eos
+        self.eos_token_id = eos_id
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        if name == "pad_token" and value is not None and getattr(self, "eos_token", None) == value:
+            super().__setattr__("pad_token_id", self.eos_token_id)
+
+
+class _StubConfig:
+    def __init__(self, pad_token_id=None):
+        self.pad_token_id = pad_token_id
+
+
+class _StubModel:
+    def __init__(self, pad_token_id=None):
+        self.config = _StubConfig(pad_token_id)
+
+
+class TestAlignPadding:
+    """A decoder-only checkpoint has no pad token, and a batched classifier needs one."""
+
+    def test_a_decoder_only_checkpoint_borrows_its_end_of_sequence_token(self):
+        from training.train_polarity import align_padding
+
+        tokenizer, model = _StubTokenizer(pad=None), _StubModel()
+
+        assert align_padding(tokenizer, model) is True
+        assert tokenizer.pad_token == tokenizer.eos_token
+        assert model.config.pad_token_id == tokenizer.eos_token_id
+
+    def test_an_encoder_that_already_pads_is_left_alone(self):
+        """Touching a checkpoint that ships a pad token would change 140 published runs."""
+        from training.train_polarity import align_padding
+
+        tokenizer, model = _StubTokenizer(pad="[PAD]"), _StubModel(pad_token_id=0)
+
+        assert align_padding(tokenizer, model) is False
+        assert tokenizer.pad_token == "[PAD]"
+
+    def test_a_model_whose_config_forgot_the_id_is_repaired(self):
+        """An unset pad_token_id pools over padding as if it were text, and says nothing."""
+        from training.train_polarity import align_padding
+
+        tokenizer, model = _StubTokenizer(pad="[PAD]"), _StubModel(pad_token_id=None)
+
+        assert align_padding(tokenizer, model) is True
+        assert model.config.pad_token_id == 0
+
+    def test_a_checkpoint_with_neither_token_raises_rather_than_padding_with_zero(self):
+        from training.train_polarity import align_padding
+
+        tokenizer = _StubTokenizer(pad=None, eos=None, eos_id=None)
+
+        with pytest.raises(ValueError, match="end-of-sequence"):
+            align_padding(tokenizer, _StubModel())

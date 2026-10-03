@@ -52,14 +52,19 @@ def distribution_figure(pairs: dict, path: str) -> None:
     edges = np.linspace(-100, 100, 41)
     centres = (edges[:-1] + edges[1:]) / 2
 
-    plots = []
+    plots, counts = [], {}
     for name, index in POLARITY_CLASSES.items():
         share = histogram(signed[truth == index], edges)
         points = " ".join(f"({x:.1f},{100 * y:.2f})" for x, y in zip(centres, share))
-        plots.append(
-            f"\\addplot[class{name}] coordinates {{{points}}};\n"
-            f"\\addlegendentry{{{LABELS[name]} ($n = {int((truth == index).sum())}$)}}"
-        )
+        plots.append(f"\\addplot[class{name}] coordinates {{{points}}};")
+        counts[name] = int((truth == index).sum())
+
+    # La legende vit dans la legende de figure, en couleur. Dans le panneau, trois
+    # entrees et leurs effectifs occupaient le quart de la surface utile et couvraient
+    # le pic des contradictions.
+    named = ", ".join(
+        f"\\textcolor{{c{name}}}{{\\textbf{{{LABELS[name]}}}}} ($n = {counts[name]}$)" for name in POLARITY_CLASSES
+    )
 
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
@@ -75,22 +80,19 @@ def distribution_figure(pairs: dict, path: str) -> None:
         r"  axis line style={draw=black!45, line width=0.3pt},",
         r"  axis x line*=bottom, axis y line*=left, y axis line style={draw=none},",
         r"  xmajorgrids=false, ymajorgrids=false, tick align=outside, ytick style={draw=none},",
-        r"  xlabel={signed score}, ylabel={share of pairs (\%)},",
+        r"  xlabel={Signed score}, ylabel={Share of pairs (\%)},",
         r"  label style={font=\small}, tick label style={font=\small},",
         r"  xmin=-100, xmax=100, ymin=0,",
-        r"  legend style={font=\small, draw=none, fill=none, at={(0.02,0.98)},",
-        r"    anchor=north west, cells={anchor=west}},",
         r"]",
         r"\draw[draw=black!25, line width=0.3pt, dashed] (axis cs:0,0)"
         r" -- (axis cs:0,\pgfkeysvalueof{/pgfplots/ymax});",
         *plots,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        r"\caption{Signed score by gold class on the SICK half of the test split, "
-        r"$\alpha = 2$, binned at width $5$. Contradictions concentrate near $-50$ and "
-        r"entailments near $+80$. SICK neutral pairs are related captions rather than "
-        r"unrelated sentences, so they belong near the middle of the positive half and "
-        r"not at zero; what matters is that the product does not drag them across it.}",
+        f"\\caption{{Signed score by gold class on the SICK test half at $\\alpha = 2$, "
+        f"bins of width $5$: {named}. The dashed vertical line marks zero, where the "
+        r"sign changes. SICK neutral pairs are related captions, not unrelated "
+        r"sentences, so they belong in the positive half.}",
         r"\label{fig:distribution}",
         r"\end{figure}",
     ]
@@ -115,7 +117,7 @@ def reliability(
 def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None:
     """Both heads' reliability curves against the diagonal."""
     series = []
-    for pairs, style, label in (
+    for pairs, style, _ in (
         (fine_tuned, "tuned", "fine-tuned"),
         (off_the_shelf, "shelf", "off-the-shelf"),
     ):
@@ -123,7 +125,7 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         truth = np.array(pairs["truth"], dtype=int)
         curve = reliability(probability, (truth == POLARITY_CLASSES["contradiction"]).astype(float))
         points = " ".join(f"({x:.3f},{y:.3f})" for x, y, _ in curve)
-        series.append(f"\\addplot[{style}] coordinates {{{points}}};\n\\addlegendentry{{{label}}}")
+        series.append(f"\\addplot[{style}] coordinates {{{points}}};")
 
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
@@ -132,8 +134,10 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         r"\begin{figure}[t]",
         r"\centering",
         r"\tikzset{",
-        r"  tuned/.style={draw=reltuned, line width=0.9pt, mark=*, mark size=1.6pt},",
-        r"  shelf/.style={draw=relshelf, line width=0.9pt, mark=square*, mark size=1.5pt},",
+        r"  tuned/.style={draw=reltuned, line width=0.9pt, mark=*, mark size=1.6pt,"
+        r" mark options={draw=reltuned, fill=reltuned}},",
+        r"  shelf/.style={draw=relshelf, line width=0.9pt, mark=square*, mark size=1.5pt,"
+        r" mark options={draw=relshelf, fill=relshelf}},",
         r"}",
         r"\begin{tikzpicture}",
         r"\begin{axis}[",
@@ -141,21 +145,19 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         r"  axis line style={draw=black!45, line width=0.3pt},",
         r"  axis x line*=bottom, axis y line*=left, y axis line style={draw=none},",
         r"  xmajorgrids=false, ymajorgrids=false, tick align=outside, ytick style={draw=none},",
-        r"  xlabel={predicted $p_{\mathrm{contra}}$}, ylabel={observed rate},",
+        r"  xlabel={Predicted $p_{\mathrm{contra}}$}, ylabel={Observed rate},",
         r"  label style={font=\small}, tick label style={font=\small},",
         r"  xmin=0, xmax=1, ymin=0, ymax=1,",
-        r"  legend style={font=\small, draw=none, fill=none, at={(0.98,0.02)},",
-        r"    anchor=south east, cells={anchor=west}},",
         r"]",
         r"\addplot[draw=black!30, line width=0.3pt, dashed, mark=none, forget plot]" + r" coordinates {(0,0) (1,1)};",
         *series,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        r"\caption{Reliability of $p_{\mathrm{contra}}$ on the SICK half of the test split, "
-        r"ten equal-width bins. The dashed diagonal is perfect calibration. The "
-        r"off-the-shelf head falls far below it: among the pairs to which it gives a "
-        r"contradiction probability near $0.5$, fewer than one in ten is a contradiction. "
-        r"The fine-tuned head tracks the diagonal.}",
+        r"\caption{Reliability of $p_{\mathrm{contra}}$ on the SICK test half, ten bins. "
+        r"The dashed diagonal is perfect calibration, where a predicted probability "
+        r"equals the observed rate. The "
+        r"\textcolor{reltuned}{\textbf{fine-tuned head}} tracks it, the "
+        r"\textcolor{relshelf}{\textbf{off-the-shelf head}} falls far below.}",
         r"\label{fig:reliability}",
         r"\end{figure}",
     ]
@@ -201,10 +203,9 @@ def composition_table(curve: dict, path: str) -> None:
         f" & {100 * only['implications_positives']:.1f} & {only['pearson_proximite']:.3f} & $0$ \\\\",
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Composition on the SICK half of the test split, in percent. The slope was "
-        r"fitted on development data, which selects $\alpha = 2$ (\textbf{bold}). Slopes below "
-        r"$2$ cannot reach $-100$ and are excluded by construction. Last column: the most "
-        r"negative score the scale can produce.}",
+        r"\caption{Composition on the SICK test half, in percent. The slope is fitted on "
+        r"development data, which selects $\alpha = 2$ (\textbf{bold}). Floor: the most "
+        r"negative score the scale can reach.}",
         r"\label{tab:composition}",
         r"\end{table}",
     ]
