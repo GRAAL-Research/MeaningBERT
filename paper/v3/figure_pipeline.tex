@@ -1,0 +1,30 @@
+% Figure ecrite a la main : les chiffres viennent des memes mesures que le tableau 1.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=black!35, line width=0.3pt, rounded corners=1pt,
+              inner xsep=4pt, inner ysep=3pt, align=center},
+  head/.style={box, fill=black!3},
+  flow/.style={-{Stealth[length=4pt]}, draw=black!45, line width=0.4pt},
+]
+\node[box, text width=5.9cm] (pair)
+  {``I drink milk'' \quad\textbar\quad ``I do not drink milk''};
+
+\node[head, below left=0.7cm and -1.75cm of pair] (mag)
+  {magnitude head\\$m = 58.3$};
+\node[head, below right=0.7cm and -1.75cm of pair] (pol)
+  {polarity head\\$p_{\mathrm{contra}} = 0.997$};
+
+\node[box, below=2.05cm of pair, text width=5.9cm] (out)
+  {$s = m \times (1 - 2\,p_{\mathrm{contra}}) = -58.0$};
+
+\draw[flow] (pair) -- (mag);
+\draw[flow] (pair) -- (pol);
+\draw[flow] (mag) -- (out);
+\draw[flow] (pol) -- (out);
+
+\end{tikzpicture}
+\caption{One pair, end to end. The two heads are read independently and the composition of \autoref{eq:compose} turns a middling positive score into a negative one. The same pipeline on ``I drink milk'' against ``I consume milk'' gives $m = 96.7$, $p_{\mathrm{contra}} = 0.005$ and $s = +95.8$, and on an unrelated pair $m = 0.0$ sends the product to zero whatever the polarity says.}
+\label{fig:pipeline}
+\end{figure}

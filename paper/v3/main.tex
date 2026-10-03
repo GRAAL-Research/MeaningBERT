@@ -163,7 +163,7 @@ We then remove source-sentence leakage in both directions, which matters here be
 
 We train a three-way classification head on seven encoders $\times$ ten seeds (42--51) $\times$ two corpus conditions, for 140 runs.
 The conditions are \textsc{raw} (152\,060 training rows) and \textsc{aug} (227\,060).
-Encoders span three families and two sizes, and include both plain and inference-pretrained variants of the same architecture so the effect of inference pretraining is measured at constant size.
+Encoders span three families, BERT \citep{devlin2019bert}, RoBERTa \citep{liu2019roberta} and DeBERTaV3 \citep{he2023debertav3}, and two sizes, and include both plain and inference-pretrained variants of the same architecture so the effect of inference pretraining is measured at constant size.
 
 Checkpoints already fine-tuned for three-way inference keep their head when its class order matches ours, which is free and on-task supervision; where the published order is reversed we permute the classifier rows rather than silently training from a permuted head.
 Every run shares one set of optimisation settings (\autoref{an:training}), and the hardware is described in \autoref{an:hardware}.
@@ -174,6 +174,9 @@ We state the asymmetry here because it is the practical argument for composing t
 
 We report macro-F\textsubscript{1} on the stratified test split, accuracy on three generated sanity suites built from test-split sentences (identical, unrelated, mirrored), and accuracy on the two held-out probes.
 Significance uses Welch's $t$-test \citep{welch1947} between conditions and a paired test by seed between architectures, with Cohen's $d$ beside every $p$-value: with ten seeds and standard deviations near two tenths of a point, a difference of one tenth reaches significance while meaning nothing.
+The condition comparison is fourteen tests, seven encoders on two axes, so we apply Holm-Bonferroni \citep{holm1979} across the family.
+It changes no verdict: the ten differences that were significant stay so at the corrected thresholds, and the four that were not remain above them.
+We report the uncorrected $p$-values and say this once rather than carrying two numbers through every sentence.
 
 \input{table_main}
 
@@ -272,7 +275,7 @@ That is the argument for a second head rather than a better-trained first one.
 
 We fit $\alpha$ on the SICK half of the development split and report on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions.
 Fitting on test and reporting on test would be tuning on the test set, even for one parameter over a coarse grid.
-The components are a released magnitude model and our best polarity head, DeBERTa-v3-large\textsubscript{NLI}.
+The components are a released magnitude model and one of our polarity heads, DeBERTa-v3-large trained on the \textsc{raw} condition.
 
 Because no signed gold score exists, we select $\alpha$ against three requirements multiplied together, so that sacrificing one cannot hide behind the others: contradictions must fall below zero, entailments must stay above it, and on the pairs whose sign does not flip the score must still track human relatedness.
 Furthermore, a composition that sends every contradiction to $-100$ and everything else to noise would satisfy the first two and is excluded by the third.
@@ -288,6 +291,7 @@ Slope & below zero (\%) & above zero (\%) & $r$ & floor \\
 $\alpha = 1.00$ & 0.0 & 100.0 & 0.820 & $0$ \\
 $\alpha = 1.25$ & 81.2 & 99.9 & 0.807 & $-25$ \\
 $\alpha = 1.50$ & 82.6 & 99.8 & 0.792 & $-50$ \\
+$\alpha = 1.75$ & 83.6 & 99.8 & 0.777 & $-75$ \\
 $\boldsymbol{\alpha = 2.00}$ & \textbf{84.4} & \textbf{99.8} & \textbf{0.760} & $\mathbf{-100}$ \\
 $\alpha = 3.00$ & 86.2 & 99.7 & 0.689 & $-100$ \\
 \addlinespace
@@ -297,6 +301,8 @@ Magnitude alone & 0.0 & 100.0 & 0.852 & $0$ \\
 \caption{Sensitivity of the composition on the SICK half of the test split. The slope itself was fitted on development data, which selects $\alpha = 2$. Slopes below $2$ cannot reach $-100$ and are excluded by construction; among all slopes the unconstrained optimum on test would be $\alpha = 1.25$, better by $2.3\%$ relative and capped at $-25$. \textbf{Bold} marks the slope the paper adopts, not the best value in any column.}
 \label{tab:composition}
 \end{table*}
+
+\input{figure_pipeline}
 
 \autoref{tab:composition} gives the result. Indeed, the magnitude alone puts no contradiction at all below the line, which is not a weakness of that particular model but a property of a non-negative scale. Composition puts $84.4\%$ of them where they belong while retaining $r = 0.760$ with human relatedness on the unflipped pairs. The cost of requiring the full scale is visible and small: $\alpha = 1.25$ scores $2.3\%$ higher on the combined objective and truncates the negative half at $-25$.
 
@@ -353,8 +359,10 @@ This work utilized Large Language Models (specifically Claude) to assist with th
 The authors retained full control over the scientific content, data analysis, and conclusions.
 
 \section*{Acknowledgements}
-This research was made possible thanks to the support of NSERC and FRQNT research grants.
-We thank the reviewers for their comments regarding our work.
+Removed for double-blind review.
+% Version a retablir a la camera-ready, avec les numeros exacts :
+% This research was made possible thanks to the support of NSERC and FRQNT research grants.
+% We thank the reviewers for their comments regarding our work.
 
 \bibliography{refs}
 
