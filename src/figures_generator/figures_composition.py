@@ -56,7 +56,7 @@ def distribution_figure(pairs: dict, path: str) -> None:
     for name, index in POLARITY_CLASSES.items():
         share = histogram(signed[truth == index], edges)
         points = " ".join(f"({x:.1f},{100 * y:.2f})" for x, y in zip(centres, share))
-        plots.append(f"\\addplot[class{name}] coordinates {{{points}}};")
+        plots.append(f"\\addplot[draw=c{name}, line width=0.9pt, mark=none, const plot] " f"coordinates {{{points}}};")
         counts[name] = int((truth == index).sum())
 
     # La legende vit dans la legende de figure, en couleur. Dans le panneau, trois
@@ -71,9 +71,8 @@ def distribution_figure(pairs: dict, path: str) -> None:
         *[f"\\definecolor{{c{name}}}{{HTML}}{{{code}}}" for name, code in COLOURS.items()],
         r"\begin{figure}[t]",
         r"\centering",
-        r"\tikzset{",
-        *[f"  class{name}/.style={{draw=c{name}, line width=0.9pt, mark=none, const plot}}," for name in COLOURS],
-        r"}",
+        r"% Options en clair plutot qu'un style nomme : un style \tikzset vit sous",
+        r"% /tikz/ et \addplot resout sous /pgfplots/, ce qui casse selon la version.",
         r"\begin{tikzpicture}",
         r"\begin{axis}[",
         r"  width=0.74\columnwidth, height=4.4cm, scale only axis,",
@@ -114,13 +113,25 @@ def reliability(
     return out
 
 
+def mark_style(colour: str, mark: str, size: str) -> str:
+    """Plot options written out rather than hidden behind a named style.
+
+    A style declared with ``\\tikzset`` lives under ``/tikz/`` while ``\\addplot``
+    resolves its options under ``/pgfplots/``. Whether the fallback happens depends on
+    the pgfplots version, and where it does not the key is unknown, the path aborts, and
+    TikZ reports "Giving up on this path" on the *following* line. Writing the options
+    out removes the lookup, and with it the version dependence.
+    """
+    fill = f"mark options={{draw={colour}, fill={colour}}}"
+    return f"draw={colour}, line width=0.9pt, mark={mark}, mark size={size}, {fill}"
+
+
 def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None:
     """Both heads' reliability curves against the diagonal."""
+    tuned = mark_style("reltuned", "*", "1.6pt")
+    shelf = mark_style("relshelf", "square*", "1.5pt")
     series = []
-    for pairs, style, _ in (
-        (fine_tuned, "tuned", "fine-tuned"),
-        (off_the_shelf, "shelf", "off-the-shelf"),
-    ):
+    for pairs, style, _ in ((fine_tuned, tuned, "fine-tuned"), (off_the_shelf, shelf, "off-the-shelf")):
         probability = np.array(pairs["p_contradiction"], dtype=float)
         truth = np.array(pairs["truth"], dtype=int)
         curve = reliability(probability, (truth == POLARITY_CLASSES["contradiction"]).astype(float))
@@ -133,12 +144,7 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         r"\definecolor{relshelf}{HTML}{D55E00}",
         r"\begin{figure}[t]",
         r"\centering",
-        r"\tikzset{",
-        r"  tuned/.style={draw=reltuned, line width=0.9pt, mark=*, mark size=1.6pt,"
-        r" mark options={draw=reltuned, fill=reltuned}},",
-        r"  shelf/.style={draw=relshelf, line width=0.9pt, mark=square*, mark size=1.5pt,"
-        r" mark options={draw=relshelf, fill=relshelf}},",
-        r"}",
+        r"% Options en clair plutot qu'un style nomme, pour la meme raison.",
         r"\begin{tikzpicture}",
         r"\begin{axis}[",
         r"  width=0.78\columnwidth, height=4.4cm, scale only axis,",

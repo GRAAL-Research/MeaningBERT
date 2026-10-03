@@ -343,11 +343,15 @@ def figure(cells, path: str) -> None:
             )
         return " ".join(points)
 
+    marks = {
+        "none": "mark=*, mark size=2.2pt, color=condraw, mark options={draw=condraw, fill=condraw}",
+        "full": "mark=square*, mark size=2.1pt, color=condaug, mark options={draw=condaug, fill=condaug}",
+    }
     panels = []
     for metric, title in (("macro_f1", r"Macro-F$_1$ (\%)"), ("sanity", r"Sanity suites (\%)")):
         xmin, xmax = axis_range(cells, order, metric)
         body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
-        for condition, style, offset in (("none", "raw", -0.19), ("full", "aug", 0.19)):
+        for condition, offset in (("none", -0.19), ("full", 0.19)):
             # Deux pieges de portabilite, tous deux vus sur Overleaf et non ici.
             #
             # Pas de "error bars/.cd" : le .cd deplace le chemin de cles pour TOUT ce qui
@@ -360,7 +364,8 @@ def figure(cells, path: str) -> None:
             # Pas de "+" non plus : le style pose deja la marque et la couleur, donc la
             # liste cyclique n'a rien a apporter et tout a casser.
             body.append(
-                f"\\addplot[{style}, error bars/x dir=both, error bars/x explicit] "
+                f"\\addplot[only marks, {marks[condition]}, "
+                f"error bars/x dir=both, error bars/x explicit] "
                 f"coordinates {{{series(metric, condition, offset)}}};"
             )
         panels.append("\n".join(body))
@@ -375,14 +380,10 @@ def figure(cells, path: str) -> None:
         r"\definecolor{condaug}{HTML}{D55E00}",
         r"\begin{figure*}[t]",
         r"\centering",
-        r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
-        r"% \addplot a l'interieur d'un groupplot.",
-        r"\tikzset{",
-        r"  raw/.style={mark=*, mark size=2.2pt, only marks, color=condraw,"
-        r" mark options={draw=condraw, fill=condraw}},",
-        r"  aug/.style={mark=square*, mark size=2.1pt, only marks, color=condaug,"
-        r" mark options={draw=condaug, fill=condaug}},",
-        r"}",
+        r"% Aucun style nomme : un style declare par \tikzset vit sous /tikz/, et",
+        r"% \addplot resout ses options sous /pgfplots/. Selon la version, le repli",
+        r"% n'a pas lieu, la cle est inconnue et le chemin avorte. Les options sont",
+        r"% donc ecrites en clair dans chaque \addplot.",
         r"\begin{tikzpicture}",
         r"\begin{groupplot}[",
         r"  group style={group size=2 by 1, horizontal sep=0.6cm, y descriptions at=edge left},",
