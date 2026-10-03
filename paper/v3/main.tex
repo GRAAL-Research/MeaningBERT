@@ -183,6 +183,15 @@ We report the uncorrected $p$-values and say this once rather than carrying two 
 \section{Results}
 \label{sec:results}
 
+\input{table_baselines}
+
+\paragraph{What the task is worth against nothing.}
+A three-way score on a balanced split means little on its own, so \autoref{tab:baselines} puts three references beside it.
+The majority class sits at $16.7\%$ macro-F\textsubscript{1}, which is the arithmetic floor.
+Jaccard overlap between the two token sets, cut by two thresholds fitted on development data, reaches $39.4\%$, and a TF-IDF bag of unigrams and bigrams with a linear model reaches $45.6\%$.
+Consequently, roughly half of the task is surface statistics of the corpus and the fine-tuned head is worth $45$ points above the best of the three.
+The overlap baseline carries a second reading we return to below: ranking entailment above contradiction, it reaches an AUC of $63.5\%$.
+
 \paragraph{The polarity head is learnable.}
 The best configuration reaches $91.1 \pm 0.14\%$ macro-F\textsubscript{1} on a class-balanced test set of 12\,000 pairs (\autoref{tab:main}).
 The seed standard deviation of $0.14$ points over ten runs indicates the result is a property of the configuration and not of a draw.
@@ -233,6 +242,9 @@ This is a clean negative result, and it is what the probe exists to expose: no a
 The two columns are close to independent.
 The model with the weakest correlation separates polarity better than the one with the strongest, and the BERT-base variant, which is a competent magnitude estimator at $r = 0.640$, sits near chance at an AUC of $53.7\%$.
 On SICK alone the published model reaches $48.0\%$ with a negative amplitude: it scores contradictions above agreements.
+The last row of \autoref{tab:cross} is the one we find hardest to look away from.
+Thresholded token overlap, which contains no model, ranks entailment above contradiction at $63.5\%$, above the published metric's $60.8\%$ and above the BERT-base variant's $53.7\%$.
+A metric trained on human meaning-preservation judgements therefore orders polarity no better than counting shared words, which is the claim of \citet{baral2026lexflip} measured on our split rather than argued.
 
 \begin{table}[t]
 \centering\small
@@ -249,9 +261,13 @@ DeBERTa-v3-large (ours) & 0.705 & \textbf{81.5} \\
 \addlinespace
 DeBERTa-v3-large\textsubscript{MNLI} & -- & \textbf{96.6} \\
 DeBERTa-v3-base\textsubscript{MNLI} & -- & 96.0 \\
+\addlinespace
+\multicolumn{3}{l}{\emph{Surface baseline}} \\
+\addlinespace
+Token overlap, Jaccard & -- & 63.5 \\
 \bottomrule
 \end{tabular}
-\caption{Both tasks, one test split. Pearson is on the 1\,536 human-annotated pairs of the preservation test set, excluding its 116 generated controls, which inflate the figure by up to $+0.21$. AUC ranks entailment above contradiction on our 12\,000-pair split, in percent. The inference models produce no preservation score, hence the dashes. \textbf{Bold} marks the best polarity ranking in each of the two blocks.}
+\caption{Both tasks, one test split. Pearson is on the 1\,536 human-annotated pairs of the preservation test set, excluding its 116 generated controls, which inflate the figure by up to $+0.21$. AUC ranks entailment above contradiction on our 12\,000-pair split, in percent. The inference models produce no preservation score, hence the dashes. \textbf{Bold} marks the best polarity ranking in each of the two trained blocks. The last row is a thresholded token overlap, carried here so the magnitude models are read against something that has no model in it at all.}
 \label{tab:cross}
 \end{table}
 
