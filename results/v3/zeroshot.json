@@ -1,0 +1,12 @@
+{
+ "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli": {
+  "macro_f1": 0.6835606835018243,
+  "accuracy": 0.6839166666666666,
+  "auc": 0.966238625
+ },
+ "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli": {
+  "macro_f1": 0.6588819489577059,
+  "accuracy": 0.6581666666666667,
+  "auc": 0.9600578125
+ }
+}

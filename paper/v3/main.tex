@@ -165,13 +165,19 @@ Released magnitude model & $r$ (pres.) & AUC (pol.) \\
 MeaningBERT, published & 0.323 & 0.608 \\
 BERT-base, same corpus & 0.640 & 0.537 \\
 DeBERTa-v3-large, same corpus & 0.705 & 0.815 \\
+\midrule
+\multicolumn{3}{l}{\textsc{Off-the-shelf inference, no fine-tuning}} \\
+DeBERTa-v3-large\textsubscript{MNLI} & -- & 0.966 \\
+DeBERTa-v3-base\textsubscript{MNLI} & -- & 0.960 \\
 \bottomrule
 \end{tabular}
-\caption{Magnitude models on both tasks. Pearson is on the 1\,536 human-annotated pairs of the preservation test set, excluding its 116 generated controls, which inflate the figure by up to $+0.21$. AUC ranks entailment above contradiction on our 12\,000-pair split.}
+\caption{Both tasks, one test split. Pearson is on the 1\,536 human-annotated pairs of the preservation test set, excluding its 116 generated controls, which inflate the figure by up to $+0.21$. AUC ranks entailment above contradiction on our 12\,000-pair split. The inference models produce no preservation score, hence the dashes.}
 \label{tab:cross}
 \end{table}
 
-The exception is instructive. DeBERTa-v3-large reaches $0.815$ without ever seeing a polarity label, and the BERT-base model trained on the same corpus with the same recipe reaches $0.537$. The separation therefore comes from the encoder's pretraining, not from the preservation data. Nothing in a magnitude metric's training signal distinguishes a contradiction from a failed paraphrase, since both receive the same low human rating, so no quantity of meaning-preservation data can produce polarity. That is the argument for a second head rather than a better-trained first one.
+Two rows at the bottom answer the question this invites. An off-the-shelf inference model, used as published with no training of ours, ranks entailment above contradiction on our test split at an AUC of $0.966$, well above every magnitude model. Its three-way accuracy is another matter: $0.684$ macro-F\textsubscript{1} against $0.911$ for the same encoder fine-tuned on our corpus. The distinction is worth stating plainly, because it bounds what this paper contributes. For the ranking question alone, which is all the composition consumes through $p_{\mathrm{contra}}$, a released inference model is already strong and fine-tuning adds little; the $+0.227$ macro-F\textsubscript{1} that fine-tuning buys is calibration of three classes onto this domain, not the discovery of the relation. A practitioner who wants only the sign, and is willing to fit $\alpha$ against a miscalibrated probability, may not need to train anything at all.
+
+The exception among the magnitude models is instructive. DeBERTa-v3-large reaches $0.815$ without ever seeing a polarity label, and the BERT-base model trained on the same corpus with the same recipe reaches $0.537$. The separation therefore comes from the encoder's pretraining, not from the preservation data. Nothing in a magnitude metric's training signal distinguishes a contradiction from a failed paraphrase, since both receive the same low human rating, so no quantity of meaning-preservation data can produce polarity. That is the argument for a second head rather than a better-trained first one.
 
 \section{Composing the Two Heads}
 \label{sec:composition}
