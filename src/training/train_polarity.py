@@ -116,6 +116,30 @@ def compute_metrics(eval_prediction) -> dict[str, float]:
     return {"accuracy": got["accuracy"], "macro_f1": got["macro_f1"]}
 
 
+def align_padding(tokenizer, model) -> bool:
+    """Give a decoder-only checkpoint the pad token a batched classifier needs.
+
+    Encoders ship a pad token because masked language modelling needs one. Decoder-only
+    checkpoints, SmolLM2 and the Llama family among them, do not: nothing in causal
+    language modelling pads. A sequence classifier does, on every batch, and the failure
+    is two-sided. The collator raises on a tokenizer with no pad token, and a model whose
+    ``pad_token_id`` is unset pools over the padding as if it were text, which is silent.
+
+    Reusing the end-of-sequence token is the usual remedy and is safe here because the
+    attention mask already hides those positions from the encoder stack.
+
+    Returns whether anything was changed, so a caller can say so in its log.
+    """
+    if tokenizer.pad_token_id is not None and model.config.pad_token_id is not None:
+        return False
+    if tokenizer.pad_token_id is None:
+        if tokenizer.eos_token_id is None:
+            raise ValueError("checkpoint has neither a pad token nor an end-of-sequence token")
+        tokenizer.pad_token = tokenizer.eos_token
+    model.config.pad_token_id = tokenizer.pad_token_id
+    return True
+
+
 def head_reuse_plan(id2label: Optional[dict]) -> tuple[bool, Optional[list[int]]]:
     """Decide whether a checkpoint's existing classification head can be reused.
 
@@ -201,6 +225,12 @@ def output_layer(model: Any) -> Any:
 @click.option("--max-length", default=256, show_default=True)
 @click.option("--dev-sample", default=DEFAULT_DEV_SAMPLE, show_default=True, help="0 to use the whole dev split.")
 @click.option("--keep-model/--no-keep-model", default=True, show_default=True)
+@click.option(
+    "--bf16/--no-bf16",
+    default=False,
+    show_default=True,
+    help="Only on compute 8.0 or better. Off by default so a Pascal run stays bit-comparable.",
+)
 def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
     corpus: str,
     checkpoint: str,
@@ -213,6 +243,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
     max_length: int,
     dev_sample: int,
     keep_model: bool,
+    bf16: bool,
 ) -> None:
     """Train one polarity head and write its metrics, including the held-out probes."""
     import torch
@@ -274,6 +305,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
                 layer.bias.copy_(layer.bias[index])
     model.config.id2label = dict(enumerate(CLASS_NAMES))
     model.config.label2id = {name: index for index, name in enumerate(CLASS_NAMES)}
+    align_padding(tokenizer, model)
 
     trainer = Trainer(
         model=model,
@@ -298,7 +330,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
             logging_steps=100,
             report_to=[],
             fp16=False,
-            bf16=False,
+            bf16=bf16,
         ),
         train_dataset=train,
         eval_dataset=dev,

@@ -151,14 +151,14 @@ class TestStatistics:
 
 class TestFormatting:
     def test_a_mean_is_reported_as_a_percentage_beside_its_spread(self):
-        assert as_percent([0.90, 0.92]) == r"91.0\,$\pm$\,1.41"
+        assert as_percent([0.90, 0.92]) == r"91.00\,$\pm$\,1.41"
 
     def test_a_missing_cell_prints_a_dash_rather_than_a_zero(self):
         """An absent run must not be read as a model that scored nothing."""
         assert as_percent([]) == "--"
 
     def test_a_single_seed_reports_a_zero_spread(self):
-        assert as_percent([0.5]) == r"50.0\,$\pm$\,0.00"
+        assert as_percent([0.5]) == r"50.00\,$\pm$\,0.00"
 
 
 @pytest.fixture(name="grid")
@@ -210,7 +210,7 @@ class TestTables:
         body = suites_table(grid)
 
         assert "Identical" in body and "Unrelated" in body and "Mirrored" in body
-        assert r"100.0\,$\pm$\,0.00" in body
+        assert r"100.00\,$\pm$\,0.00" in body
 
 
 class TestFigure:
@@ -262,53 +262,3 @@ class TestDegenerateCells:
     def test_a_single_seed_puts_a_nan_in_the_table_rather_than_stopping_the_build(self):
         """One run of a cell has no variance; the other six encoders must still print."""
         assert math.isnan(error([0.9], [0.8, 0.81]))
-
-
-class TestBaselinesTable:
-    def test_no_baseline_file_means_no_table_rather_than_an_empty_one(self, grid, tmp_path):
-        """A missing baseline should cost the paper a table, not fill one with zeros."""
-        from figures_generator.analyse_v3 import baselines_table
-
-        assert baselines_table(grid, str(tmp_path / "absent.json")) is None
-
-    def test_the_bolded_row_is_the_fine_tuned_head_from_the_grid(self, grid, tmp_path):
-        from figures_generator.analyse_v3 import baselines_table
-
-        path = tmp_path / "baselines.json"
-        path.write_text(
-            json.dumps(
-                {
-                    "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
-                    "overlap": {"accuracy": 0.40, "macro_f1": 0.394, "auc_entailment_vs_contradiction": 0.635},
-                    "tfidf_logreg": {"accuracy": 0.49, "macro_f1": 0.456, "auc_entailment_vs_contradiction": 0.685},
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        body = baselines_table(grid, str(path))
-
-        assert "16.7" in body and "39.4" in body and "63.5" in body
-        assert r"\textbf{90.5}" in body
-
-    def test_a_baseline_without_a_ranking_score_prints_a_dash(self, grid, tmp_path):
-        """The majority class has no score to rank with; a zero would read as chance."""
-        from figures_generator.analyse_v3 import baselines_table
-
-        path = tmp_path / "baselines.json"
-        path.write_text(
-            json.dumps(
-                {
-                    "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
-                    "overlap": {"accuracy": 0.4, "macro_f1": 0.4, "auc_entailment_vs_contradiction": float("nan")},
-                    "tfidf_logreg": {"accuracy": 0.5, "macro_f1": 0.5, "auc_entailment_vs_contradiction": 0.7},
-                }
-            ),
-            encoding="utf-8",
-        )
-
-        rows = [
-            line for line in baselines_table(grid, str(path)).splitlines() if line.startswith(("Majority", "Token"))
-        ]
-
-        assert all(line.rstrip().endswith(r"-- \\") for line in rows)

@@ -32,6 +32,10 @@ MIN_FREE_GB="${MIN_FREE_GB:-25}"
 # fleet, and the accumulation holds the effective batch at 32 everywhere so a result is
 # comparable across machines.
 #
+# The SmolLM2 rows are sized for a 48 GB card in bf16 instead, since nothing below
+# compute 8.0 will run them anyway. Their accumulation still lands the effective batch on
+# 32, so their numbers stay comparable with the seven encoders above.
+#
 # The last field is a hardware gate, not a preference. ModernBERT is built around
 # FlashAttention and unpadded attention, both of which need compute 8.0 or better. renard
 # and souris are Pascal 6.1: it would run, and it would run so degraded that comparing it
@@ -46,7 +50,10 @@ deberta-v3-large|microsoft/deberta-v3-large|4|8|0
 nli-deberta-v3-large|MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli|4|8|0
 roberta-large-mnli|roberta-large-mnli|4|8|0
 modernbert-base|answerdotai/ModernBERT-base|8|4|80
-modernbert-large|answerdotai/ModernBERT-large|4|8|80"
+modernbert-large|answerdotai/ModernBERT-large|4|8|80
+smollm2-135m|HuggingFaceTB/SmolLM2-135M|32|1|80
+smollm2-360m|HuggingFaceTB/SmolLM2-360M|32|1|80
+smollm2-1.7b|HuggingFaceTB/SmolLM2-1.7B|16|2|80"
 
 # Architectures that wedge a given card, as "<arch tag>|<substring of the GPU name>".
 #
@@ -140,6 +147,11 @@ run_cell() {
     fi
 
     local keep="--keep-model"; [ "$KEEP_MODEL" = "true" ] || keep="--no-keep-model"
+    # bf16 seulement la ou le materiel le fait vraiment, c'est-a-dire a partir de
+    # compute 8.0. Sur Pascal l'option existe et tombe en emulation : plus lent que
+    # le fp32 qu'elle remplace, et numeriquement different des 140 cellules publiees.
+    local precision="--no-bf16"
+    [ -n "$CAPABILITY" ] && [ "$CAPABILITY" -ge 80 ] && precision="--bf16"
 
     # Stepped fallback on out-of-memory, halving the micro batch and doubling accumulation
     # so the effective batch, and therefore the result, stays the same.
@@ -151,7 +163,7 @@ run_cell() {
             --corpus "$CORPUS" --checkpoint "$checkpoint" --output-dir "$out" \
             --seed "$seed" --epochs "$EPOCHS" --lr "$LR" \
             --batch-size "$micro" --grad-accum "$accum" \
-            --max-length "$MAXLEN" --dev-sample "$DEV_SAMPLE" $keep \
+            --max-length "$MAXLEN" --dev-sample "$DEV_SAMPLE" $keep $precision \
             > "$log" 2>&1
         local status=$? elapsed=$(( $(date +%s) - start ))
 
