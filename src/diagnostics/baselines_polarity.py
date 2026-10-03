@@ -98,15 +98,13 @@ def overlap_baseline(train, dev, test) -> dict:
         for high in grid:
             if high <= low:
                 continue
-            predicted = np.where(dev_scores < low, NEUTRAL,
-                                 np.where(dev_scores < high, CONTRADICTION, ENTAILMENT))
+            predicted = np.where(dev_scores < low, NEUTRAL, np.where(dev_scores < high, CONTRADICTION, ENTAILMENT))
             value = macro_f1(dev_truth, predicted)
             if value > best[0]:
                 best = (value, float(low), float(high))
     _, low, high = best
     test_scores, test_truth = scores(test), labels(test)
-    predicted = np.where(test_scores < low, NEUTRAL,
-                         np.where(test_scores < high, CONTRADICTION, ENTAILMENT))
+    predicted = np.where(test_scores < low, NEUTRAL, np.where(test_scores < high, CONTRADICTION, ENTAILMENT))
     return {
         "low": low,
         "high": high,
@@ -131,11 +129,11 @@ def auc_entail_vs_contra(score: np.ndarray, truth: np.ndarray) -> float:
 
 def tfidf_baseline(train, test, max_features: int = 200_000) -> dict:
     """Word unigrams and bigrams of both sentences, concatenated, into a linear model."""
+
     def join(split):
         return [f"{o} [SEP] {s}" for o, s in zip(split["original"], split["simplification"])]
 
-    vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=max_features,
-                                 sublinear_tf=True)
+    vectoriser = TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=max_features, sublinear_tf=True)
     matrix = vectoriser.fit_transform(join(train))
     model = LogisticRegression(max_iter=1000, C=1.0)
     model.fit(matrix, labels(train))

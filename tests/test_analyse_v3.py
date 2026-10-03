@@ -180,8 +180,7 @@ def grid_fixture(tmp_path):
 class TestTables:
     def test_the_best_value_of_a_column_is_the_one_in_bold(self, grid):
         """The caption promises bold marks the best value, so it must sit on that row."""
-        rows = [line for line in main_table(grid).splitlines() if r"\textsc{raw}" in line
-                or r"\textsc{aug}" in line]
+        rows = [line for line in main_table(grid).splitlines() if r"\textsc{raw}" in line or r"\textsc{aug}" in line]
         bolded = [line for line in rows if r"\textbf{90" in line or r"\textbf{91" in line]
 
         assert len(bolded) == 1
@@ -276,13 +275,16 @@ class TestBaselinesTable:
         from figures_generator.analyse_v3 import baselines_table
 
         path = tmp_path / "baselines.json"
-        path.write_text(json.dumps({
-            "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
-            "overlap": {"accuracy": 0.40, "macro_f1": 0.394,
-                        "auc_entailment_vs_contradiction": 0.635},
-            "tfidf_logreg": {"accuracy": 0.49, "macro_f1": 0.456,
-                             "auc_entailment_vs_contradiction": 0.685},
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
+                    "overlap": {"accuracy": 0.40, "macro_f1": 0.394, "auc_entailment_vs_contradiction": 0.635},
+                    "tfidf_logreg": {"accuracy": 0.49, "macro_f1": 0.456, "auc_entailment_vs_contradiction": 0.685},
+                }
+            ),
+            encoding="utf-8",
+        )
 
         body = baselines_table(grid, str(path))
 
@@ -294,15 +296,19 @@ class TestBaselinesTable:
         from figures_generator.analyse_v3 import baselines_table
 
         path = tmp_path / "baselines.json"
-        path.write_text(json.dumps({
-            "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
-            "overlap": {"accuracy": 0.4, "macro_f1": 0.4,
-                        "auc_entailment_vs_contradiction": float("nan")},
-            "tfidf_logreg": {"accuracy": 0.5, "macro_f1": 0.5,
-                             "auc_entailment_vs_contradiction": 0.7},
-        }), encoding="utf-8")
+        path.write_text(
+            json.dumps(
+                {
+                    "majority": {"accuracy": 1 / 3, "macro_f1": 1 / 6},
+                    "overlap": {"accuracy": 0.4, "macro_f1": 0.4, "auc_entailment_vs_contradiction": float("nan")},
+                    "tfidf_logreg": {"accuracy": 0.5, "macro_f1": 0.5, "auc_entailment_vs_contradiction": 0.7},
+                }
+            ),
+            encoding="utf-8",
+        )
 
-        rows = [line for line in baselines_table(grid, str(path)).splitlines()
-                if line.startswith(("Majority", "Token"))]
+        rows = [
+            line for line in baselines_table(grid, str(path)).splitlines() if line.startswith(("Majority", "Token"))
+        ]
 
         assert all(line.rstrip().endswith(r"-- \\") for line in rows)

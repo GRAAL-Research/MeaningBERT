@@ -28,11 +28,13 @@ import numpy as np
 
 
 def rows(items) -> Dataset:
-    return Dataset.from_dict({
-        "original": [o for o, _, _ in items],
-        "simplification": [s for _, s, _ in items],
-        "polarity": [float(p) for _, _, p in items],
-    })
+    return Dataset.from_dict(
+        {
+            "original": [o for o, _, _ in items],
+            "simplification": [s for _, s, _ in items],
+            "polarity": [float(p) for _, _, p in items],
+        }
+    )
 
 
 class TestOverlap:
@@ -106,12 +108,14 @@ class TestOverlapBaseline:
         lot. If the thresholds are fitted correctly the baseline should be well above the
         0.167 macro-F1 floor on data shaped like its own assumption.
         """
+
         def sample(index):
             return [
                 (f"alpha beta gamma delta {index}", f"zeta eta theta iota {index}", NEUTRAL),
                 (f"alpha beta gamma delta {index}", f"alpha beta kappa lambda {index}", CONTRADICTION),
                 (f"alpha beta gamma delta {index}", f"alpha beta gamma delta {index}", ENTAILMENT),
             ]
+
         data = rows([r for i in range(40) for r in sample(i)])
 
         got = overlap_baseline(data, data, data)
@@ -121,18 +125,22 @@ class TestOverlapBaseline:
 
     def test_it_stays_near_the_floor_when_overlap_carries_no_signal(self):
         """Every pair has the same overlap, so no threshold can separate anything."""
-        data = rows([(f"alpha beta {i}", f"alpha beta {i}", c)
-                     for i in range(40) for c in (ENTAILMENT, NEUTRAL, CONTRADICTION)])
+        data = rows(
+            [(f"alpha beta {i}", f"alpha beta {i}", c) for i in range(40) for c in (ENTAILMENT, NEUTRAL, CONTRADICTION)]
+        )
 
         assert overlap_baseline(data, data, data)["macro_f1"] < 0.25
 
 
 class TestTfidfBaseline:
     def test_it_learns_a_lexical_rule_that_is_actually_there(self):
-        data = rows([(f"the subject {i} acts", f"the subject {i} {word}", cls)
-                     for i in range(40)
-                     for word, cls in (("acts", ENTAILMENT), ("elsewhere", NEUTRAL),
-                                       ("never", CONTRADICTION))])
+        data = rows(
+            [
+                (f"the subject {i} acts", f"the subject {i} {word}", cls)
+                for i in range(40)
+                for word, cls in (("acts", ENTAILMENT), ("elsewhere", NEUTRAL), ("never", CONTRADICTION))
+            ]
+        )
 
         got = tfidf_baseline(data, data)
 
@@ -141,7 +149,6 @@ class TestTfidfBaseline:
 
     def test_it_cannot_learn_a_label_the_tokens_do_not_carry(self):
         """Same two sentences under all three labels: a bag of words has nothing to go on."""
-        data = rows([("alpha beta", "alpha beta", c)
-                     for _ in range(40) for c in (ENTAILMENT, NEUTRAL, CONTRADICTION)])
+        data = rows([("alpha beta", "alpha beta", c) for _ in range(40) for c in (ENTAILMENT, NEUTRAL, CONTRADICTION)])
 
         assert tfidf_baseline(data, data)["macro_f1"] < 0.25

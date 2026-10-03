@@ -64,9 +64,7 @@ def load(root: str) -> dict[tuple[str, str], dict[str, list[float]]]:
     architecture tag contains dashes: splitting from the left reads
     ``nli-deberta-v3-base-none`` as the architecture ``nli``.
     """
-    out: dict[tuple[str, str], dict[str, list[float]]] = collections.defaultdict(
-        lambda: collections.defaultdict(list)
-    )
+    out: dict[tuple[str, str], dict[str, list[float]]] = collections.defaultdict(lambda: collections.defaultdict(list))
     for path in sorted(glob.glob(os.path.join(root, "polarity", "*", "seed*", "metrics.json"))):
         arch, _, condition = os.path.basename(os.path.dirname(os.path.dirname(path))).rpartition("-")
         if arch not in ARCH_LABELS or condition not in ("none", "full"):
@@ -119,8 +117,9 @@ def cohen_d(left: list[float], right: list[float]) -> float:
     """
     if len(left) < 2 or len(right) < 2:
         return float("nan")
-    pooled = math.sqrt(((len(left) - 1) * st.variance(left) + (len(right) - 1) * st.variance(right))
-                       / (len(left) + len(right) - 2))
+    pooled = math.sqrt(
+        ((len(left) - 1) * st.variance(left) + (len(right) - 1) * st.variance(right)) / (len(left) + len(right) - 2)
+    )
     return (st.mean(left) - st.mean(right)) / pooled if pooled else float("nan")
 
 
@@ -183,8 +182,7 @@ def main_table(cells) -> str:
         r"Encoder & Condition & macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI \\",
         r"\midrule",
     ]
-    present = [(a, label) for a, label in ARCH_LABELS.items()
-               if (a, "none") in cells or (a, "full") in cells]
+    present = [(a, label) for a, label in ARCH_LABELS.items() if (a, "none") in cells or (a, "full") in cells]
     for position, (arch, label) in enumerate(present):
         if position:
             lines.append(r"\addlinespace")
@@ -197,13 +195,17 @@ def main_table(cells) -> str:
                     cell = r"\textbf{" + cell + "}"
                 row.append(cell)
             lines.append(" & ".join(row) + r" \\")
-    lines += [r"\bottomrule", r"\end{tabular}",
-              r"\caption{Polarity head, mean and standard deviation over ten seeds, in percent. "
-              r"\textsc{raw} trains on the merged corpus, \textsc{aug} adds the derived-polarity "
-              r"augmentation. Sanity is accuracy on the three generated suites; NaN-NLI and MoNLI "
-              r"are held-out probes the models never train on. \textbf{Bold} marks the best value "
-              r"in each column, higher being better everywhere.}",
-              r"\label{tab:main}", r"\end{table*}"]
+    lines += [
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\caption{Polarity head, mean and standard deviation over ten seeds, in percent. "
+        r"\textsc{raw} trains on the merged corpus, \textsc{aug} adds the derived-polarity "
+        r"augmentation. Sanity is accuracy on the three generated suites; NaN-NLI and MoNLI "
+        r"are held-out probes the models never train on. \textbf{Bold} marks the best value "
+        r"in each column, higher being better everywhere.}",
+        r"\label{tab:main}",
+        r"\end{table*}",
+    ]
     return "\n".join(lines)
 
 
@@ -217,8 +219,9 @@ def suites_table(cells) -> str:
         r"Encoder & Condition & Identical & Unrelated & Mirrored \\",
         r"\midrule",
     ]
-    shown = [a for a in ("nli-deberta-v3-large", "deberta-v3-large", "bert")
-             if (a, "none") in cells or (a, "full") in cells]
+    shown = [
+        a for a in ("nli-deberta-v3-large", "deberta-v3-large", "bert") if (a, "none") in cells or (a, "full") in cells
+    ]
     for position, arch in enumerate(shown):
         if position:
             lines.append(r"\addlinespace")
@@ -227,12 +230,14 @@ def suites_table(cells) -> str:
             row += [as_percent(cells.get((arch, condition), {}).get(suite, [])) for suite in SUITES]
             lines.append(" & ".join(row) + r" \\")
     lines += [
-        r"\bottomrule", r"\end{tabular}",
+        r"\bottomrule",
+        r"\end{tabular}",
         r"\caption{The three generated suites separately, mean and standard deviation over ten "
         r"seeds, in percent. Identical pairs must be entailment, unrelated pairs neutral, mirrored "
         r"contradictions still contradiction. The unrelated column is the one the signed scale "
         r"depends on, since it is where a pair with nothing in common is read as opposed.}",
-        r"\label{tab:suites}", r"\end{table*}",
+        r"\label{tab:suites}",
+        r"\end{table*}",
     ]
     return "\n".join(lines)
 
@@ -255,27 +260,32 @@ def baselines_table(cells, path: str) -> Optional[str]:
         return f"{label} & {100 * record['macro_f1']:.1f} & {shown} " + r"\\"
 
     lines = [
-        r"\begin{table}[t]", r"\centering\small",
-        r"\begin{tabular}{l cc}", r"\toprule",
+        r"\begin{table}[t]",
+        r"\centering\small",
+        r"\begin{tabular}{l cc}",
+        r"\toprule",
         r"Model & macro-F\textsubscript{1} & AUC \\",
         r"\midrule",
         line("Majority class", got["majority"], None),
         line("Token overlap", got["overlap"], got["overlap"]["auc_entailment_vs_contradiction"]),
-        line("TF-IDF, logistic regression", got["tfidf_logreg"],
-             got["tfidf_logreg"]["auc_entailment_vs_contradiction"]),
+        line(
+            "TF-IDF, logistic regression", got["tfidf_logreg"], got["tfidf_logreg"]["auc_entailment_vs_contradiction"]
+        ),
         r"\addlinespace",
     ]
     if best is not None:
         lines.append(r"Best fine-tuned head & " + f"\\textbf{{{100 * best:.1f}}}" + r" & -- \\")
     lines += [
-        r"\bottomrule", r"\end{tabular}",
+        r"\bottomrule",
+        r"\end{tabular}",
         r"\caption{Baselines on the same test split, in percent. The majority class is the "
         r"arithmetic floor of a split balanced at 4\,000 per class, where it also scores "
         r"33.3 accuracy. Token overlap is Jaccard "
         r"over the two token sets, cut by two thresholds fitted on development data. AUC ranks "
         r"entailment above contradiction and leaves neutral pairs out. \textbf{Bold} marks the "
         r"best macro-F\textsubscript{1}, which is the fine-tuned head of \autoref{tab:main}.}",
-        r"\label{tab:baselines}", r"\end{table}",
+        r"\label{tab:baselines}",
+        r"\end{table}",
     ]
     return "\n".join(lines)
 
@@ -287,11 +297,14 @@ def stats_table(cells) -> str:
     the metric that moved would leave the reader to take "nothing changed" on trust.
     """
     lines = [
-        r"\begin{table*}[t]", r"\centering\small",
-        r"\begin{tabular}{l cc cc}", r"\toprule",
+        r"\begin{table*}[t]",
+        r"\centering\small",
+        r"\begin{tabular}{l cc cc}",
+        r"\toprule",
         r" & \multicolumn{2}{c}{macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity suites} \\",
         r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
-        r"Encoder & $\Delta$ (pp) & $d$ & $\Delta$ (pp) & $d$ \\", r"\midrule",
+        r"Encoder & $\Delta$ (pp) & $d$ & $\Delta$ (pp) & $d$ \\",
+        r"\midrule",
     ]
     for arch, label in ARCH_LABELS.items():
         raw, aug = cells.get((arch, "none")), cells.get((arch, "full"))
@@ -307,13 +320,15 @@ def stats_table(cells) -> str:
             f" & {sanity['d']:+.1f} " + r"\\"
         )
     lines += [
-        r"\bottomrule", r"\end{tabular}",
+        r"\bottomrule",
+        r"\end{tabular}",
         r"\caption{Effect of augmentation in percentage points, \textsc{aug} minus \textsc{raw}, "
         r"with the standard error of the difference and Cohen's $d$, from Welch's $t$-test over ten "
         r"seeds. $\dagger$ marks a difference that is not significant at $p<0.05$. Every sanity "
         r"difference has $p<10^{-4}$. The two axes are reported together on purpose: the claim is "
         r"that one moves and the other does not.}",
-        r"\label{tab:stats}", r"\end{table*}",
+        r"\label{tab:stats}",
+        r"\end{table*}",
     ]
     return "\n".join(lines)
 
@@ -378,8 +393,7 @@ def figure(cells, path: str) -> None:
         for index, arch in enumerate(order):
             values = cells[(arch, condition)][metric]
             points.append(
-                f"({100 * st.mean(values):.2f},{index + offset:.2f})"
-                f" +- ({100 * mean_sd(values)[1]:.2f},0)"
+                f"({100 * st.mean(values):.2f},{index + offset:.2f})" f" +- ({100 * mean_sd(values)[1]:.2f},0)"
             )
         return " ".join(points)
 
@@ -401,7 +415,8 @@ def figure(cells, path: str) -> None:
         r"% l'identite ne repose jamais sur elle seule.",
         r"\definecolor{condraw}{HTML}{0072B2}",
         r"\definecolor{condaug}{HTML}{E69F00}",
-        r"\begin{figure*}[t]", r"\centering",
+        r"\begin{figure*}[t]",
+        r"\centering",
         r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
         r"% \addplot a l'interieur d'un groupplot.",
         r"\tikzset{",
@@ -455,46 +470,51 @@ def main(results: str, tex_out: Optional[str], json_out: Optional[str]) -> None:
     findings: dict[str, Any] = {"cells": {}, "augmentation": {}, "nli": {}}
 
     click.echo("=== cellules (moyenne +- ecart-type sur les graines)\n")
-    click.echo("%-28s %-5s %2s %16s %16s %16s %16s" % ("architecture", "cond", "n", *METRICS.values()))
+    heads = "".join(f"{name:>17}" for name in METRICS.values())
+    click.echo(f"{'architecture':<28} {'cond':<5} {'n':>2}{heads}")
     for arch in ARCH_LABELS:
         for condition in ("none", "full"):
             values = cells.get((arch, condition))
             if not values:
                 continue
             row = [f"{st.mean(values[m]):.4f} ± {mean_sd(values[m])[1]:.4f}" for m in METRICS]
-            click.echo("%-28s %-5s %2d %16s %16s %16s %16s" % (arch, condition, len(values["macro_f1"]), *row))
+            cells_text = "".join(f"{value:>17}" for value in row)
+            click.echo(f"{arch:<28} {condition:<5} {len(values['macro_f1']):>2}{cells_text}")
             findings["cells"][f"{arch}-{condition}"] = {
-                m: {"mean": st.mean(values[m]), "sd": mean_sd(values[m])[1], "n": len(values[m])}
-                for m in METRICS
+                m: {"mean": st.mean(values[m]), "sd": mean_sd(values[m])[1], "n": len(values[m])} for m in METRICS
             }
 
     click.echo("\n=== effet de l'augmentation, Welch par architecture")
-    click.echo("%-28s %22s %22s" % ("architecture", "macro-F1 (aug - raw)", "sanity (aug - raw)"))
+    click.echo(f"{'architecture':<28} {'macro-F1 (aug - raw)':>22} {'sanity (aug - raw)':>22}")
     for arch in ARCH_LABELS:
         raw, aug = cells.get((arch, "none")), cells.get((arch, "full"))
         if not raw or not aug:
             continue
         task = welch(aug["macro_f1"], raw["macro_f1"])
         sanity = welch(aug["sanity"], raw["sanity"])
-        findings["augmentation"][arch] = {"macro_f1": task, "sanity": sanity,
-                                          "monli": welch(aug["monli"], raw["monli"])}
+        findings["augmentation"][arch] = {
+            "macro_f1": task,
+            "sanity": sanity,
+            "monli": welch(aug["monli"], raw["monli"]),
+        }
         click.echo(
-            "%-28s %+8.4f p=%-7.4f d=%+5.2f %+8.4f p=%-7.4f d=%+5.2f"
-            % (arch, task["diff"], task["p"], task["d"], sanity["diff"], sanity["p"], sanity["d"])
+            f"{arch:<28} {task['diff']:+8.4f} p={task['p']:<7.4f} d={task['d']:+5.2f}"
+            f" {sanity['diff']:+8.4f} p={sanity['p']:<7.4f} d={sanity['d']:+5.2f}"
         )
 
     click.echo("\n=== apport du pre-entrainement NLI, apparie par graine")
     for condition in ("none", "full"):
-        for nli, plain in (("nli-deberta-v3-large", "deberta-v3-large"),
-                           ("nli-deberta-v3-base", "deberta-v3-base")):
+        for nli, plain in (("nli-deberta-v3-large", "deberta-v3-large"), ("nli-deberta-v3-base", "deberta-v3-base")):
             left, right = cells.get((nli, condition)), cells.get((plain, condition))
             if not left or not right:
                 continue
             for metric in ("macro_f1", "monli"):
                 got = paired(left[metric], right[metric])
                 findings["nli"][f"{nli}-vs-{plain}-{condition}-{metric}"] = got
-                click.echo("%-22s %-5s %-9s %+7.4f  p=%-8.4f d=%+5.2f"
-                           % (f"{nli[:22]}", condition, METRICS[metric], got["diff"], got["p"], got["d"]))
+                click.echo(
+                    f"{nli[:22]:<22} {condition:<5} {METRICS[metric]:<9} {got['diff']:+7.4f}"
+                    f"  p={got['p']:<8.4f} d={got['d']:+5.2f}"
+                )
 
     if tex_out:
         os.makedirs(tex_out, exist_ok=True)
