@@ -67,10 +67,7 @@ def distribution_figure(pairs: dict, path: str) -> None:
         r"\begin{figure}[t]",
         r"\centering",
         r"\tikzset{",
-        *[
-            f"  class{name}/.style={{draw=c{name}, line width=0.9pt, mark=none, const plot}},"
-            for name in COLOURS
-        ],
+        *[f"  class{name}/.style={{draw=c{name}, line width=0.9pt, mark=none, const plot}}," for name in COLOURS],
         r"}",
         r"\begin{tikzpicture}",
         r"\begin{axis}[",
@@ -101,7 +98,9 @@ def distribution_figure(pairs: dict, path: str) -> None:
         handle.write("\n".join(lines) + "\n")
 
 
-def reliability(probability: np.ndarray, is_contradiction: np.ndarray, bins: int = 10) -> list[tuple[float, float, int]]:
+def reliability(
+    probability: np.ndarray, is_contradiction: np.ndarray, bins: int = 10
+) -> list[tuple[float, float, int]]:
     """Observed contradiction rate against predicted probability, bin by bin."""
     edges = np.linspace(0.0, 1.0, bins + 1)
     out = []
@@ -148,8 +147,7 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         r"  legend style={font=\small, draw=none, fill=none, at={(0.98,0.02)},",
         r"    anchor=south east, cells={anchor=west}},",
         r"]",
-        r"\addplot[draw=black!30, line width=0.3pt, dashed, mark=none, forget plot]"
-        r" coordinates {(0,0) (1,1)};",
+        r"\addplot[draw=black!30, line width=0.3pt, dashed, mark=none, forget plot]" + r" coordinates {(0,0) (1,1)};",
         *series,
         r"\end{axis}",
         r"\end{tikzpicture}",
