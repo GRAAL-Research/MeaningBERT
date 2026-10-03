@@ -112,8 +112,8 @@ Adina Williams, Nikita Nangia, and Samuel Bowman.
   Callison-Burch]{xu2016sari}
 Wei Xu, Courtney Napoles, Ellie Pavlick, Quanze Chen, and Chris Callison-Burch.
 \newblock Optimizing statistical machine translation for text simplification.
-\newblock In \emph{Transactions of the Association for Computational
-  Linguistics}, volume~4, 2016.
+\newblock \emph{Transactions of the Association for Computational Linguistics},
+  4:\penalty0 401--415, 2016.
 
 \bibitem[Zhang et~al.(2020)Zhang, Kishore, Wu, Weinberger, and
   Artzi]{zhang2020bertscore}

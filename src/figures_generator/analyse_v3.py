@@ -187,34 +187,88 @@ def stats_table(cells) -> str:
 
 
 def figure(cells, path: str) -> None:
-    """One panel per axis: what augmentation does to the task, and to the sanity suites."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import seaborn as sns
+    """Emit the augmentation figure as pgfplots source rather than a rasterised PDF.
 
-    sns.set_theme(style="whitegrid", font_scale=0.85)
-    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6), sharey=True)
+    Vector output that inherits the document's fonts and sizes, and whose numbers stay
+    readable in the diff: a reviewer, or the next person to touch this, can check a point
+    against the results without opening an image.
+
+    Full width rather than one column: seven encoder labels and two panels do not fit in a
+    column, and the figure is read against the table beside it.
+
+    Two panels sharing one y axis. Horizontal error bars are one standard deviation over
+    the ten seeds, which is what makes the comparison legible: on the task panel the two
+    conditions overlap, on the sanity panel they do not come close.
+    """
     order = [a for a in ARCH_LABELS if (a, "none") in cells and (a, "full") in cells][::-1]
-    short = {a: ARCH_LABELS[a].replace(r"\textsubscript", "-").replace("{", "").replace("}", "")
-             for a in order}
+    labels = ", ".join(ARCH_LABELS[a] for a in order)
 
-    for axis, metric, title in ((axes[0], "macro_f1", "macro-F$_1$"), (axes[1], "sanity", "Sanity suites")):
-        for offset, (condition, colour, label) in enumerate(
-            (("none", "#8c8c8c", "raw"), ("full", "#1f77b4", "aug"))
-        ):
-            values = [st.mean(cells[(a, condition)][metric]) for a in order]
-            errors = [mean_sd(cells[(a, condition)][metric])[1] for a in order]
-            axis.errorbar(values, [i + (offset - 0.5) * 0.28 for i in range(len(order))],
-                          xerr=errors, fmt="o", color=colour, label=label, markersize=4, capsize=2)
-        axis.set_title(title)
-        axis.set_xlabel("")
-    axes[0].set_yticks(range(len(order)))
-    axes[0].set_yticklabels([short[a] for a in order], fontsize=7)
-    axes[1].legend(loc="lower left", frameon=True)
-    fig.tight_layout()
-    fig.savefig(path, bbox_inches="tight")
-    plt.close(fig)
+    def series(metric: str, condition: str, offset: float) -> str:
+        points = []
+        for index, arch in enumerate(order):
+            values = cells[(arch, condition)][metric]
+            points.append(f"({st.mean(values):.4f},{index + offset:.2f}) +- ({mean_sd(values)[1]:.4f},0)")
+        return " ".join(points)
+
+    panels = []
+    for metric, title, xmin, xmax in (
+        ("macro_f1", r"macro-F$_1$", 0.76, 0.93),
+        ("sanity", "Sanity suites", 0.76, 1.01),
+    ):
+        body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
+        for condition, style, offset in (("none", "raw", -0.17), ("full", "aug", 0.17)):
+            body.append(
+                f"\\addplot+[{style}] plot [error bars/.cd, x dir=both, x explicit] "
+                f"coordinates {{{series(metric, condition, offset)}}};"
+            )
+        panels.append("\n".join(body))
+
+    lines = [
+        r"% Genere par src/figures_generator/analyse_v3.py. Ne pas editer a la main.",
+        r"% Palette Okabe-Ito, validee : bande de clarte, plancher de chroma, separation",
+        r"% daltonienne et contraste. La forme du marqueur double la couleur, pour que",
+        r"% l'identite ne repose jamais sur elle seule.",
+        r"\definecolor{condraw}{HTML}{0072B2}",
+        r"\definecolor{condaug}{HTML}{E69F00}",
+        r"\begin{figure*}[t]", r"\centering",
+        r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
+        r"% \addplot a l'interieur d'un groupplot.",
+        r"\tikzset{",
+        r"  raw/.style={mark=*, mark size=1.5pt, only marks, color=condraw},",
+        r"  aug/.style={mark=square*, mark size=1.5pt, only marks, color=condaug},",
+        r"}",
+        r"\begin{tikzpicture}",
+        r"\begin{groupplot}[",
+        r"  group style={group size=2 by 1, horizontal sep=0.45cm, y descriptions at=edge left},",
+        r"  width=0.36\textwidth, height=4.4cm,",
+        r"  scale only axis,",
+        r"  % Tufte : pas de cadre, une seule ligne d'axe, la grille verticale assez pale",
+        r"  % pour guider l'oeil sans entrer en competition avec les points.",
+        r"  axis line style={draw=black!45, line width=0.3pt},",
+        r"  axis x line*=bottom, axis y line=none,",
+        r"  xmajorgrids, ymajorgrids=false, grid style={draw=black!10, line width=0.3pt},",
+        r"  tick align=outside, ytick style={draw=none},",
+        r"  tick label style={font=\scriptsize}, title style={font=\small, yshift=-3pt},",
+        f"  ymin=-0.7, ymax={len(order) - 0.3}, ytick={{{','.join(str(i) for i in range(len(order)))}}},",
+        f"  yticklabels={{{labels}}}, yticklabel style={{font=\scriptsize}},",
+        r"  every axis plot/.append style={line width=0.7pt},",
+        r"  legend style={font=\scriptsize, draw=none, fill=none,",
+        r"    at={(0.97,0.04)}, anchor=south east, cells={anchor=west}},",
+        r"]",
+        panels[0],
+        panels[1],
+        r"\legend{without augmentation, with augmentation}",
+        r"\end{groupplot}",
+        r"\end{tikzpicture}",
+        r"\caption{Augmentation moves one axis and not the other. Points are means over ten "
+        r"seeds, bars one standard deviation. On the task axis the two conditions overlap for "
+        r"every encoder; on the sanity axis they converge to one value from seven different "
+        r"starting points.}",
+        r"\label{fig:augmentation}",
+        r"\end{figure*}",
+    ]
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 @click.command()
@@ -274,7 +328,7 @@ def main(results: str, tex_out: Optional[str], json_out: Optional[str]) -> None:
             handle.write(main_table(cells) + "\n")
         with open(os.path.join(tex_out, "table_stats.tex"), "w", encoding="utf-8") as handle:
             handle.write(stats_table(cells) + "\n")
-        figure(cells, os.path.join(tex_out, "augmentation.pdf"))
+        figure(cells, os.path.join(tex_out, "figure_augmentation.tex"))
         click.echo(f"\ntables : {tex_out}")
     if json_out:
         with open(json_out, "w", encoding="utf-8") as handle:

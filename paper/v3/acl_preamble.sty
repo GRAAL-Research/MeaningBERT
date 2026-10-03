@@ -10,10 +10,16 @@
 \RequirePackage{microtype}
 \RequirePackage{booktabs}
 \RequirePackage{graphicx}
+\RequirePackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
 \RequirePackage{amsmath}
 \RequirePackage{multirow}
 \RequirePackage{url}
 \RequirePackage[hidelinks]{hyperref}
+% \autoref doit nommer les sections avec une majuscule, comme Table et Figure.
+\renewcommand{\sectionautorefname}{Section}
+\renewcommand{\subsectionautorefname}{Section}
 \RequirePackage[round]{natbib}
 \bibliographystyle{plainnat}
 \renewcommand{\bibsection}{\section*{References}}
