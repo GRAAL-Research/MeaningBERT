@@ -13,7 +13,8 @@ is not cosmetic: the split carries 1 536 human-annotated pairs plus 116 generate
 58 identical and 58 unrelated, which sit at the two ends of the scale and are trivial to
 order. Including them is what inflated the v2 campaign's headline Pearson by 0.088 before
 anyone noticed. The true-pair figure is the one comparable to the published numbers; the
-other is kept beside it so the gap stays visible instead of being rediscovered. A regression checkpoint answers directly. A three-class polarity checkpoint has no
+other is kept beside it so the gap stays visible instead of being rediscovered. A
+regression checkpoint answers directly. A three-class polarity checkpoint has no
 such output, so its score is ``100 x P(entailment)``: the probability the candidate follows
 from the source, which is the closest thing a polarity head has to "the meaning survived".
 It is a derived quantity and is labelled as one, never presented as what the model was
@@ -206,28 +207,24 @@ def main(checkpoints, subfolders, labels, v2_corpus: str, v3_corpus: str, json_o
     v2_test = load_from_disk(v2_corpus)["test"]
     v3_test = load_from_disk(v3_corpus)["test"]
     n_true = sum(1 for source in v2_test["source"] if source == "original")
-    click.echo(
-        f"tache v2 : {n_true} vraies paires sur {len(v2_test)}   tache v3 : {len(v3_test)} paires\n"
-    )
+    click.echo(f"tache v2 : {n_true} vraies paires sur {len(v2_test)}   tache v3 : {len(v3_test)} paires\n")
 
-    header = ("modele", "v2 Pearson", "(+controles)", "v3 AUC", "v3 macro-F1", "v3 exact.")
-    click.echo("%-30s %11s %13s %8s %12s %10s" % header)
+    click.echo(
+        f"{'modele':<30} {'v2 Pearson':>11} {'(+controles)':>13}"
+        f" {'v3 AUC':>8} {'v3 macro-F1':>12} {'v3 exact.':>10}"
+    )
 
     findings = []
     for checkpoint, subfolder, label in zip(checkpoints, subfolders, labels):
         got = evaluate(Model(checkpoint, subfolder or None), v2_test, v3_test)
         got.update({"checkpoint": checkpoint, "subfolder": subfolder, "label": label})
         findings.append(got)
+        macro = f"{got['v3_macro_f1']:.4f}" if got["v3_macro_f1"] is not None else "--"
+        exact = f"{got['v3_accuracy']:.4f}" if got["v3_accuracy"] is not None else "--"
         click.echo(
-            "%-30s %11.4f %13.4f %8.4f %12s %10s"
-            % (
-                label[:30],
-                got["v2_pearson_true_pairs"],
-                got["v2_pearson_with_controls"],
-                got["v3_auc_entail_vs_contra"],
-                f"{got['v3_macro_f1']:.4f}" if got["v3_macro_f1"] is not None else "--",
-                f"{got['v3_accuracy']:.4f}" if got["v3_accuracy"] is not None else "--",
-            )
+            f"{label[:30]:<30} {got['v2_pearson_true_pairs']:11.4f}"
+            f" {got['v2_pearson_with_controls']:13.4f} {got['v3_auc_entail_vs_contra']:8.4f}"
+            f" {macro:>12} {exact:>10}"
         )
 
     if json_out:

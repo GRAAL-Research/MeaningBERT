@@ -50,8 +50,13 @@ def footprint(scorer: MeaningBERTScorer, device: str) -> dict:
     """
     import torch
 
+    # Le scorer n'expose pas son modele : compter ses parametres demande d'y entrer.
+    # C'est un diagnostic, pas du code de production, et l'alternative serait d'elargir
+    # l'API publique du scorer pour un seul appel.
+    # pylint: disable=protected-access
     params = sum(p.numel() for p in scorer._model.parameters())  # noqa: SLF001
     weights_bytes = sum(p.numel() * p.element_size() for p in scorer._model.parameters())  # noqa: SLF001
+    # pylint: enable=protected-access
     out = {"parameters": params, "weights_mb": weights_bytes / 1e6, "peak_vram_mb": float("nan")}
     if device == "cuda":
         torch.cuda.synchronize()
@@ -101,13 +106,23 @@ def main(checkpoints, devices, pairs: int, repeats: int, batch_size: int, json_o
             scorer = MeaningBERTScorer(checkpoint, device=device, batch_size=batch_size)
             size = footprint(scorer, device)
             params = size["parameters"]
-            print(f"{checkpoint:58} {device:5} {params / 1e6:6.1f} M parametres, "
-                  f"{size['weights_mb']:7.0f} Mo de poids, pic VRAM {size['peak_vram_mb']:7.0f} Mo")
+            print(
+                f"{checkpoint:58} {device:5} {params / 1e6:6.1f} M parametres, "
+                f"{size['weights_mb']:7.0f} Mo de poids, pic VRAM {size['peak_vram_mb']:7.0f} Mo"
+            )
             got = measure(scorer, pairs, repeats)
-            rows.append({"checkpoint": checkpoint, "device": device, **size,
-                         **{k: v for k, v in got.items() if k != "all_timings"}})
-            print(f"{checkpoint:58} {device:5} {got['pairs_per_second']:8.1f} paires/s   "
-                  f"{pairs / got['pairs_per_second']:6.2f} s pour {pairs} paires")
+            rows.append(
+                {
+                    "checkpoint": checkpoint,
+                    "device": device,
+                    **size,
+                    **{k: v for k, v in got.items() if k != "all_timings"},
+                }
+            )
+            print(
+                f"{checkpoint:58} {device:5} {got['pairs_per_second']:8.1f} paires/s   "
+                f"{pairs / got['pairs_per_second']:6.2f} s pour {pairs} paires"
+            )
             del scorer
             if device == "cuda":
                 torch.cuda.empty_cache()
@@ -125,8 +140,10 @@ def main(checkpoints, devices, pairs: int, repeats: int, batch_size: int, json_o
                 continue
             ref = next((b for b in rows if b["device"] == r["device"] and "bert-base-uncased" in b["checkpoint"]), None)
             if ref:
-                print(f"  {r['checkpoint'][:44]:44} {r['device']:5} "
-                      f"{ref['pairs_per_second'] / r['pairs_per_second']:5.1f} fois plus lent")
+                print(
+                    f"  {r['checkpoint'][:44]:44} {r['device']:5} "
+                    f"{ref['pairs_per_second'] / r['pairs_per_second']:5.1f} fois plus lent"
+                )
 
 
 if __name__ == "__main__":

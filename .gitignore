@@ -59,3 +59,11 @@ archives/
 *.out
 *.synctex.gz
 *.toc
+
+# Artefacts de runs wandb : wandb les garde cote serveur, les versionner ici
+# ajoutait quarante fichiers binaires que personne ne relit.
+wandb/
+
+# Caches d'outils
+.ruff_cache/
+.deepeval/

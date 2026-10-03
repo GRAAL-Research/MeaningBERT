@@ -96,11 +96,21 @@ def sanity(scorer: MeaningBERTScorer, rows, kind: str) -> dict:
 @click.option("--batch-size", default=32, show_default=True)
 @click.option("--max-length", default=256, show_default=True, help="Same bound the grid trains under.")
 @click.option("--suites", default=None, help="Full-coverage evaluation suites from build_eval_suites.py.")
-@click.option("--symmetrize/--no-symmetrize", default=False,
-              help="DIAGNOSTIC ONLY: average the two directions, to measure what the asymmetry "
-                   "costs. The published scorer does not do this; it runs one direction.")
-def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int, max_length: int,
-         suites: Optional[str], symmetrize: bool) -> None:
+@click.option(
+    "--symmetrize/--no-symmetrize",
+    default=False,
+    help="DIAGNOSTIC ONLY: average the two directions, to measure what the asymmetry "
+    "costs. The published scorer does not do this; it runs one direction.",
+)
+def main(
+    checkpoint: str,
+    variant_path: str,
+    results_json: str,
+    batch_size: int,
+    max_length: int,
+    suites: Optional[str],
+    symmetrize: bool,
+) -> None:
     """Score *checkpoint* on *variant_path* and write a run-shaped JSON."""
     data = load_from_disk(variant_path)
     scorer = MeaningBERTScorer(checkpoint, batch_size=batch_size)
@@ -147,8 +157,12 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
         if mask.sum() < 3:
             continue
         m = metrics(gold[mask], pred[mask], "test")
-        by_corpus[name] = {"n": int(mask.sum()), "pearson": m["test_pearson_corr"],
-                           "rmse": m["test_rmse"], "R2": m["test_R2"]}
+        by_corpus[name] = {
+            "n": int(mask.sum()),
+            "pearson": m["test_pearson_corr"],
+            "rmse": m["test_rmse"],
+            "R2": m["test_R2"],
+        }
     payload["by_corpus"] = by_corpus
 
     # Ventilation par source. Le split de test ne contient pas que des paires annotees :
@@ -168,7 +182,9 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
     if only.sum() >= 3:
         m = metrics(gold[only], pred[only], "test")
         by_source["_sans_les_paires_triviales"] = {
-            "n": int(only.sum()), "pearson": m["test_pearson_corr"], "rmse": m["test_rmse"]
+            "n": int(only.sum()),
+            "pearson": m["test_pearson_corr"],
+            "rmse": m["test_rmse"],
         }
     payload["by_source"] = by_source
 
@@ -211,14 +227,20 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
 
     t = payload["test"]
     print(f"\nPearson {t['test_pearson_corr']:.3f}   RMSE {t['test_rmse']:.2f}   R2 {t['test_R2']}")
-    print(f"moyenne predite {t['test_mean_score']:.2f} (etiquettes {gold.mean():.2f}), "
-          f"ecart-type {t['test_st_dev_score']:.2f} (etiquettes {gold.std(ddof=1):.2f})")
+    print(
+        f"moyenne predite {t['test_mean_score']:.2f} (etiquettes {gold.mean():.2f}), "
+        f"ecart-type {t['test_st_dev_score']:.2f} (etiquettes {gold.std(ddof=1):.2f})"
+    )
     if payload.get("identical"):
         i, u = payload["identical"], payload["unrelated"]
-        print(f"identiques : moyenne {i['test/identical_sentences_mean_score']:.2f}, "
-              f"{i['test/identical_sentences_ratio_95']:.1f} % au-dessus de 95")
-        print(f"non reliees: moyenne {u['test/unrelated_sentences_mean_score']:.2f}, "
-              f"{u['test/unrelated_sentences_ratio_5']:.1f} % au-dessous de 5")
+        print(
+            f"identiques : moyenne {i['test/identical_sentences_mean_score']:.2f}, "
+            f"{i['test/identical_sentences_ratio_95']:.1f} % au-dessus de 95"
+        )
+        print(
+            f"non reliees: moyenne {u['test/unrelated_sentences_mean_score']:.2f}, "
+            f"{u['test/unrelated_sentences_ratio_5']:.1f} % au-dessous de 5"
+        )
     if payload.get("by_corpus"):
         print("\npar corpus :")
         for name, m in payload["by_corpus"].items():
@@ -226,11 +248,15 @@ def main(checkpoint: str, variant_path: str, results_json: str, batch_size: int,
     if payload.get("symmetry"):
         sy = payload["symmetry"]
         print(f"\nsymetrie meaning(A,B) contre meaning(B,A), sur {sy['n']} paires :")
-        print(f"  ecart absolu moyen {sy['mean_abs_delta']:.2f}, median {sy['median_abs_delta']:.2f}, "
-              f"max {sy['max_abs_delta']:.2f}")
-        print(f"  identiques a 0,05 pres : {sy['share_exact']:.1f} %   "
-              f"ecart > 1 : {sy['share_above_1']:.1f} %   > 5 : {sy['share_above_5']:.1f} %   "
-              f"> 10 : {sy['share_above_10']:.1f} %")
+        print(
+            f"  ecart absolu moyen {sy['mean_abs_delta']:.2f}, median {sy['median_abs_delta']:.2f}, "
+            f"max {sy['max_abs_delta']:.2f}"
+        )
+        print(
+            f"  identiques a 0,05 pres : {sy['share_exact']:.1f} %   "
+            f"ecart > 1 : {sy['share_above_1']:.1f} %   > 5 : {sy['share_above_5']:.1f} %   "
+            f"> 10 : {sy['share_above_10']:.1f} %"
+        )
     if payload.get("by_source"):
         print("\npar source :")
         for name, m in payload["by_source"].items():

@@ -56,10 +56,28 @@ SUITES = [
     # une AUC de 0,021, c'est-a-dire un classement presque parfaitement retourne, ce qui est
     # la signature d'une etiquette echangee et non d'un modele en echec.
     ("yangwang825/sick", None, "test", "text1", "text2", "label", {0}, {2}, "SICK"),
-    ("joey234/nan-nli", None, "test", "premise", "hypothesis", "label",
-     {"entailment"}, {"contradiction"}, "NaN-NLI (negation)"),
-    ("tasksource/monli", None, "train", "sentence1", "sentence2", "gold_label",
-     {"entailment"}, {"neutral"}, "MoNLI (entail vs neutral, NOT contradiction)"),
+    (
+        "joey234/nan-nli",
+        None,
+        "test",
+        "premise",
+        "hypothesis",
+        "label",
+        {"entailment"},
+        {"contradiction"},
+        "NaN-NLI (negation)",
+    ),
+    (
+        "tasksource/monli",
+        None,
+        "train",
+        "sentence1",
+        "sentence2",
+        "gold_label",
+        {"entailment"},
+        {"neutral"},
+        "MoNLI (entail vs neutral, NOT contradiction)",
+    ),
 ]
 
 
@@ -126,8 +144,9 @@ def main(checkpoints, subfolders, limit: int, json_out: Optional[str]) -> None:
             rows[bucket][0].append(row[left])
             rows[bucket][1].append(row[right])
         loaded.append((label, rows))
-        print(f"{label:44} {len(rows['entail'][0]):4d} accord / {len(rows['contra'][0]):4d} contradiction"
-              f"  ({chosen})")
+        print(
+            f"{label:44} {len(rows['entail'][0]):4d} accord / {len(rows['contra'][0]):4d} contradiction" f"  ({chosen})"
+        )
 
     findings = []
     for checkpoint, subfolder in zip(checkpoints, subfolders):
@@ -140,9 +159,11 @@ def main(checkpoints, subfolders, limit: int, json_out: Optional[str]) -> None:
             got = amplitude(entail, contra)
             got.update({"checkpoint": tag, "suite": label})
             findings.append(got)
-            print(f"  {label:44} accord {got['mean_entailment']:6.2f}  "
-                  f"contradiction {got['mean_contradiction']:6.2f}  "
-                  f"amplitude {got['amplitude_share'] * 100:5.1f} %  AUC {got['auc']:.3f}")
+            print(
+                f"  {label:44} accord {got['mean_entailment']:6.2f}  "
+                f"contradiction {got['mean_contradiction']:6.2f}  "
+                f"amplitude {got['amplitude_share'] * 100:5.1f} %  AUC {got['auc']:.3f}"
+            )
         del scorer
 
     if json_out:

@@ -81,8 +81,12 @@ def _identical_both_sides(annotated: Dataset) -> Dataset:
 @click.option("--out", required=True, help="Where the suites are written.")
 @click.option("--split", default="test", show_default=True, help="Which split the suites derive from.")
 @click.option("--seed", default=42, show_default=True, help="Seed of the unrelated pairing.")
-@click.option("--max-overlap", default=0.2, show_default=True,
-              help="Content-token containment above which a pair is not unrelated.")
+@click.option(
+    "--max-overlap",
+    default=0.2,
+    show_default=True,
+    help="Content-token containment above which a pair is not unrelated.",
+)
 def main(variant_path: str, out: str, split: str, seed: int, max_overlap: float) -> None:
     """Write full-coverage identical and unrelated suites for *variant_path*."""
     data = load_from_disk(variant_path)

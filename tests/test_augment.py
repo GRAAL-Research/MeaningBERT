@@ -29,6 +29,7 @@ def _rows_of(dataset):
     """Materialise a dataset as dicts, so a test can read columns by name."""
     return [dict(zip(dataset.column_names, values)) for values in zip(*(dataset[c] for c in dataset.column_names))]
 
+
 REVERSE = lambda texts: [text[::-1] for text in texts]  # noqa: E731 - deterministic stub
 
 
@@ -112,8 +113,9 @@ def test_swap_gives_mirrored_rows_a_distinct_item_id():
 
 def test_swap_drops_a_mirror_that_would_enter_a_held_out_group():
     """The v1 blind spot, measured on CSMD at the very first fold."""
-    out = swap(_dataset([("a b", "held out sentence", "original", 70.0)]),
-               forbidden_groups={group_key("held out sentence")})
+    out = swap(
+        _dataset([("a b", "held out sentence", "original", 70.0)]), forbidden_groups={group_key("held out sentence")}
+    )
     assert len(out) == 1
 
 
@@ -331,9 +333,7 @@ def _polar_dataset(rows):
         "demo",
     )
     built = built.remove_columns(["label"]).add_column("label", [float(r[3]) for r in rows])
-    return built.remove_columns(["polarity"]).add_column(
-        "polarity", [float(POLARITY_CLASSES[r[4]]) for r in rows]
-    )
+    return built.remove_columns(["polarity"]).add_column("polarity", [float(POLARITY_CLASSES[r[4]]) for r in rows])
 
 
 def test_a_mirrored_contradiction_keeps_its_polarity():
@@ -378,9 +378,7 @@ def test_a_generated_identical_pair_is_an_entailment_not_the_template_row_s_clas
     # The generators build rows from ``template = rows[0]``. Inheriting its polarity would
     # stamp one arbitrary row's class onto every generated pair; here the only row is a
     # contradiction, so the bug would label every identical pair a contradiction.
-    data = _polar_dataset(
-        [(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]]
-    )
+    data = _polar_dataset([(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]])
     generated = [row for row in _rows_of(generate_identical(data, ratio=0.5)) if row["source"] == "identical"]
     assert generated
     assert {row["polarity_raw"] for row in generated} == {"entailment"}
@@ -390,9 +388,7 @@ def test_a_generated_identical_pair_is_an_entailment_not_the_template_row_s_clas
 def test_a_generated_unrelated_pair_is_neutral_and_never_a_contradiction():
     # The distinction the whole signed scale rests on: two sentences with nothing in common
     # score 0, they do not score -100. Unrelated is not opposed.
-    data = _polar_dataset(
-        [(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]]
-    )
+    data = _polar_dataset([(left, right, "original", 20.0, "contradiction") for left, right in _TOPICS[:12]])
     generated = [row for row in _rows_of(generate_unrelated(data, ratio=0.5)) if row["source"] == "unrelated"]
     assert generated
     assert {row["polarity_raw"] for row in generated} == {"neutral"}

@@ -152,7 +152,9 @@ def audit_run(
     )
 
 
-def audit_runs(records: Iterable[tuple[str, str, str, dict[str, Any]]], label_mean: float, label_std: float) -> AuditReport:
+def audit_runs(
+    records: Iterable[tuple[str, str, str, dict[str, Any]]], label_mean: float, label_std: float
+) -> AuditReport:
     """Audit an iterable of ``(name, checkpoint, augmentation, summary)`` records."""
     audits = [a for a in (audit_run(*record, label_std=label_std) for record in records) if a is not None]
     return AuditReport(
@@ -189,18 +191,25 @@ def _print_report(report: AuditReport) -> None:
     """Print the human-readable verdict."""
     print(f"Label distribution: mean {report.label_mean:.2f}, std {report.label_std:.2f}\n")
     print(f"Runs audited: {report.n_runs}")
-    print(f"Collapsed to a constant output: {report.n_collapsed} ({100 * report.n_collapsed / max(1, report.n_runs):.1f}%)")
+    print(
+        f"Collapsed to a constant output: {report.n_collapsed}"
+        f" ({100 * report.n_collapsed / max(1, report.n_runs):.1f}%)"
+    )
     print("  A collapsed run has std ~0 or an undefined Pearson. metrics._sanitize_predictions")
     print("  rewrites its NaN predictions to 0.0, so it enters the aggregate as a zero-predictor.\n")
 
-    header = f"{'checkpoint':32} {'n':>3} {'pearson':>8} {'rmse':>7} {'rmse_affine':>12} {'recover':>8} {'pred_mean':>10} {'pred_std':>9}"
+    header = (
+        f"{'checkpoint':32} {'n':>3} {'pearson':>8} {'rmse':>7} {'rmse_affine':>12}"
+        f" {'recover':>8} {'pred_mean':>10} {'pred_std':>9}"
+    )
     print(header)
     print("-" * len(header))
     for checkpoint, stats in report.by_checkpoint().items():
         recovered = 1 - stats["rmse_after_affine"] / stats["rmse"] if stats["rmse"] else 0.0
         print(
             f"{checkpoint[:32]:32} {stats['n']:>3.0f} {stats['pearson']:>8.3f} {stats['rmse']:>7.2f} "
-            f"{stats['rmse_after_affine']:>12.2f} {100 * recovered:>7.1f}% {stats['pred_mean']:>10.2f} {stats['pred_std']:>9.2f}"
+            f"{stats['rmse_after_affine']:>12.2f} {100 * recovered:>7.1f}%"
+            f" {stats['pred_mean']:>10.2f} {stats['pred_std']:>9.2f}"
         )
 
     print(f"\nFor reference the labels sit at mean {report.label_mean:.2f}, std {report.label_std:.2f}.")

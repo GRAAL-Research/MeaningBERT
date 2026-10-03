@@ -78,7 +78,8 @@ def probe(name: str, config: Optional[str]) -> dict:
         if label is not None:
             names = getattr(info.features[label], "names", None)
             out["label_space"] = names if names else str(info.features[label])
-    except Exception as exc:  # noqa: BLE001 - the failure IS the result here
+    # Ici l'echec EST le resultat : on le rapporte au lieu de le laisser remonter.
+    except Exception as exc:  # pylint: disable=broad-exception-caught  # noqa: BLE001
         out["ok"] = False
         out["error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
     return out
@@ -103,8 +104,10 @@ def main(out: Optional[str], json_out: Optional[str]) -> None:
             print(f"    INDISPONIBLE  {found['error']}")
 
     usable = [f for f in findings if f["ok"]]
-    print(f"\n{len(usable)} corpus sur {len(findings)} sont ouvrables, "
-          f"{sum(sum(f.get('rows', {}).values()) for f in usable):,} lignes au total")
+    print(
+        f"\n{len(usable)} corpus sur {len(findings)} sont ouvrables, "
+        f"{sum(sum(f.get('rows', {}).values()) for f in usable):,} lignes au total"
+    )
 
     if json_out:
         with open(json_out, "w", encoding="utf-8") as handle:
@@ -124,8 +127,10 @@ def main(out: Optional[str], json_out: Optional[str]) -> None:
         for f in findings:
             if f["ok"]:
                 total = f"{sum(f.get('rows', {}).values()):,}"
-                lines.append(f"| `{f['name']}` | ouvrable | {total} | {f.get('label_space', '--')} "
-                             f"| {f['licence']} | {f['why']} |")
+                lines.append(
+                    f"| `{f['name']}` | ouvrable | {total} | {f.get('label_space', '--')} "
+                    f"| {f['licence']} | {f['why']} |"
+                )
             else:
                 lines.append(f"| `{f['name']}` | **indisponible** | -- | -- | -- | {f['why']} |")
         lines += ["", "## Echecs", ""]

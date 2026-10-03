@@ -56,9 +56,9 @@ def measure_throughput(index: int, hidden: int = 1024, batch: int = 16, seq: int
 
     device = torch.device(f"cuda:{index}")
     torch.backends.cudnn.benchmark = True
-    layer = torch.nn.TransformerEncoderLayer(
-        d_model=hidden, nhead=16, dim_feedforward=4 * hidden, batch_first=True
-    ).to(device)
+    layer = torch.nn.TransformerEncoderLayer(d_model=hidden, nhead=16, dim_feedforward=4 * hidden, batch_first=True).to(
+        device
+    )
     optimiser = torch.optim.AdamW(layer.parameters(), lr=1e-5)
     data = torch.randn(batch, seq, hidden, device=device)
 
@@ -124,7 +124,8 @@ def verify(index: int, skip_throughput: bool = False) -> tuple[bool, dict[str, A
         assert probe.weight.grad is not None
         _check("a real forward and backward pass runs", True)
         report["fwd_bwd"] = True
-    except Exception as error:  # noqa: BLE001 - any failure here is fatal and worth printing
+    # N'importe quel echec ici est fatal et merite d'etre imprime, quel que soit son type.
+    except Exception as error:  # pylint: disable=broad-exception-caught  # noqa: BLE001
         _check("a real forward and backward pass runs", False, f"{type(error).__name__}: {error}")
         report["fwd_bwd"] = False
         return False, report

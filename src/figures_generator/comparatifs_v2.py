@@ -29,10 +29,16 @@ from typing import Iterable, Optional
 import click
 import matplotlib
 
-matplotlib.use("Agg")  # No display on the training hosts, and none needed to write a PDF.
+# Le backend se choisit AVANT le premier import de pyplot, sinon matplotlib en a deja
+# elu un et cherche un affichage que les machines d'entrainement n'ont pas. C'est la
+# seule raison pour laquelle ces trois imports ne sont pas en tete de module.
+matplotlib.use("Agg")
+# pylint: disable=wrong-import-position
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
+
+# pylint: enable=wrong-import-position
 
 try:  # PYTHONPATH=src.
     from figures_generator.analyze_v2_experiment import CONDITION_LABELS, MODE_LABELS, RunResult, load_runs
@@ -142,11 +148,21 @@ def _ordered(values: pd.Series, preferred: list[str]) -> list[str]:
     return [v for v in preferred if v in seen] + [v for v in seen if v not in preferred]
 
 
-
 #: Metrics aggregated across seeds. Everything else in a run is either constant across
 #: seeds (the corpus, the architecture) or not worth a standard deviation (the row counts).
-AGGREGATED = ["objective", "pearson", "rmse", "r2", "identical_mean", "identical_ratio_95",
-              "unrelated_mean", "unrelated_ratio_5", "pred_mean", "pred_std", "epochs"]
+AGGREGATED = [
+    "objective",
+    "pearson",
+    "rmse",
+    "r2",
+    "identical_mean",
+    "identical_ratio_95",
+    "unrelated_mean",
+    "unrelated_ratio_5",
+    "pred_mean",
+    "pred_std",
+    "epochs",
+]
 
 
 def aggregate(frame: pd.DataFrame) -> pd.DataFrame:
@@ -205,7 +221,7 @@ def load_from_wandb(entity: str, prefix: str) -> list[RunResult]:
 
 def _run_from_wandb(run) -> Optional[RunResult]:  # noqa: ANN001 - wandb's Run has no public type
     """One wandb run into a RunResult, or None when it never reached its test evaluation."""
-    summary = {k: v for k, v in run.summary.items()} if run.summary is not None else {}
+    summary = dict(run.summary.items()) if run.summary is not None else {}
     config = run.config or {}
     if "test_pearson_corr" not in summary:
         return None  # Crashed, or still running: no test evaluation, nothing to compare.
@@ -228,7 +244,7 @@ def _run_from_wandb(run) -> Optional[RunResult]:  # noqa: ANN001 - wandb's Run h
             return float("nan")
 
     return RunResult(
-        arch=str(config.get("checkpoint", "")).split("/")[-1] or "unknown",
+        arch=str(config.get("checkpoint", "")).rsplit("/", maxsplit=1)[-1] or "unknown",
         variant=variant,
         condition=condition,
         mode=mode,
@@ -275,8 +291,9 @@ def figure_head_effect(frame: pd.DataFrame, path: str) -> Optional[str]:
     two heads, and a bar chart makes the reader compute it by eye across a gap.
     """
     both = frame[frame["variant"].isin(GRID_VARIANTS)]
-    pivot = both.pivot_table(index=["arch", "variant"], columns="head", values=["pearson", "identical_ratio_95"],
-                             observed=True)
+    pivot = both.pivot_table(
+        index=["arch", "variant"], columns="head", values=["pearson", "identical_ratio_95"], observed=True
+    )
     pivot = pivot.dropna(subset=[("pearson", "sigmoid"), ("pearson", "clamped")], how="any")
     if pivot.empty:
         return None
@@ -383,16 +400,26 @@ def figure_corpus_and_augmentation(frame: pd.DataFrame, path: str, head: str = "
     subset["corpus"] = subset["condition"].map({"c": "v1 corrected (c)", "d": "v2 corpora (d)"})
 
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
-    sns.barplot(data=subset, x="corpus", y="pearson", hue="mode", palette=PALETTE_MODE, ax=axes[0], errorbar="sd", capsize=0.12)
+    sns.barplot(
+        data=subset, x="corpus", y="pearson", hue="mode", palette=PALETTE_MODE, ax=axes[0], errorbar="sd", capsize=0.12
+    )
     axes[0].axhline(TARGET_PEARSON, color="#a03030", linestyle="--", linewidth=1.1)
     axes[0].set_ylim(0.7, max(0.95, float(subset["pearson"].max()) + 0.03))
     axes[0].set_ylabel("Pearson $r$")
     axes[0].set_title("Correlation")
 
-    sns.barplot(data=subset, x="corpus", y="rmse", hue="mode", palette=PALETTE_MODE, ax=axes[1], errorbar="sd", capsize=0.12)
+    sns.barplot(
+        data=subset, x="corpus", y="rmse", hue="mode", palette=PALETTE_MODE, ax=axes[1], errorbar="sd", capsize=0.12
+    )
     sns.pointplot(
-        data=subset, x="corpus", y="rmse_floor", color="#33333a", linestyles="", markers="_",
-        markersize=28, ax=axes[1],
+        data=subset,
+        x="corpus",
+        y="rmse_floor",
+        color="#33333a",
+        linestyles="",
+        markers="_",
+        markersize=28,
+        ax=axes[1],
     )
     axes[1].axhline(TARGET_RMSE, color="#a03030", linestyle="--", linewidth=1.1)
     axes[1].set_ylabel("RMSE (dash: floor at this correlation, red: target)")
@@ -557,7 +584,9 @@ def table_seeds(frame: pd.DataFrame, path: str, head: str = "clamped") -> Option
         lines.append(
             " & ".join(
                 [
-                    _tex(str(row["arch"])), _tex(str(row["variant"])), str(int(row["n"])),
+                    _tex(str(row["arch"])),
+                    _tex(str(row["variant"])),
+                    str(int(row["n"])),
                     pm(row["objective_mean"], row["objective_std"], 3, latex=True),
                     pm(row["pearson_mean"], row["pearson_std"], 3, latex=True),
                     pm(row["rmse_mean"], row["rmse_std"], 2, latex=True),
@@ -662,18 +691,24 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
     grid = frame[(frame["head"] == "clamped") & frame["variant"].isin(GRID_VARIANTS)]
     both = frame[frame["variant"].isin(GRID_VARIANTS)]
     pivot = both.pivot_table(
-        index=["arch", "variant"], columns="head",
-        values=["pearson", "identical_mean", "identical_ratio_95"], observed=True,
+        index=["arch", "variant"],
+        columns="head",
+        values=["pearson", "identical_mean", "identical_ratio_95"],
+        observed=True,
     ).dropna(subset=[("pearson", "sigmoid"), ("pearson", "clamped")], how="any")
 
     head_rows = []
     for (arch, variant), row in pivot.iterrows():
         head_rows.append(
             {
-                "arch": str(arch), "variant": str(variant),
-                "p_sig": row[("pearson", "sigmoid")], "p_cla": row[("pearson", "clamped")],
-                "im_sig": row[("identical_mean", "sigmoid")], "im_cla": row[("identical_mean", "clamped")],
-                "i95_sig": row[("identical_ratio_95", "sigmoid")], "i95_cla": row[("identical_ratio_95", "clamped")],
+                "arch": str(arch),
+                "variant": str(variant),
+                "p_sig": row[("pearson", "sigmoid")],
+                "p_cla": row[("pearson", "clamped")],
+                "im_sig": row[("identical_mean", "sigmoid")],
+                "im_cla": row[("identical_mean", "clamped")],
+                "i95_sig": row[("identical_ratio_95", "sigmoid")],
+                "i95_cla": row[("identical_ratio_95", "clamped")],
             }
         )
     head_frame = pd.DataFrame(head_rows)
@@ -689,7 +724,8 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
 
     sections = [
         (
-            "1", "Tete de sortie",
+            "1",
+            "Tete de sortie",
             "Le seul facteur mesure sous les deux tetes, tout le reste egal : meme architecture, "
             "meme corpus, meme graine.",
             "<b>Comment lire.</b> La sigmoide a pour image l'intervalle OUVERT (0, 100) : elle ne peut "
@@ -697,19 +733,28 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
             "exactement l'un des deux. La tete clamped atteint les bornes. Si le changement etait "
             "gratuit, la correlation ne bougerait pas et le test des paires identiques monterait.",
             _svg(os.path.join(figures_dir, "v2-tete-de-sortie.pdf")),
-            _html_table(
-                head_frame,
-                [
-                    ("Architecture", "arch", 0), ("Variante", "variant", 0),
-                    ("Pearson sigmoide", "p_sig", 3), ("Pearson clamped", "p_cla", 3),
-                    ("Identiques moy. sigmoide", "im_sig", 2), ("Identiques moy. clamped", "im_cla", 2),
-                    ("Identiques &gt;95 sigmoide (%)", "i95_sig", 1), ("Identiques &gt;95 clamped (%)", "i95_cla", 1),
-                ],
-                {},
-            ) if not head_frame.empty else "<p class='meta'>pas encore de paire complete</p>",
+            (
+                _html_table(
+                    head_frame,
+                    [
+                        ("Architecture", "arch", 0),
+                        ("Variante", "variant", 0),
+                        ("Pearson sigmoide", "p_sig", 3),
+                        ("Pearson clamped", "p_cla", 3),
+                        ("Identiques moy. sigmoide", "im_sig", 2),
+                        ("Identiques moy. clamped", "im_cla", 2),
+                        ("Identiques &gt;95 sigmoide (%)", "i95_sig", 1),
+                        ("Identiques &gt;95 clamped (%)", "i95_cla", 1),
+                    ],
+                    {},
+                )
+                if not head_frame.empty
+                else "<p class='meta'>pas encore de paire complete</p>"
+            ),
         ),
         (
-            "2", "Plan de l'objectif",
+            "2",
+            "Plan de l'objectif",
             "Chaque run place selon ses deux dimensions les plus contraignantes.",
             "<b>Comment lire.</b> L'objectif est un PRODUIT de trois termes, donc un run peut etre a "
             "droite, tres correle, et rester inutilisable parce qu'il est en bas. La ligne verticale "
@@ -719,29 +764,45 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
             "",
         ),
         (
-            "3", "La grille",
+            "3",
+            "La grille",
             "Architecture par variante de corpus, tete clamped. Les cases vides sont les runs qui "
             "n'ont pas encore tourne.",
             "<b>Comment lire.</b> La couleur est l'objectif, le nombre imprime est le Pearson. Une "
             "case pale avec un nombre eleve est exactement le piege que l'objectif sert a reveler : "
             "une bonne correlation annulee par un test de bon sens rate.",
             _svg(os.path.join(figures_dir, "v2-grille.pdf")),
-            _html_table(
-                grid,
-                [
-                    ("Architecture", "arch", 0), ("Variante", "variant", 0),
-                    ("Objectif", "objective", 3), ("Pearson", "pearson", 3),
-                    ("RMSE", "rmse", 2), ("Plancher RMSE", "rmse_floor", 2), ("R2", "r2", 3),
-                    ("Identiques &gt;95 (%)", "identical_ratio_95", 1),
-                    ("Non reliees &lt;5 (%)", "unrelated_ratio_5", 1),
-                    ("Moy. predite", "pred_mean", 1), ("Ecart-type predit", "pred_std", 1),
-                ],
-                {"objective": "max", "pearson": "max", "rmse": "min",
-                 "identical_ratio_95": "max", "unrelated_ratio_5": "max"},
-            ) if not grid.empty else "<p class='meta'>grille vide</p>",
+            (
+                _html_table(
+                    grid,
+                    [
+                        ("Architecture", "arch", 0),
+                        ("Variante", "variant", 0),
+                        ("Objectif", "objective", 3),
+                        ("Pearson", "pearson", 3),
+                        ("RMSE", "rmse", 2),
+                        ("Plancher RMSE", "rmse_floor", 2),
+                        ("R2", "r2", 3),
+                        ("Identiques &gt;95 (%)", "identical_ratio_95", 1),
+                        ("Non reliees &lt;5 (%)", "unrelated_ratio_5", 1),
+                        ("Moy. predite", "pred_mean", 1),
+                        ("Ecart-type predit", "pred_std", 1),
+                    ],
+                    {
+                        "objective": "max",
+                        "pearson": "max",
+                        "rmse": "min",
+                        "identical_ratio_95": "max",
+                        "unrelated_ratio_5": "max",
+                    },
+                )
+                if not grid.empty
+                else "<p class='meta'>grille vide</p>"
+            ),
         ),
         (
-            "4", "Corpus et augmentation",
+            "4",
+            "Corpus et augmentation",
             "Les deux facteurs que l'experience a ete construite pour mesurer.",
             "<b>Comment lire.</b> Le plancher de RMSE est ce que la meilleure remise a l'echelle "
             "affine de ces predictions atteindrait a cette correlation. Une RMSE collee a son "
@@ -773,14 +834,20 @@ def html_report(frame: pd.DataFrame, figures_dir: str, path: str, done: int, tot
         rows = []
         for _, row in agg.sort_values(["arch", "variant"]).iterrows():
             rows.append(
-                "<tr><td>" + "</td><td>".join([
-                    str(row["arch"]), str(row["variant"]), str(int(row["n"])),
-                    pm(row["objective_mean"], row["objective_std"], 3),
-                    pm(row["pearson_mean"], row["pearson_std"], 3),
-                    pm(row["rmse_mean"], row["rmse_std"], 2),
-                    pm(row["identical_mean_mean"], row["identical_mean_std"], 2),
-                    pm(row["identical_ratio_95_mean"], row["identical_ratio_95_std"], 1),
-                ]) + "</td></tr>"
+                "<tr><td>"
+                + "</td><td>".join(
+                    [
+                        str(row["arch"]),
+                        str(row["variant"]),
+                        str(int(row["n"])),
+                        pm(row["objective_mean"], row["objective_std"], 3),
+                        pm(row["pearson_mean"], row["pearson_std"], 3),
+                        pm(row["rmse_mean"], row["rmse_std"], 2),
+                        pm(row["identical_mean_mean"], row["identical_mean_std"], 2),
+                        pm(row["identical_ratio_95_mean"], row["identical_ratio_95_std"], 1),
+                    ]
+                )
+                + "</td></tr>"
             )
         parts.append("<h2><span class='num'>5</span>Moyennes sur les graines</h2>")
         parts.append(

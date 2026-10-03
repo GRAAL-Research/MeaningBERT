@@ -171,7 +171,9 @@ def test_a_shorter_slope_wins_ties():
     # Among the slopes that keep the scale whole: the rejected ones are still in the curve,
     # but they were never candidates.
     eligible = [row for row in curve if row["echelle_complete"]]
-    winners = [row["alpha"] for row in eligible if row["objectif"] == pytest.approx(max(r["objectif"] for r in eligible))]
+    winners = [
+        row["alpha"] for row in eligible if row["objectif"] == pytest.approx(max(r["objectif"] for r in eligible))
+    ]
     assert best == min(winners)
 
 

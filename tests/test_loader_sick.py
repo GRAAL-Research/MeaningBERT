@@ -36,7 +36,11 @@ _RELATEDNESS = [
         "sentence2": "A group of boys in a yard is playing and a man is standing in the background",
         "score": 4.5,
     },
-    {"sentence1": "Two dogs are wrestling and hugging", "sentence2": "There is no dog wrestling and hugging", "score": 3.5},
+    {
+        "sentence1": "Two dogs are wrestling and hugging",
+        "sentence2": "There is no dog wrestling and hugging",
+        "score": 3.5,
+    },
     {"sentence1": "A man is playing a guitar", "sentence2": "A man is playing an instrument", "score": 4.7},
 ]
 

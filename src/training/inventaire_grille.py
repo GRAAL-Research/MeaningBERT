@@ -71,11 +71,7 @@ def reassign(cells: list[tuple[str, int, str]], workers: list[str]) -> dict[str,
     placed: dict[str, list] = {name: [] for name in workers}
     for arch, seed, condition in cells:
         cost = ARCHS[arch][0] * CONDITION_COST[condition]
-        capable = [
-            name
-            for name in workers
-            if WORKERS[name][0] >= ARCHS[arch][1] and (arch, name) not in FORBIDDEN
-        ]
+        capable = [name for name in workers if WORKERS[name][0] >= ARCHS[arch][1] and (arch, name) not in FORBIDDEN]
         roomy = [name for name in capable if cost < 3 or WORKERS[name][1] >= 12]
         eligible = roomy or capable
         if not eligible:

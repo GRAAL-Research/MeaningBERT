@@ -122,11 +122,7 @@ def assign(
         # A large cell wants more than 11 GB to be comfortable. Steering, not a hard rule:
         # the runner halves the micro-batch on out-of-memory, so a misplacement costs speed
         # and not a result.
-        capable = [
-            name
-            for name in workers
-            if WORKERS[name][0] >= needed and (arch, name) not in FORBIDDEN
-        ]
+        capable = [name for name in workers if WORKERS[name][0] >= needed and (arch, name) not in FORBIDDEN]
         roomy = [name for name in capable if cost < 3 or WORKERS[name][1] >= 12]
         eligible = roomy or capable
         if not eligible:

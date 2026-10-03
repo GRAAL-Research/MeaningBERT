@@ -128,7 +128,7 @@ def sign_rates(signed: np.ndarray, truth: np.ndarray) -> dict[str, float]:
     rates = {}
     for name, index in POLARITY_CLASSES.items():
         rows = signed[truth == index]
-        if not len(rows):
+        if rows.size == 0:
             rates[name] = float("nan")
             continue
         rates[name] = float((rows < 0).mean() if name == "contradiction" else (rows > 0).mean())
@@ -202,9 +202,7 @@ def calibrate(
 
     eligible = [row for row in curve if row["echelle_complete"]] if require_full_scale else curve
     if not eligible:
-        raise ValueError(
-            f"aucune pente de {grid} n'atteint -100 ; la moitie negative de l'echelle serait inutilisable"
-        )
+        raise ValueError(f"aucune pente de {grid} n'atteint -100 ; la moitie negative de l'echelle serait inutilisable")
     best = max(eligible, key=lambda row: (row["objectif"], -row["alpha"]))
     return float(best["alpha"]), curve
 
@@ -251,7 +249,10 @@ def main(
     # SICK relatedness is a 1-5 Likert; the scale itself does not matter to a correlation,
     # only its ordering, so it is used as published.
     relatedness = np.array(bridge["label_raw"], dtype=float)
-    click.echo(f"pont SICK ({split}) : {len(bridge)} paires, dont {int((truth == POLARITY_CLASSES['contradiction']).sum())} contradictions\n")
+    click.echo(
+        f"pont SICK ({split}) : {len(bridge)} paires, dont"
+        f" {int((truth == POLARITY_CLASSES['contradiction']).sum())} contradictions\n"
+    )
 
     magnitude_model = Model(magnitude, magnitude_subfolder or None)
     if magnitude_model.is_polarity:
@@ -267,15 +268,15 @@ def main(
 
     best, curve = calibrate(scores, p_contradiction, relatedness, truth)
     click.echo(
-        "%6s %14s %14s %12s %10s %9s"
-        % ("alpha", "contra < 0", "implic. > 0", "Pearson prox.", "objectif", "plancher")
+        f"{'alpha':>6} {'contra < 0':>14} {'implic. > 0':>14}"
+        f" {'Pearson prox.':>12} {'objectif':>10} {'plancher':>9}"
     )
     for row in curve:
         mark = " <-" if row["alpha"] == best else ("" if row["echelle_complete"] else "  (echelle borgne)")
         click.echo(
-            "%6.2f %14.4f %14.4f %12.4f %10.4f %9.0f%s"
-            % (row["alpha"], row["contradictions_negatives"], row["implications_positives"],
-               row["pearson_proximite"], row["objectif"], row["plancher"], mark)
+            f"{row['alpha']:6.2f} {row['contradictions_negatives']:14.4f}"
+            f" {row['implications_positives']:14.4f} {row['pearson_proximite']:12.4f}"
+            f" {row['objectif']:10.4f} {row['plancher']:9.0f}{mark}"
         )
 
     signed = compose(scores, p_contradiction, best)
@@ -290,9 +291,15 @@ def main(
     if json_out:
         with open(json_out, "w", encoding="utf-8") as handle:
             json.dump(
-                {"alpha": best, "curve": curve, "magnitude_only": magnitude_only,
-                 "magnitude_checkpoint": magnitude, "polarity_checkpoint": polarity},
-                handle, indent=2,
+                {
+                    "alpha": best,
+                    "curve": curve,
+                    "magnitude_only": magnitude_only,
+                    "magnitude_checkpoint": magnitude,
+                    "polarity_checkpoint": polarity,
+                },
+                handle,
+                indent=2,
             )
         click.echo(f"brut : {json_out}")
 

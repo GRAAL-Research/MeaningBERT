@@ -119,6 +119,7 @@ def is_symmetric_polarity(row: dict) -> bool:
         return int(unified) == POLARITY_CLASSES["contradiction"]
     return row.get("polarity_raw", "") in SYMMETRIC_POLARITIES
 
+
 SOURCES: Final[frozenset[str]] = frozenset({"original", "identical", "unrelated", "swapped", "back_translated"})
 DOMAINS: Final[frozenset[str]] = frozenset({"wiki", "news", "biomedical", "scientific", "mixed"})
 SPLIT_HINTS: Final[frozenset[str]] = frozenset({"train", "dev", "test", ""})
@@ -322,9 +323,7 @@ def _check_polarity(dataset: Dataset, problems: list[str]) -> None:
 
     filled = sum(1 for value in dataset["polarity"] if not math.isnan(value))
     if filled:
-        problems.append(
-            f"polarity must be NaN in a loader ({filled} value(s) filled); harmonize.py owns that column"
-        )
+        problems.append(f"polarity must be NaN in a loader ({filled} value(s) filled); harmonize.py owns that column")
 
 
 def validate(dataset: Dataset) -> None:

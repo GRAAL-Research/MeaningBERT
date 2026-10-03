@@ -184,7 +184,9 @@ def stratify(dataset: Dataset, per_class: int, seed: int) -> Dataset:
         remaining, pending = per_class, dict(available)
         # Water-filling: smallest corpus first, so the share it cannot use is redistributed
         # rather than lost.
-        for corpus in sorted(pending, key=lambda name: len(pending[name])):
+        # Le dictionnaire est lie par defaut : sorted() le consomme immediatement, mais
+        # une fermeture qui capture une variable de boucle est un piege a chaque relecture.
+        for corpus in sorted(pending, key=lambda name, left=pending: len(left[name])):
             share = remaining // max(len(pending), 1)
             indices = pending.pop(corpus)
             take = min(share, len(indices))
@@ -227,10 +229,7 @@ def assert_no_group_leakage(splits: dict[str, Dataset]) -> None:
     Raises:
         BuildError: If any dev or test source sentence is also a training source sentence.
     """
-    groups = {
-        name: {group_key(sentence) for sentence in splits[name]["original"]}
-        for name in ("train", "dev", "test")
-    }
+    groups = {name: {group_key(sentence) for sentence in splits[name]["original"]} for name in ("train", "dev", "test")}
     for left, right in (("train", "dev"), ("train", "test"), ("dev", "test")):
         shared = groups[left] & groups[right]
         if shared:
@@ -251,6 +250,7 @@ def assert_no_pair_leakage(splits: dict[str, Dataset]) -> None:
             publish their own splits and those are trusted, but they were built
             independently of each other, so nothing guarantees the union is clean.
     """
+
     def keys(dataset: Dataset) -> set[tuple[str, str]]:
         return {
             (left.strip().lower(), right.strip().lower())
@@ -261,9 +261,7 @@ def assert_no_pair_leakage(splits: dict[str, Dataset]) -> None:
     for name in ("dev", "test"):
         shared = train & keys(splits[name])
         if shared:
-            raise BuildError(
-                f"{len(shared)} pair(s) appear in both train and {name}, e.g. {sorted(shared)[:2]}"
-            )
+            raise BuildError(f"{len(shared)} pair(s) appear in both train and {name}, e.g. {sorted(shared)[:2]}")
 
 
 def _tagged(before: Dataset, after: Dataset, source: str) -> Dataset:
@@ -350,9 +348,7 @@ def augment_and_verify(splits: dict[str, Dataset], per_class: int, seed: int) ->
     # The groups the splitter deliberately held out. Swapping moves the simplification into
     # the source position, which is the one way augmentation can bridge them, and it is
     # invisible to a check that only compares whole pairs.
-    forbidden = {
-        group_key(sentence) for name in ("dev", "test") for sentence in splits[name]["original"]
-    }
+    forbidden = {group_key(sentence) for name in ("dev", "test") for sentence in splits[name]["original"]}
     splits["train"], census = augment_polarity(splits["train"], forbidden, per_class=per_class, seed=seed)
     # Re-checked AFTER augmentation, not only before: the rows that could leak are the ones
     # that did not exist when the first check ran. Both walls, because a generated pair can
@@ -448,7 +444,7 @@ def build(
         census["corpora"][name] = {}
         for split in SPLITS:
             rows = unified.filter(lambda row, s=split: row["split_hint"] == s)
-            if not len(rows):
+            if rows.num_rows == 0:
                 continue
             # Only the training split is capped. Shrinking an evaluation split would make
             # the numbers cheaper to compute and harder to compare with anything.
@@ -496,9 +492,7 @@ def build(
 
     for split, dataset in splits.items():
         counts = collections.Counter(dataset["polarity"])
-        census[f"{split}_classes"] = {
-            label: counts.get(float(index), 0) for label, index in POLARITY_CLASSES.items()
-        }
+        census[f"{split}_classes"] = {label: counts.get(float(index), 0) for label, index in POLARITY_CLASSES.items()}
         census[f"{split}_rows"] = len(dataset)
         census[f"{split}_corpora"] = dict(collections.Counter(dataset["corpus"]).most_common())
 

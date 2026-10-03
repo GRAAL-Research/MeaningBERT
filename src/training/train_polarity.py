@@ -238,9 +238,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         # is a float because the schema uses NaN to mean "not annotated", which an int
         # column cannot express.
         encoded = dataset.map(
-            lambda batch: tokenizer(
-                batch["original"], batch["simplification"], truncation=True, max_length=max_length
-            ),
+            lambda batch: tokenizer(batch["original"], batch["simplification"], truncation=True, max_length=max_length),
             batched=True,
         )
         encoded = encoded.map(lambda batch: {"labels": [int(value) for value in batch["polarity"]]}, batched=True)
@@ -268,15 +266,13 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         # The head survived because the shapes agreed, but its rows are in the checkpoint's
         # order and not ours. Permuting them costs two tensor copies and saves the run from
         # starting off a head that is right about everything except which class is which.
-        import torch
-
         layer = output_layer(model)
         with torch.no_grad():
             index = torch.tensor(permutation, device=layer.weight.device)
             layer.weight.copy_(layer.weight[index])
             if layer.bias is not None:
                 layer.bias.copy_(layer.bias[index])
-    model.config.id2label = {index: name for index, name in enumerate(CLASS_NAMES)}
+    model.config.id2label = dict(enumerate(CLASS_NAMES))
     model.config.label2id = {name: index for index, name in enumerate(CLASS_NAMES)}
 
     trainer = Trainer(
