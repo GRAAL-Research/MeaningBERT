@@ -34,7 +34,7 @@ except ImportError:  # pragma: no cover
     from src.data.schema import POLARITY_CLASSES  # type: ignore
 
 #: Okabe-Ito, the same three the rest of the paper uses, validated for colour vision.
-COLOURS = {"entailment": "0072B2", "neutral": "999999", "contradiction": "D55E00"}
+COLOURS = {"entailment": "0072B2", "neutral": "009E73", "contradiction": "D55E00"}
 LABELS = {"entailment": "entailment", "neutral": "neutral", "contradiction": "contradiction"}
 
 
@@ -130,7 +130,7 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
         r"\definecolor{reltuned}{HTML}{0072B2}",
-        r"\definecolor{relshelf}{HTML}{E69F00}",
+        r"\definecolor{relshelf}{HTML}{D55E00}",
         r"\begin{figure}[t]",
         r"\centering",
         r"\tikzset{",

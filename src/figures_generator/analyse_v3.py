@@ -265,7 +265,7 @@ def stats_table(cells) -> str:
             f"{label} & {100 * task['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['macro_f1'], raw['macro_f1']):.2f}{mark}"
             f" & {task['d']:+.2f} "
             f"& {100 * sanity['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['sanity'], raw['sanity']):.2f}"
-            f" & {sanity['d']:+.2f} " + r"\\"
+            f" & {sanity['d']:+.1f} " + r"\\"
         )
     lines += [
         r"\bottomrule",
@@ -368,10 +368,11 @@ def figure(cells, path: str) -> None:
     lines = [
         r"% Genere par src/figures_generator/analyse_v3.py. Ne pas editer a la main.",
         r"% Palette Okabe-Ito, validee : bande de clarte, plancher de chroma, separation",
-        r"% daltonienne et contraste. La forme du marqueur double la couleur, pour que",
-        r"% l'identite ne repose jamais sur elle seule.",
+        r"% daltonienne, plancher de vision normale et contraste sur fond clair. La forme",
+        r"% du marqueur double la couleur, pour que l'identite ne repose jamais sur elle",
+        r"% seule, et la legende de figure nomme les deux conditions dans leur teinte.",
         r"\definecolor{condraw}{HTML}{0072B2}",
-        r"\definecolor{condaug}{HTML}{E69F00}",
+        r"\definecolor{condaug}{HTML}{D55E00}",
         r"\begin{figure*}[t]",
         r"\centering",
         r"% Declares globalement : une option de tikzpicture n'est pas visible depuis",
