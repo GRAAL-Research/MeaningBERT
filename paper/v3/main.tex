@@ -35,9 +35,8 @@ This paper proposes a signed scale on $[-100, 100]$, where $-100$ denotes oppose
 Our contributions are:
 
 \begin{enumerate}\itemsep1pt
-\item \textbf{A signed scale obtained by composition} (\autoref{sec:scale}). No corpus carries human-annotated signed scores, so learning the scale end to end would fit a model to our own conversion rule. We instead compose two heads whose targets both have abundant human labels, and calibrate the composition on the single corpus annotating both dimensions over the same pairs.
-\item \textbf{A 140-run grid} (\autoref{sec:setup}, \autoref{sec:results}). Seven encoders, ten seeds and two corpus conditions, on a class- and corpus-stratified split with source-sentence leakage removed in both directions.
-\item \textbf{Three measured results} (\autoref{sec:results}): a polarity head reaches $91.1\%$ macro-F\textsubscript{1} over ten seeds and, on a single run, ranks entailment above contradiction at $98.7\%$ AUC; derived-polarity augmentation leaves task performance unchanged while repairing behaviour at the ends of the scale on all seven encoders; and inference pretraining buys reasoning under negation rather than aggregate accuracy at large size.
+\item \textbf{A diagnosis of the failure, measured rather than argued} (\autoref{sec:results}). On a class-balanced split of 12\,000 pairs, a deployed meaning-preservation metric orders polarity no better than counting shared words, and on SICK it orders it backwards. The failure follows from the output shape and not from one model's training, which is why no amount of preservation data repairs it.
+\item \textbf{A signed scale obtained by composition} (\autoref{sec:scale}, \autoref{sec:composition}). No corpus carries human-annotated signed scores, so learning the scale end to end would fit a model to our own conversion rule. We instead multiply a magnitude head by a polarity term, fix the slope by requiring the negative half to be reachable, and calibrate against three necessary conditions on the only corpus annotating both dimensions. The result moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none, and trains nothing beyond a three-way classifier.
 \end{enumerate}
 
 \section{Related Work}
@@ -47,6 +46,13 @@ Our contributions are:
 BERTScore \citep{zhang2020bertscore} computes token-level similarity from contextual embeddings, SARI \citep{xu2016sari} scores edit operations, QuestEval \citep{scialom2021questeval} asks questions of both texts, and LENS \citep{maddela2023lens} and MeaningBERT \citep{beauchemin2023meaningbert} are trained against human judgements.
 All emit a magnitude, and all are evaluated by correlation with human ratings plus, for MeaningBERT, two sanity checks: identical sentences must score $100$ and unrelated sentences $0$.
 \citet{baral2026lexflip} observes that both checks are satisfied by any monotone function of lexical overlap, which is why they do not catch the failure studied here.
+
+\paragraph{Specialised metrics.}
+A second line of work argues that a general-purpose metric is the wrong instrument where a small edit carries a large consequence.
+\citet{beauchemin2025judgebert} build a metric for legal meaning preservation, on the ground that preservation in a specialised domain differs from preservation in ordinary text and that general metrics fail the same two sanity checks their own passes.
+\citet{lyu2024scigispy} make the parallel argument for biomedical simplification, where surface-level metrics do not register whether the core content survived.
+Both specialise the domain while keeping a non-negative output.
+Our proposal is orthogonal: it changes the shape of the scale rather than the domain it is fitted on, and the two compose, since a domain-specific magnitude head can be substituted into \autoref{eq:compose} without touching the polarity half.
 
 \paragraph{Inference and its held-out suites.}
 Natural language inference supplies the missing dimension.
@@ -318,8 +324,12 @@ Only a signed annotation could, which is the first limitation above.
 Because the composition is a product with $m \geq 0$, the sign of the score is decided entirely by $p_{\mathrm{contra}}$.
 A polarity head that is wrong about a pair is not corrected by a good magnitude model, and the $16.3\%$ of SICK contradictions that stay positive are exactly the pairs the head misses.
 
-\paragraph{Scope.}
-All experiments are English and sentence-level, and run in fp32 on Pascal GPUs (\autoref{an:hardware}); encoders requiring more recent hardware were not evaluated.
+\paragraph{English, and one sentence at a time.}
+Every corpus we merge is English, and the scale is defined over sentence pairs.
+Neither restriction is incidental.
+The polarity half rests on inference corpora, which are abundant in English and thin in most other languages, so the composition cannot be ported by translating a metric alone.
+Contradiction between documents is also a different relation from contradiction between sentences, since a document can deny another in one passage and agree with it everywhere else, and a single scalar cannot carry that.
+Whether the product form survives either move is untested.
 
 \section*{Ethical Considerations}
 A meaning-preservation metric is deployed to decide whether a rewritten sentence may be shown to a reader in place of the original.
@@ -329,7 +339,9 @@ A signed scale does not remove that risk, but it makes the failure visible to th
 Our corpora also inherit the biases of the Wikipedia revisions and caption corpora they are drawn from, and a polarity head trained on them carries those biases into whatever it gates \citep{bender2021dangers}.
 
 \section*{Availability}
-The corpus builder, the loaders, the training and composition code, the 140 result files and the script generating every table and figure in this paper are available at \url{https://anonymous.4open.science/r/signed-meaning-scale} and will be released under an open licence at \textsc{url} on acceptance.
+The corpus builder, the loaders, the training and composition code, the 140 result files and the script generating every table and figure in this paper will be released under an open licence.
+% Remplacer par l'URL reelle du depot a la camera-ready.
+Repository: removed for double-blind review.
 The merged corpus inherits the most restrictive licence among its sources and will be redistributed under CC BY-NC-SA 4.0.
 The loaders are released separately so the corpus can be rebuilt from the original sources.
 
@@ -414,6 +426,7 @@ Unless stated otherwise, every number reported in this paper is a mean over the 
 The grid runs on three NVIDIA Pascal-generation cards: a GTX~1080~Ti (11\,GB), a Quadro~P5000 (16\,GB) and a Titan~Xp (12\,GB).
 All training is fp32, since the generation has no usable bfloat16.
 Two of the seven encoders wedge the GTX~1080~Ti reproducibly, which we handle by excluding those two from that card rather than by diagnosing the driver fault.
+Encoders built around FlashAttention and unpadded attention need compute capability $8.0$ or better; the runner refuses them on this hardware rather than running a degraded version that no comparison could use.
 
 \paragraph{Budget.}
 The 140 runs take roughly 500 GPU-hours in total.

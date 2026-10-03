@@ -32,6 +32,10 @@ MIN_FREE_GB="${MIN_FREE_GB:-25}"
 # fleet, and the accumulation holds the effective batch at 32 everywhere so a result is
 # comparable across machines.
 #
+# The SmolLM2 rows are sized for a 48 GB card in bf16 instead, since nothing below
+# compute 8.0 will run them anyway. Their accumulation still lands the effective batch on
+# 32, so their numbers stay comparable with the seven encoders above.
+#
 # The last field is a hardware gate, not a preference. ModernBERT is built around
 # FlashAttention and unpadded attention, both of which need compute 8.0 or better. renard
 # and souris are Pascal 6.1: it would run, and it would run so degraded that comparing it
@@ -47,9 +51,9 @@ nli-deberta-v3-large|MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli|4|
 roberta-large-mnli|roberta-large-mnli|4|8|0
 modernbert-base|answerdotai/ModernBERT-base|8|4|80
 modernbert-large|answerdotai/ModernBERT-large|4|8|80
-smollm2-135m|HuggingFaceTB/SmolLM2-135M|16|2|80
-smollm2-360m|HuggingFaceTB/SmolLM2-360M|8|4|80
-smollm2-1.7b|HuggingFaceTB/SmolLM2-1.7B|4|8|80"
+smollm2-135m|HuggingFaceTB/SmolLM2-135M|32|1|80
+smollm2-360m|HuggingFaceTB/SmolLM2-360M|32|1|80
+smollm2-1.7b|HuggingFaceTB/SmolLM2-1.7B|16|2|80"
 
 # Architectures that wedge a given card, as "<arch tag>|<substring of the GPU name>".
 #
