@@ -1,0 +1,94 @@
+{
+  "alpha": 2.0,
+  "curve": [
+    {
+      "contradictions_negatives": 0.0,
+      "implications_positives": 1.0,
+      "neutres_positifs": 0.9835,
+      "pearson_proximite": 0.7251819786665483,
+      "objectif": 0.0,
+      "alpha": 1.0,
+      "plancher": 0.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.9662921348314607,
+      "implications_positives": 0.99002849002849,
+      "neutres_positifs": 0.559,
+      "pearson_proximite": 0.6860143559807016,
+      "objectif": 0.6562802595628308,
+      "alpha": 1.25,
+      "plancher": -25.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.9719101123595506,
+      "implications_positives": 0.9850427350427351,
+      "neutres_positifs": 0.52,
+      "pearson_proximite": 0.6522253793291782,
+      "objectif": 0.6244229650153649,
+      "alpha": 1.5,
+      "plancher": -50.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.973314606741573,
+      "implications_positives": 0.9829059829059829,
+      "neutres_positifs": 0.5,
+      "pearson_proximite": 0.6233867384761806,
+      "objectif": 0.5963795990931914,
+      "alpha": 1.75,
+      "plancher": -75.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.976123595505618,
+      "implications_positives": 0.9829059829059829,
+      "neutres_positifs": 0.484,
+      "pearson_proximite": 0.598780141620881,
+      "objectif": 0.574492255102383,
+      "alpha": 2.0,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.9789325842696629,
+      "implications_positives": 0.9793447293447294,
+      "neutres_positifs": 0.4735,
+      "pearson_proximite": 0.5781790932464949,
+      "objectif": 0.554307504731775,
+      "alpha": 2.25,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.9831460674157303,
+      "implications_positives": 0.9786324786324786,
+      "neutres_positifs": 0.468,
+      "pearson_proximite": 0.563696056155338,
+      "objectif": 0.5423537753391234,
+      "alpha": 2.5,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.9845505617977528,
+      "implications_positives": 0.9786324786324786,
+      "neutres_positifs": 0.4585,
+      "pearson_proximite": 0.5598893370623117,
+      "objectif": 0.539460742517021,
+      "alpha": 3.0,
+      "plancher": -100.0,
+      "echelle_complete": true
+    }
+  ],
+  "magnitude_only": {
+    "contradictions_negatives": 0.0,
+    "implications_positives": 1.0,
+    "neutres_positifs": 0.9835,
+    "pearson_proximite": 0.8518375778217752,
+    "objectif": 0.0
+  },
+  "magnitude_checkpoint": "davebulaval/MeaningBERT",
+  "polarity_checkpoint": "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
+}

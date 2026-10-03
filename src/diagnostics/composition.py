@@ -225,6 +225,7 @@ def _probabilities(logits: np.ndarray) -> np.ndarray:
     help="Split the slope is fitted on. Fitting on test would be tuning on the test set.",
 )
 @click.option("--json-out", default=None)
+@click.option("--pairs-out", default=None, help="Per-pair magnitude, p_contra, signed score and truth.")
 def main(
     magnitude: str,
     magnitude_subfolder: str,
@@ -232,6 +233,7 @@ def main(
     corpus: str,
     split: str,
     json_out: Optional[str],
+    pairs_out: Optional[str],
 ) -> None:
     """Calibrate the composition on the SICK half of one split.
 
@@ -287,6 +289,26 @@ def main(
         "sans composition, la magnitude seule : contradictions negatives "
         f"{magnitude_only['contradictions_negatives']:.4f}, objectif {magnitude_only['objectif']:.4f}"
     )
+
+    if pairs_out:
+        # Les scores par paire, pour que la figure de distribution et le diagramme de
+        # fiabilite se tracent ailleurs sans repayer deux passes avant sur GPU.
+        with open(pairs_out, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "magnitude": [float(value) for value in scores],
+                    "p_contradiction": [float(value) for value in p_contradiction],
+                    "signed": [float(value) for value in signed],
+                    "truth": [int(value) for value in truth],
+                    "relatedness": [float(value) for value in relatedness],
+                    "alpha": float(best),
+                    "split": split,
+                    "magnitude_checkpoint": magnitude,
+                    "polarity_checkpoint": polarity,
+                },
+                handle,
+            )
+        click.echo(f"paires : {pairs_out}")
 
     if json_out:
         with open(json_out, "w", encoding="utf-8") as handle:
