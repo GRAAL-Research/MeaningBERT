@@ -1,17 +1,21 @@
 % Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.
 \begin{table}[t]
 \centering\small
-\begin{tabular}{l cc cc}
+\begin{tabular}{l ccc}
 \toprule
- & \multicolumn{2}{c}{Magnitude alone} & \multicolumn{2}{c}{Signed scale} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-Cut & Contra. & Entail. & Contra. & Entail. \\
+Scale & $s > 25$ & $s > 50$ & $s > 70$ \\
 \midrule
-$s > 25$ & 17.83 & 100.00 & \textbf{3.11} & 99.86 \\
-$s > 50$ & 14.10 & 99.15 & \textbf{2.13} & 98.43 \\
-$s > 70$ & 0.91 & 88.32 & \textbf{0.51} & 86.61 \\
+\multicolumn{4}{l}{\emph{Contradictions accepted}} \\
+\quad Magnitude alone & 17.83 & 14.10 & 0.91 \\
+\quad Signed, published & 0.49 & 0.15 & 0.00 \\
+\quad Signed, fine-tuned & 3.11 & 2.13 & 0.51 \\
+\addlinespace
+\multicolumn{4}{l}{\emph{Entailments kept}} \\
+\quad Magnitude alone & 100.00 & 99.15 & 88.32 \\
+\quad Signed, published & 97.86 & 96.72 & 86.18 \\
+\quad Signed, fine-tuned & 99.86 & 98.43 & 86.61 \\
 \bottomrule
 \end{tabular}
-\caption{What each scale accepts as preserved meaning on the SICK test half, in percent. Contra.: share of accepted pairs that are contradictions, the error the paper is about. Entail.: share of entailments still accepted, the control against a scale that merely shifts everything down.}
+\caption{What each scale accepts as preserved meaning on the SICK test half, in percent, at three cuts. The first block is the error this paper is about; the second is the control, since a scale that merely shifted everything down would also accept fewer contradictions. Percentile intervals from 1\,000 bootstrap resamplings of the pairs are at most $\pm1.2$ wide and do not overlap between the magnitude and either signed scale at the first two cuts.}
 \label{tab:decision}
 \end{table}

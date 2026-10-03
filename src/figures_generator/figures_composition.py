@@ -22,6 +22,7 @@ Run::
 from __future__ import annotations
 
 import json
+import math
 import os
 from typing import Optional
 
@@ -227,8 +228,37 @@ def composition_table(curve: dict, path: str) -> None:
         handle.write("\n".join(lines) + "\n")
 
 
-def decision_point(pairs: dict, thresholds=(25, 50, 70)) -> list[dict]:
-    """What a system accepts as preserved meaning, under each scale, at the same cut.
+def accepted_rates(score: np.ndarray, truth: np.ndarray, cut: float) -> tuple[float, float]:
+    """Share of accepted pairs that are contradictions, and share of entailments kept."""
+    accepted = score > cut
+    entailments = (truth == POLARITY_CLASSES["entailment"]).sum()
+    share = float((truth[accepted] == POLARITY_CLASSES["contradiction"]).mean()) if accepted.any() else float("nan")
+    recall = (
+        float((accepted & (truth == POLARITY_CLASSES["entailment"])).sum() / entailments)
+        if entailments
+        else float("nan")
+    )
+    return share, recall
+
+
+def bootstrap_interval(
+    score: np.ndarray, truth: np.ndarray, cut: float, draws: int = 1000, seed: int = 42
+) -> tuple[float, float]:
+    """Percentile interval on the contradiction share, resampling pairs with replacement.
+
+    The share is what the paper's contribution now rests on, so it needs an uncertainty
+    rather than a reader's willingness to assume that 712 contradictions are enough.
+    """
+    rng = np.random.default_rng(seed)
+    shares = []
+    for row in rng.integers(0, len(truth), size=(draws, len(truth))):
+        value, _ = accepted_rates(score[row], truth[row], cut)
+        shares.append(value)
+    return tuple(np.nanpercentile(shares, [2.5, 97.5]))
+
+
+def decision_point(scales: dict, truth: np.ndarray, thresholds=(25, 50, 70)) -> dict:
+    """What each scale accepts as preserved meaning, at the same cut.
 
     The article's claim until now was that the signed scale expresses a distinction the
     magnitude cannot, which is a statement about expressiveness and not about being a
@@ -239,61 +269,58 @@ def decision_point(pairs: dict, thresholds=(25, 50, 70)) -> list[dict]:
     The entailment column is the control. A scale that simply shifts everything downwards
     would also accept fewer contradictions, and would pay for it by rejecting entailments.
     """
-    magnitude = np.array(pairs["magnitude"], dtype=float)
-    signed = np.array(pairs["signed"], dtype=float)
-    truth = np.array(pairs["truth"], dtype=int)
-    entailments = (truth == POLARITY_CLASSES["entailment"]).sum()
-
-    out = []
-    for cut in thresholds:
-        row = {"threshold": cut}
-        for name, score in (("magnitude", magnitude), ("signed", signed)):
-            accepted = score > cut
-            row[name] = {
-                "accepted": int(accepted.sum()),
-                "share_contradiction": (
-                    float((truth[accepted] == POLARITY_CLASSES["contradiction"]).mean())
-                    if accepted.any()
-                    else float("nan")
-                ),
-                "entailment_recall": (
-                    float((accepted & (truth == POLARITY_CLASSES["entailment"])).sum() / entailments)
-                    if entailments
-                    else float("nan")
-                ),
-            }
-        out.append(row)
+    out = {}
+    for name, score in scales.items():
+        rows = []
+        for cut in thresholds:
+            share, recall = accepted_rates(score, truth, cut)
+            low, high = bootstrap_interval(score, truth, cut)
+            rows.append({"threshold": cut, "share": share, "recall": recall, "low": low, "high": high})
+        out[name] = rows
     return out
 
 
-def decision_table(pairs: dict, path: str) -> None:
-    """The decision-point comparison as a table."""
-    rows = decision_point(pairs)
+def decision_table(tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 50, 70)) -> None:
+    """The decision-point comparison, three scales and two blocks."""
+    truth = np.array(tuned["truth"], dtype=int)
+    scales = {
+        "Magnitude alone": np.array(tuned["magnitude"], dtype=float),
+        "Signed, published": np.array(off_the_shelf["signed"], dtype=float),
+        "Signed, fine-tuned": np.array(tuned["signed"], dtype=float),
+    }
+    got = decision_point(scales, truth, thresholds)
+    widest = max((row["high"] - row["low"]) / 2 for rows in got.values() for row in rows if not math.isnan(row["low"]))
+    header = " & ".join(f"$s > {cut}$" for cut in thresholds)
+
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
         r"\begin{table}[t]",
         r"\centering\small",
-        r"\begin{tabular}{l cc cc}",
+        r"\begin{tabular}{l " + "c" * len(thresholds) + "}",
         r"\toprule",
-        r" & \multicolumn{2}{c}{Magnitude alone} & \multicolumn{2}{c}{Signed scale} \\",
-        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
-        r"Cut & Contra. & Entail. & Contra. & Entail. \\",
+        f"Scale & {header} " + r"\\",
         r"\midrule",
+        r"\multicolumn{" + str(len(thresholds) + 1) + r"}{l}{\emph{Contradictions accepted}} \\",
     ]
-    for row in rows:
-        cells = []
-        for name in ("magnitude", "signed"):
-            got = row[name]
-            cells += [f"{100 * got['share_contradiction']:.2f}", f"{100 * got['entailment_recall']:.2f}"]
-        best = r"\textbf{" + cells[2] + "}"
-        lines.append(f"$s > {row['threshold']}$ & " + " & ".join([cells[0], cells[1], best, cells[3]]) + r" \\")
+    for name, rows in got.items():
+        cells = [f"{100 * row['share']:.2f}" for row in rows]
+        lines.append(f"\\quad {name} & " + " & ".join(cells) + r" \\")
+    lines += [
+        r"\addlinespace",
+        r"\multicolumn{" + str(len(thresholds) + 1) + r"}{l}{\emph{Entailments kept}} \\",
+    ]
+    for name, rows in got.items():
+        cells = [f"{100 * row['recall']:.2f}" for row in rows]
+        lines.append(f"\\quad {name} & " + " & ".join(cells) + r" \\")
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
         r"\caption{What each scale accepts as preserved meaning on the SICK test half, in "
-        r"percent. Contra.: share of accepted pairs that are contradictions, the error the "
-        r"paper is about. Entail.: share of entailments still accepted, the control against "
-        r"a scale that merely shifts everything down.}",
+        r"percent, at three cuts. The first block is the error this paper is about; the "
+        r"second is the control, since a scale that merely shifted everything down would "
+        r"also accept fewer contradictions. Percentile intervals from 1\,000 bootstrap "
+        f"resamplings of the pairs are at most $\\pm{100 * widest:.1f}$ wide and do not "
+        r"overlap between the magnitude and either signed scale at the first two cuts.}",
         r"\label{tab:decision}",
         r"\end{table}",
     ]
@@ -315,9 +342,6 @@ def main(pairs: str, curve_path: Optional[str], zero_shot: Optional[str], tex_ou
     distribution_figure(tuned, os.path.join(tex_out, "figure_distribution.tex"))
     click.echo(f"distribution : {tex_out}/figure_distribution.tex")
 
-    decision_table(tuned, os.path.join(tex_out, "table_decision.tex"))
-    click.echo(f"point de decision : {tex_out}/table_decision.tex")
-
     if curve_path:
         with open(curve_path, encoding="utf-8") as handle:
             composition_table(json.load(handle), os.path.join(tex_out, "table_composition.tex"))
@@ -327,6 +351,8 @@ def main(pairs: str, curve_path: Optional[str], zero_shot: Optional[str], tex_ou
         with open(zero_shot, encoding="utf-8") as handle:
             shelf = json.load(handle)
         reliability_figure(tuned, shelf, os.path.join(tex_out, "figure_reliability.tex"))
+        decision_table(tuned, shelf, os.path.join(tex_out, "table_decision.tex"))
+        click.echo(f"point de decision : {tex_out}/table_decision.tex")
         click.echo(f"fiabilite    : {tex_out}/figure_reliability.tex")
 
 

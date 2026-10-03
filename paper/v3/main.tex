@@ -300,10 +300,14 @@ Combined objective & 0.574 & \textbf{0.665} \\
 Expressing a distinction is not the same as being a better metric, and the comparisons above do not establish the second.
 \autoref{tab:decision} does, by asking what each scale lets through.
 A system that accepts a rewriting when the score exceeds a cut accepts, with the magnitude alone at a cut of $50$, a set in which $14.10\%$ of the pairs are contradictions; the same cut on the signed scale leaves $2.13\%$.
-The reduction is close to sevenfold and it is measured against SICK's own inference labels, not against our conversion rule.
-The entailment column is the control, since a scale that merely shifted everything downwards would also accept fewer contradictions and would pay for it: recall falls from $99.15\%$ to $98.43\%$, which is the whole price.
-At a cut of $70$ the magnitude already admits almost no contradiction and the two scales converge, so the benefit lives where a simplification system actually operates rather than at the top of the range.
+The reduction is close to sevenfold, it is measured against SICK's own inference labels rather than against our conversion rule, and the bootstrap intervals of the two do not overlap.
+The second block is the control, since a scale that merely shifted everything downwards would also accept fewer contradictions and would pay for it: recall falls from $99.15\%$ to $98.43\%$, which is the whole price.
 Three cuts were chosen after seeing the data, so the threshold-free statement matters more than any of them: sweeping the cut from $0$ to $95$ in steps of five, the signed scale never accepts a larger share of contradictions than the magnitude, and the entailment recall it gives up never exceeds $1.85$ points.
+At a cut of $70$ the magnitude already admits almost no contradiction, the intervals overlap and the scales converge, so the benefit lives where a simplification system actually operates rather than at the top of the range.
+
+The second row of each block answers the objection this comparison invites, that it opposes a metric to a metric plus an entire model.
+Composing the same magnitude with the off-the-shelf inference head, which we did not train, accepts $0.15\%$ contradictions at the same cut, for $96.72\%$ of entailments kept.
+The benefit therefore comes from the shape of the scale and not from our training; what fine-tuning buys is the recall our head keeps and the published one spends.
 
 \input{table_decision}
 
@@ -332,8 +336,11 @@ A corpus of human-rated signed pairs would let the form of \autoref{eq:compose} 
 The gain in sanity is paid for on MoNLI, which drops on three of seven encoders and on both large DeBERTa variants, by $-6.8$ points on the plain one and $-3.7$ on the inference-pretrained one.
 Generated identical and unrelated pairs teach the easy ends of the scale, not the reversal of entailment under negation.
 
-\paragraph{The calibration corpus is thin on one side.}
-SICK supplies only 495 development rows, of which 229 shared source sentences with its own test portion and were removed, leaving the development split at $2.3\%$ SICK against $34\%$ in test.
+\paragraph{One corpus carries the composition.}
+Everything we report about the signed scale is measured on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions, and that is also where $\alpha$ is fitted.
+The constraint is structural rather than a choice: SICK is the only corpus we know of annotating relatedness and inference over the same pairs, and the third criterion needs both.
+It binds the calibration unavoidably and the evaluation only by convenience, since \autoref{tab:decision} needs inference labels alone and could in principle be measured elsewhere.
+The split is also thin on the development side: SICK supplies 495 development rows, of which 229 shared source sentences with its own test portion and were removed, leaving the development split at $2.3\%$ SICK against $34\%$ in test.
 Model selection is therefore driven by VitaminC while the slope is fitted on SICK alone, and the two numbers are the first thing to watch should they diverge.
 
 \paragraph{The sign costs correlation.}

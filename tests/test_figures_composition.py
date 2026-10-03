@@ -9,6 +9,7 @@ and the reliability curve that the article reads as evidence of miscalibration.
 from __future__ import annotations
 
 import json
+import math
 
 import numpy as np
 import pytest
@@ -182,57 +183,68 @@ class TestDecisionPoint:
     """The measurement that turns 'expresses a distinction' into 'is a better metric'."""
 
     def test_the_signed_scale_rejects_the_contradictions_the_magnitude_accepts(self):
-        from figures_generator.figures_composition import decision_point
+        from figures_generator.figures_composition import accepted_rates
 
-        # Two contradictions a magnitude metric waves through, two entailments it should keep.
-        pairs = {
-            "magnitude": [80.0, 75.0, 90.0, 85.0],
-            "signed": [-40.0, -35.0, 89.0, 84.0],
-            "truth": [POLARITY_CLASSES["contradiction"]] * 2 + [POLARITY_CLASSES["entailment"]] * 2,
-        }
+        # Two contradictions a magnitude metric waves through, two entailments it keeps.
+        truth = np.array([POLARITY_CLASSES["contradiction"]] * 2 + [POLARITY_CLASSES["entailment"]] * 2)
+        magnitude = np.array([80.0, 75.0, 90.0, 85.0])
+        signed = np.array([-40.0, -35.0, 89.0, 84.0])
 
-        (row,) = decision_point(pairs, thresholds=(50,))
-
-        assert row["magnitude"]["share_contradiction"] == pytest.approx(0.5)
-        assert row["signed"]["share_contradiction"] == pytest.approx(0.0)
-        assert row["signed"]["entailment_recall"] == pytest.approx(1.0)
+        assert accepted_rates(magnitude, truth, 50)[0] == pytest.approx(0.5)
+        assert accepted_rates(signed, truth, 50)[0] == pytest.approx(0.0)
+        assert accepted_rates(signed, truth, 50)[1] == pytest.approx(1.0)
 
     def test_a_scale_that_only_shifts_everything_down_is_caught_by_the_control(self):
         """Rejecting contradictions by rejecting everything must show up as lost recall."""
-        from figures_generator.figures_composition import decision_point
+        from figures_generator.figures_composition import accepted_rates
 
-        pairs = {
-            "magnitude": [80.0, 90.0],
-            "signed": [-10.0, -10.0],
-            "truth": [POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]],
-        }
+        truth = np.array([POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]])
+        share, recall = accepted_rates(np.array([-10.0, -10.0]), truth, 50)
 
-        (row,) = decision_point(pairs, thresholds=(50,))
-
-        assert row["signed"]["share_contradiction"] != row["signed"]["share_contradiction"]  # NaN
-        assert row["signed"]["entailment_recall"] == pytest.approx(0.0)
+        assert math.isnan(share)
+        assert recall == pytest.approx(0.0)
 
     def test_an_empty_acceptance_set_gives_nan_rather_than_a_perfect_score(self):
         """Accepting nothing is not a metric with zero false acceptances."""
-        from figures_generator.figures_composition import decision_point
+        from figures_generator.figures_composition import accepted_rates
 
-        pairs = {"magnitude": [10.0], "signed": [10.0], "truth": [POLARITY_CLASSES["contradiction"]]}
+        truth = np.array([POLARITY_CLASSES["contradiction"]])
+        assert math.isnan(accepted_rates(np.array([10.0]), truth, 50)[0])
 
-        (row,) = decision_point(pairs, thresholds=(50,))
+    def test_the_bootstrap_brackets_the_point_estimate(self):
+        """An interval that does not contain the value it describes is worse than none."""
+        from figures_generator.figures_composition import accepted_rates, bootstrap_interval
 
-        assert row["magnitude"]["share_contradiction"] != row["magnitude"]["share_contradiction"]
+        rng = np.random.default_rng(0)
+        truth = np.array([POLARITY_CLASSES["contradiction"]] * 30 + [POLARITY_CLASSES["entailment"]] * 70)
+        score = np.concatenate([rng.uniform(60, 90, 30), rng.uniform(60, 90, 70)])
 
-    def test_the_table_bolds_the_quantity_the_paper_argues_about(self, tmp_path):
+        point = accepted_rates(score, truth, 50)[0]
+        low, high = bootstrap_interval(score, truth, 50, draws=200)
+
+        assert low <= point <= high
+        assert high - low > 0
+
+    def test_a_degenerate_scale_gives_a_zero_width_interval_rather_than_an_error(self):
+        from figures_generator.figures_composition import bootstrap_interval
+
+        truth = np.array([POLARITY_CLASSES["contradiction"]] * 5)
+        low, high = bootstrap_interval(np.full(5, 90.0), truth, 50, draws=50)
+
+        assert low == pytest.approx(1.0) and high == pytest.approx(1.0)
+
+    def test_the_table_carries_the_three_scales_and_both_blocks(self, tmp_path):
         from figures_generator.figures_composition import decision_table
 
-        pairs = {
-            "magnitude": [80.0, 90.0],
-            "signed": [-40.0, 89.0],
-            "truth": [POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]],
-        }
+        truth = [POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]]
+        tuned = {"truth": truth, "magnitude": [80.0, 90.0], "signed": [-40.0, 89.0]}
+        shelf = {"truth": truth, "signed": [-70.0, 60.0]}
         path = tmp_path / "t.tex"
-        decision_table(pairs, str(path))
+
+        decision_table(tuned, shelf, str(path), thresholds=(50,))
         body = path.read_text(encoding="utf-8")
 
-        assert r"\textbf{0.00}" in body
-        assert "50.00" in body
+        assert "Contradictions accepted" in body and "Entailments kept" in body
+        for name in ("Magnitude alone", "Signed, published", "Signed, fine-tuned"):
+            assert body.count(name) == 2
+        assert "bootstrap" in body
