@@ -198,7 +198,7 @@ def main_table(cells) -> str:
         r"\centering\small",
         r"\begin{tabular}{l l cccc}",
         r"\toprule",
-        r"Encoder & Condition & macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI \\",
+        r"Encoder & Condition & Macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI \\",
         r"\midrule",
     ]
     present = [(a, label) for a, label in ARCH_LABELS.items() if (a, "none") in cells or (a, "full") in cells]
@@ -268,7 +268,7 @@ def stats_table(cells) -> str:
         r"\centering\small",
         r"\begin{tabular}{l cc cc}",
         r"\toprule",
-        r" & \multicolumn{2}{c}{macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity suites} \\",
+        r" & \multicolumn{2}{c}{Macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity suites} \\",
         r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
         r"Encoder & $\Delta$ (pp) & $d$ & $\Delta$ (pp) & $d$ \\",
         r"\midrule",
