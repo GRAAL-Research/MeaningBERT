@@ -17,7 +17,7 @@ en silence : <tag>
 Les trois tailles de SmolLM2 y sont déjà déclarées, donc le garde-fou ne se déclenchera
 pas pour elles. Il protège le prochain ajout.
 
-## Les treize passages à réviser
+## Les douze passages à réviser
 
 Le compte passe de sept encodeurs à dix, de 140 cellules à 200, et la famille de tests de
 Holm de quatorze à vingt.
@@ -25,18 +25,17 @@ Holm de quatorze à vingt.
 | # | Section | Ce qui est écrit | Ce que ça devient |
 |---|---|---|---|
 | 1 | Résumé | « on all seven encoders » | dix |
-| 2 | Experimental Setup | « seven encoders × ten seeds × two corpus conditions, for 140 runs » | dix, 200 |
-| 3 | Experimental Setup | « Encoders span three families, BERT, RoBERTa and DeBERTaV3 » | quatre familles, et SmolLM2 est un décodeur, pas un encodeur |
-| 4 | Experimental Setup | « the grid is roughly 500 GPU-hours » | à recalculer, les cellules Ada sont bien plus rapides |
-| 5 | Experimental Setup | « across the fourteen condition tests » | vingt |
-| 6 | Results | « on all seven encoders, with d from 9.9 to 81.1 » | dix, bornes à recalculer |
-| 7 | Results | « seven encoders trained without these rows » | dix |
-| 8 | Limitations | « drops on three of seven encoders » | à recompter |
-| 9 | Annexe B | « identical for all 140 runs » | 200, et la précision n'est plus identique partout |
-| 10 | Annexe B | « what makes the seven encoders comparable » | dix |
-| 11 | Annexe C | « three NVIDIA Pascal-generation cards » | plus trois RTX 6000 Ada |
-| 12 | Annexe C | « Two of the seven encoders wedge the GTX 1080 Ti » | sept des dix, la contrainte ne concerne que le parc Pascal |
-| 13 | Annexe C | « The 140 runs take roughly 500 GPU-hours » | à recalculer |
+| 2 | Experimental Setup | « the polarity head on seven encoders » | dix |
+| 3 | Experimental Setup | « The encoders span three families, BERT, RoBERTa and DeBERTaV3 » | quatre familles, et SmolLM2 est un décodeur, pas un encodeur |
+| 4 | Experimental Setup | « across the fourteen condition tests » | vingt |
+| 5 | Results | « on all seven encoders, with d from 9.9 to 81.1 » | dix, bornes à recalculer |
+| 6 | Results | « seven encoders trained without these rows » | dix |
+| 7 | Limitations | « drops on three of seven encoders » | à recompter |
+| 8 | Annexe B | « identical for all 140 runs » | 200, et la précision n'est plus identique partout |
+| 9 | Annexe B | « what makes the seven encoders comparable » | dix |
+| 10 | Annexe C | « three NVIDIA Pascal-generation cards » | plus trois RTX 6000 Ada |
+| 11 | Annexe C | « Two of the seven encoders wedge the GTX 1080 Ti » | sept des dix, la contrainte ne concerne que le parc Pascal |
+| 12 | Annexe C | « The grid takes roughly 500 GPU-hours in total » | à recalculer |
 
 ## La différence de protocole, à déclarer
 
@@ -59,3 +58,5 @@ précisément ce qu'elle apporte au banc.
 5. Recalculer le budget de calcul à partir des durées réelles des logs de caribou.
 6. Relancer `/review-acl` : un banc qui passe de sept à dix entrées change ce qu'un
    relecteur attend de la section Résultats.
+7. Revérifier la limite de huit pages : le corps se termine aujourd'hui au bas de la
+   page 8, sans marge. Trois lignes de plus le font déborder.

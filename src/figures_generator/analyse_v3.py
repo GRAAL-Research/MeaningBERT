@@ -357,10 +357,25 @@ def figure(cells, path: str) -> None:
         points = []
         for index, arch in enumerate(order):
             values = cells[(arch, condition)][metric]
-            points.append(
-                f"({100 * st.mean(values):.2f},{index + offset:.2f})" f" +- ({100 * mean_sd(values)[1]:.2f},0)"
-            )
+            points.append(f"({100 * st.mean(values):.2f},{index + offset:.2f})")
         return " ".join(points)
+
+    def bars(metric: str, condition: str, offset: float, colour: str) -> list[str]:
+        """Error bars as plain TikZ segments in the axis coordinate system.
+
+        Not pgfplots error bars: the "+-" syntax inside ``coordinates`` is parsed by
+        pgfplots alone and behaved differently on another installation, while a
+        ``\\draw`` between two ``axis cs:`` points is ordinary TikZ.
+        """
+        out = []
+        for index, arch in enumerate(order):
+            centre, spread = mean_sd(cells[(arch, condition)][metric])
+            low, high = 100 * (centre - spread), 100 * (centre + spread)
+            y = index + offset
+            out.append(
+                f"\\draw[{colour}, line width=0.7pt] (axis cs:{low:.2f},{y:.2f})" f" -- (axis cs:{high:.2f},{y:.2f});"
+            )
+        return out
 
     marks = {
         "none": "mark=*, mark size=2.2pt, color=condraw, mark options={draw=condraw, fill=condraw}",
@@ -371,6 +386,7 @@ def figure(cells, path: str) -> None:
         xmin, xmax = axis_range(cells, order, metric)
         body = [f"\\nextgroupplot[title={{{title}}}, xmin={xmin}, xmax={xmax}]"]
         for condition, offset in (("none", -0.19), ("full", 0.19)):
+            body.extend(bars(metric, condition, offset, "condraw" if condition == "none" else "condaug"))
             # Deux pieges de portabilite, tous deux vus sur Overleaf et non ici.
             #
             # Pas de "error bars/.cd" : le .cd deplace le chemin de cles pour TOUT ce qui
@@ -383,9 +399,7 @@ def figure(cells, path: str) -> None:
             # Pas de "+" non plus : le style pose deja la marque et la couleur, donc la
             # liste cyclique n'a rien a apporter et tout a casser.
             body.append(
-                f"\\addplot[only marks, {marks[condition]}, "
-                f"error bars/x dir=both, error bars/x explicit] "
-                f"coordinates {{{series(metric, condition, offset)}}};"
+                f"\\addplot[only marks, {marks[condition]}] " f"coordinates {{{series(metric, condition, offset)}}};"
             )
         panels.append("\n".join(body))
 
