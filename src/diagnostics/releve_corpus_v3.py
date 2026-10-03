@@ -78,7 +78,8 @@ def probe(name: str, config: Optional[str]) -> dict:
         if label is not None:
             names = getattr(info.features[label], "names", None)
             out["label_space"] = names if names else str(info.features[label])
-    except Exception as exc:  # pylint: disable=broad-exception-caught  # noqa: BLE001 - the failure IS the result here
+    # Ici l'echec EST le resultat : on le rapporte au lieu de le laisser remonter.
+    except Exception as exc:  # pylint: disable=broad-exception-caught  # noqa: BLE001
         out["ok"] = False
         out["error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
     return out
