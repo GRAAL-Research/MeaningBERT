@@ -212,9 +212,9 @@ def main_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Polarity head, mean and standard deviation over ten seeds, in percent. "
-        r"\textsc{aug} adds the derived-polarity augmentation to \textsc{raw}. NaN-NLI and "
-        r"MoNLI are held-out sets. \textbf{Bold}: best per column.}",
+        r"\caption{Polarity head over ten seeds, in percent. \textsc{aug} adds the "
+        r"derived-polarity augmentation to \textsc{raw}; NaN-NLI and MoNLI are held out. "
+        r"\textbf{Bold}: best per column.}",
         r"\label{tab:main}",
         r"\end{table*}",
     ]
@@ -242,9 +242,9 @@ def suites_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{The three generated suites separately, ten seeds, in percent, for the "
-        r"best encoder, its plain counterpart and the weakest of the grid. Identical "
-        r"pairs must be entailment, unrelated pairs neutral, mirrored pairs contradiction.}",
+        r"\caption{The three generated suites, ten seeds, in percent, for the best "
+        r"encoder, its plain counterpart and the weakest of the grid. Identical pairs "
+        r"must be entailment, unrelated neutral, mirrored contradiction.}",
         r"\label{tab:suites}",
         r"\end{table*}",
     ]
@@ -283,9 +283,9 @@ def stats_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Effect of augmentation in points, \textsc{aug} minus \textsc{raw}, with "
-        r"the standard error of the difference and Cohen's $d$ (Welch, ten seeds). "
-        r"$\dagger$: not significant at $p<0.05$. Every sanity difference has $p<10^{-4}$.}",
+        r"\caption{\textsc{aug} minus \textsc{raw} in points, with the standard error of "
+        r"the difference and Cohen's $d$ (Welch, ten seeds). $\dagger$: not significant "
+        r"at $p<0.05$; every sanity difference has $p<10^{-4}$.}",
         r"\label{tab:stats}",
         r"\end{table*}",
     ]
@@ -438,7 +438,7 @@ def figure(cells, path: str) -> None:
         r"\caption{Augmentation moves one axis and not the other. "
         r"\textcolor{condraw}{\textbf{\textsc{raw}}} and "
         r"\textcolor{condaug}{\textbf{\textsc{aug}}}: means over ten seeds, bars one "
-        r"standard deviation. The panels do not share an $x$ range.}",
+        r"standard deviation. The panels share no $x$ range.}",
         r"\label{fig:augmentation}",
         r"\end{figure*}",
     ]

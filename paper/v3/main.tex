@@ -27,7 +27,7 @@ Both land on the positive half of a scale whose positive half means the meaning 
 These metrics are not imprecise on such pairs; they are confidently wrong in the direction that matters.
 
 The failure is measurable on a released metric.
-Evaluated on a held-out set of 12\,000 class-balanced pairs, the published MeaningBERT model ranks agreement above contradiction with an AUC of $60.8\%$, and on SICK \citep{marelli2014sick} alone it reaches $48.0\%$, scoring contradictions marginally higher than agreements.
+Evaluated on a held-out set of 12{,}000 class-balanced pairs, the published MeaningBERT model ranks agreement above contradiction with an AUC of $60.8\%$, and on SICK \citep{marelli2014sick} alone it reaches $48.0\%$, scoring contradictions marginally higher than agreements.
 A thresholded count of shared tokens reaches $63.5\%$ on the same split.
 A metric trained on human meaning-preservation judgements therefore orders polarity no better than lexical overlap.
 
@@ -96,7 +96,7 @@ Pair & $m$ & $p_{\mathrm{contra}}$ (\%) & $s$ \\
 ``Two dogs are wrestling'' / ``there is no dog wrestling'' & 51.70 & 99.40 & $-51.10$ \\
 \bottomrule
 \end{tabular}
-\caption{Measured, not illustrative. $m$ from a released magnitude model, $p_{\mathrm{contra}}$ from our polarity head, $s$ from \autoref{eq:compose} at $\alpha = 2$. Rows two and four are the cases a magnitude scale gets backwards.}
+\caption{Four measured pairs. $m$ from a released magnitude model, $p_{\mathrm{contra}}$ from our polarity head, $s$ from \autoref{eq:compose} at $\alpha = 2$. Rows two and four are what a magnitude scale gets backwards.}
 \label{tab:scale}
 \end{table}
 
@@ -120,7 +120,7 @@ The polarity head needs volume, a bridge between the two dimensions it composes,
 No single corpus provides all three, so we merge four (\autoref{tab:corpora}), each chosen for one of them.
 
 VitaminC \citep{schuster2021vitaminc} supplies the volume, and supplies it in the regime the paper is about.
-Its 488\,904 pairs are contrastive by construction: a Wikipedia sentence was edited so that the claim its previous revision supported is refuted by the next, which produces contradictions differing from their source by a few tokens rather than by topic.
+Its 488{,}904 pairs are contrastive by construction: a Wikipedia sentence was edited so that the claim its previous revision supported is refuted by the next, which produces contradictions differing from their source by a few tokens rather than by topic.
 No other corpus has that at scale.
 SICK \citep{marelli2014sick} supplies the bridge, since it carries a relatedness score and an inference label over the same pairs, and the composition needs both at once: its third criterion asks that the score still track human relatedness where the sign does not flip.
 SICK is therefore the only corpus on which $\alpha$ can be calibrated at all.
@@ -136,32 +136,32 @@ Its binary label is not a polarity judgement: two sentences that are not paraphr
 \toprule
 Corpus & Rows & Labels & Use \\
 \midrule
-VitaminC & 488\,904 & \textsc{fact3} & split \\
-SICK & 9\,840 & \textsc{nli3} + rel. & split \\
-MoNLI & 1\,202 & ent./neutral & held-out \\
+VitaminC & 488{,}904 & \textsc{fact3} & split \\
+SICK & 9{,}840 & \textsc{nli3} + rel. & split \\
+MoNLI & 1{,}202 & ent./neutral & held-out \\
 NaN-NLI & 258 & \textsc{nli3} & held-out \\
 \bottomrule
 \end{tabular}
-\caption{Corpora. \textsc{fact3} is \textsc{supports}, \textsc{not enough info}, \textsc{refutes}, mapped onto \textsc{nli3}. Split: merged, then divided into train, development and test. SICK alone carries a relatedness score, which the composition is calibrated against.}
+\caption{Corpora. \textsc{fact3} (\textsc{supports}, \textsc{not enough info}, \textsc{refutes}) maps onto \textsc{nli3}. Split: merged, then divided into train, development and test.}
 \label{tab:corpora}
 \end{table}
 
 \subsection{Augmenting the Ends of the Scale}
 
 Natural corpora are thin exactly where a signed score is read: they contain few identical pairs and few pairs with nothing in common, because neither is an interesting inference problem.
-A second corpus condition therefore adds three generated families in equal quotas of 25\,000, one per behaviour the scale depends on.
+A second corpus condition therefore adds three generated families in equal quotas of 25{,}000, one per behaviour the scale depends on.
 Identical pairs, labelled entailment, anchor the top of the scale; low-overlap random pairs, labelled neutral, anchor the middle, and this is the family that teaches that unrelated is not opposed; mirrored contradictions teach that opposition is symmetric.
 
 Every generated label is derived and never copied, because polarity is not symmetric the way magnitude is.
 If $A$ contradicts $B$ then $B$ contradicts $A$, so a mirrored contradiction stays one; but ``a dog is running'' entails ``an animal is running'' while the converse is false, so a mirrored entailment loses its label rather than carrying a wrong one.
-The quotas are equal for the same reason: mirroring alone would take the contradiction class from 50\,641 to 101\,282 against 51\,274 entailments, and bias the head towards the one class whose sign inverts the score.
+The quotas are equal for the same reason: mirroring alone would take the contradiction class from 50{,}641 to 101{,}282 against 51{,}274 entailments, and bias the head towards the one class whose sign inverts the score.
 
 \subsection{Splitting a Merged Corpus of Unequal Parts}
 
 Two properties are wanted from the development and test splits, balance and the absence of leakage, and a naive split gives neither.
 
 Drawing at random leaves the split at $8\%$ SICK, because VitaminC is fifty times its size, so a model selected on it is selected almost entirely on Wikipedia claim-evidence pairs.
-We therefore draw 4\,000 rows per class in equal share from each corpus, taking a corpus whole when it is smaller than its share and redistributing the shortfall, which raises SICK to $34\%$ of the test split.
+We therefore draw 4{,}000 rows per class in equal share from each corpus, taking a corpus whole when it is smaller than its share and redistributing the shortfall, which raises SICK to $34\%$ of the test split.
 Leakage is the second problem and runs in both directions.
 VitaminC reuses the same evidence sentence across many claims and splits by case rather than by evidence, so a random split puts the same source on both sides of the wall: $5.6\%$ of our test groups shared a source sentence with training.
 We therefore group rows by source sentence and move whole groups, then assert that no pair and no source sentence crosses between train, development and test, before and after augmentation.
@@ -172,7 +172,7 @@ We therefore group rows by source sentence and move whole groups, then assert th
 
 We train the polarity head on seven encoders, each on both corpus conditions, and repeat every cell over ten seeds so that no claim rests on a single draw.
 The encoders span three families, BERT \citep{devlin2019bert}, RoBERTa \citep{liu2019roberta} and DeBERTaV3 \citep{he2023debertav3}, in two sizes, and include both a plain and an inference-pretrained variant of the same architecture, which is what lets the effect of inference pretraining be read at constant size.
-The two conditions are \textsc{raw}, the merged corpus at 152\,060 training rows, and \textsc{aug}, the same corpus plus the generated families at 227\,060.
+The two conditions are \textsc{raw}, the merged corpus at 152{,}060 training rows, and \textsc{aug}, the same corpus plus the generated families at 227{,}060.
 Checkpoints already fine-tuned for three-way inference keep their head when its class order matches ours and have their classifier rows permuted when the published order is reversed.
 All runs share one set of optimisation settings, given with the hardware in \autoref{an:training} and \autoref{an:hardware}.
 
@@ -186,7 +186,7 @@ Holm-Bonferroni \citep{holm1979} across the fourteen condition tests changes no 
 \label{sec:results}
 
 The grid answers three questions: whether the polarity the signed scale needs is learnable at all, what the augmentation changes, and whether meaning-preservation data could have supplied the same signal.
-The best configuration reaches $91.1 \pm 0.14\%$ macro-F\textsubscript{1} on a class-balanced test set of 12\,000 pairs (\autoref{tab:main}), with a seed standard deviation of $0.14$ points over ten runs.
+The best configuration reaches $91.1 \pm 0.14\%$ macro-F\textsubscript{1} on a class-balanced test set of 12{,}000 pairs (\autoref{tab:main}), with a seed standard deviation of $0.14$ points over ten runs.
 Three references bound it from below, reported as macro-F\textsubscript{1} in the caption of \autoref{tab:cross}.
 The majority class sits at the arithmetic floor of $16.7\%$, Jaccard overlap between the two token sets cut by two thresholds fitted on development data reaches $39.4\%$, and a TF-IDF bag of unigrams and bigrams with a linear model reaches $45.6\%$.
 Consequently, between the floor and the fine-tuned head, token overlap covers $30.5\%$ of the achievable range and TF-IDF $38.9\%$, so roughly two fifths of the task is surface statistics of the corpus and the head is worth $45$ points above the best of the three.
@@ -222,7 +222,8 @@ They have not failed to notice the negation; they have failed to reverse the dir
 The headline also transfers across corpora.
 Stratification leaves the test split one third SICK and two thirds VitaminC.
 Scored separately over ten seeds, DeBERTa-v3-large\textsubscript{NLI} reaches $91.17 \pm 0.83\%$ macro-F\textsubscript{1} on SICK against $90.35 \pm 0.16\%$ on VitaminC, so the aggregate is not an artefact of the larger corpus.
-The AUC splits the same way, $98.11 \pm 1.49\%$ against $98.32 \pm 0.10\%$, and the distance between those two standard deviations is the more useful number: the SICK half is 4\,116 pairs against 7\,884, so one seed moves it by a point where it moves VitaminC by a tenth.
+The AUC splits the same way, $98.11 \pm 1.49\%$ against $98.32 \pm 0.10\%$, and the distance between those two standard deviations is the more useful number: the SICK half is 4{,}116 pairs against 7{,}884, so one seed moves it by a point where it moves VitaminC by a tenth.
+The SICK mean sits below the pooled $98.41\%$ only because one seed reaches $94.40$ against a $99.26$ best; on nine of the ten seeds the pooled value lies between the two halves.
 
 Polarity, finally, does not follow from preservation data at all.
 \autoref{tab:cross} scores three released magnitude models on both tasks at once, with the polarity heads and the surface baselines beneath them for reference.
@@ -251,7 +252,7 @@ Token overlap, Jaccard & -- & 63.50 \\
 TF-IDF, linear model & -- & 68.50 \\
 \bottomrule
 \end{tabular}
-\caption{Both tasks on one test split. $r$ is on the 1\,536 human-annotated preservation pairs, excluding 116 generated controls that inflate it by up to $+0.21$; AUC ranks entailment above contradiction on our 12\,000 pairs. Dashes: no preservation score. Three-way macro-F\textsubscript{1} of the baselines, $16.67$, $39.36$ and $45.64$, and $68.36$ for the off-the-shelf head, against $91.10$ for the fine-tuned one.}
+\caption{Both tasks, one test split. $r$: 1{,}536 human-annotated pairs, less 116 generated controls worth $+0.21$. AUC: entailment over contradiction on 12{,}000 pairs; ten seeds for the fine-tuned head, one pass for the fixed checkpoints. Dashes: no preservation score. Macro-F\textsubscript{1}: $16.67$, $39.36$, $45.64$ for the baselines, $68.36$ off the shelf, $91.10$ fine-tuned.}
 \label{tab:cross}
 \end{table}
 
@@ -266,7 +267,7 @@ Finally, a practitioner who needs only the sign may reach most of the way with n
 
 \subsection{Fitting the Slope}
 
-We fit $\alpha$ on the SICK half of the development split and report on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions.
+We fit $\alpha$ on the SICK half of the development split and report on the SICK half of the test split, 4{,}116 pairs of which 712 are contradictions.
 The components are a released magnitude model and our best polarity head, DeBERTa-v3-large\textsubscript{NLI}.
 Since no signed gold score exists, $\alpha$ is selected against three requirements multiplied together, so that sacrificing one cannot hide behind the others:
 \begin{equation}
@@ -346,7 +347,7 @@ The gain in sanity is paid for on MoNLI, which drops on three of seven encoders 
 Generated identical and unrelated pairs teach the easy ends of the scale, not the reversal of entailment under negation.
 
 Third, a single corpus carries the composition.
-Every measurement of the signed scale lives on the SICK half of the test split, 4\,116 pairs of which 712 are contradictions, which is also where $\alpha$ is fitted.
+Every measurement of the signed scale lives on the SICK half of the test split, 4{,}116 pairs of which 712 are contradictions, which is also where $\alpha$ is fitted.
 The constraint is structural rather than a choice: SICK is the only corpus we know of annotating relatedness and inference over the same pairs, and the third criterion needs both.
 It binds the calibration unavoidably and the evaluation only by convenience, since \autoref{tab:decision} needs inference labels alone and could in principle be measured elsewhere.
 The split is also thin on the development side: SICK supplies 495 development rows, of which 229 shared source sentences with its own test portion and were removed, leaving the development split at $2.3\%$ SICK against $34\%$ in test.
@@ -412,20 +413,20 @@ SICK is assembled from two public halves, one carrying the inference label and o
 
 \subsection{Stratification}
 
-Development and test splits take 4\,000 rows per class, drawn in equal share from each corpus by water-filling: a corpus smaller than its share is taken whole and the shortfall is redistributed over the larger ones.
+Development and test splits take 4{,}000 rows per class, drawn in equal share from each corpus by water-filling: a corpus smaller than its share is taken whole and the shortfall is redistributed over the larger ones.
 Without it, SICK falls to 8\% of the test split and 0.8\% of the development split.
 
 \subsection{Leakage}
 
 We group rows by source sentence and move whole groups, never rows.
-VitaminC reuses one piece of evidence across many claims, so 1\,662 source sentences, 5.6\% of the test groups, were also present in training.
-We drop 2\,379 training rows and 229 development rows, and assert that train/dev, train/test and dev/test share no pair and no source sentence.
+VitaminC reuses one piece of evidence across many claims, so 1{,}662 source sentences, 5.6\% of the test groups, were also present in training.
+We drop 2{,}379 training rows and 229 development rows, and assert that train/dev, train/test and dev/test share no pair and no source sentence.
 The assertion runs again after augmentation, since a generated pair inherits its source sentences.
 
 \subsection{Augmentation Quotas}
 
-The three generated families enter in equal quotas of 25\,000, which takes the training set from 152\,060 rows to 227\,060.
-Mirroring alone would take the contradiction class from 50\,641 to 101\,282 against 51\,274 entailments.
+The three generated families enter in equal quotas of 25{,}000, which takes the training set from 152{,}060 rows to 227{,}060.
+Mirroring alone would take the contradiction class from 50{,}641 to 101{,}282 against 51{,}274 entailments.
 
 \section{Training Details}
 \label{an:training}
@@ -469,6 +470,8 @@ The alternative, training from a permuted head, is silent and costs an epoch of 
 
 Seeds $[42, \ldots, 51]$ control initialisation of the new head, data order and dropout.
 Unless stated otherwise, every number reported in this paper is a mean over the ten with its standard deviation.
+The AUC column of \autoref{tab:cross} and the per-corpus figures of \autoref{sec:results} come from ten further runs of the best cell that keep their weights, since the grid stores predicted classes and an AUC needs probabilities.
+Nine of those ten use a micro-batch of $8$ with accumulation $4$ on a later card, the effective batch unchanged at $32$.
 
 \section{Hardware and Compute Budget}
 \label{an:hardware}
@@ -484,7 +487,7 @@ Encoders built around FlashAttention and unpadded attention need compute capabil
 
 The grid takes roughly 500 GPU-hours in total.
 A base-encoder run takes 68 minutes on the \textsc{raw} condition and 109 minutes on \textsc{aug}; a large-encoder run takes 318 and 489 minutes.
-The composition of \autoref{sec:composition} trains nothing: it is two forward passes over 4\,116 pairs plus a grid search over one scalar, and runs on CPU in under half an hour.
+The composition of \autoref{sec:composition} trains nothing: it is two forward passes over 4{,}116 pairs plus a grid search over one scalar, and runs on CPU in under half an hour.
 No private API was used, and the total monetary cost is the electricity of hardware we already own.
 
 \section{Composition with an Off-the-Shelf Head}
@@ -503,7 +506,7 @@ Relatedness $r$ & 0.599 & \textbf{0.795} \\
 Combined objective & 0.574 & \textbf{0.665} \\
 \bottomrule
 \end{tabular}
-\caption{One magnitude model composed with two polarity heads at $\alpha = 2$, SICK test half. First row in percent of the 712 contradictions. Higher is better throughout.}
+\caption{One magnitude model, two polarity heads, $\alpha = 2$, SICK test half. First row in percent of the 712 contradictions. Higher is better throughout.}
 \label{tab:zeroshot}
 \end{table}
 

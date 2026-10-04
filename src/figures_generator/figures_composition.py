@@ -89,9 +89,8 @@ def distribution_figure(pairs: dict, path: str) -> None:
         *plots,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        f"\\caption{{Signed score by gold class on the SICK test half at $\\alpha = 2$, "
-        f"bins of width $5$: {named}. The dashed vertical line marks zero, where the "
-        r"sign changes.}",
+        f"\\caption{{Signed score by gold class, SICK test half at $\\alpha = 2$, bins "
+        f"of width $5$: {named}. Dashed line: zero.}}",
         r"\label{fig:distribution}",
         r"\end{figure}",
     ]
@@ -159,9 +158,8 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         *series,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        r"\caption{Reliability of $p_{\mathrm{contra}}$ on the SICK test half, ten bins. "
-        r"The dashed diagonal is perfect calibration, where a predicted probability "
-        r"equals the observed rate. The "
+        r"\caption{Reliability of $p_{\mathrm{contra}}$, SICK test half, ten bins. The "
+        r"dashed diagonal is perfect calibration. The "
         r"\textcolor{reltuned}{\textbf{fine-tuned head}} tracks it, the "
         r"\textcolor{relshelf}{\textbf{off-the-shelf head}} falls far below.}",
         r"\label{fig:reliability}",
@@ -214,12 +212,10 @@ def composition_table(curve: dict, path: str) -> None:
         f" & {only['pearson_proximite']:.3f} & $0$ \\\\",
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Composition on the SICK test half, in percent, over 1\,404 entailments, "
-        r"2\,000 neutral pairs and 712 contradictions. The slope is fitted on development "
-        r"data, which selects $\alpha = 2$ (\textbf{bold}). Neutral: pairs left strictly "
-        r"positive, the class the product form exists to protect. Entailments stay positive "
-        r"throughout, at $100.00$ everywhere except $99.93$ at $\alpha = 3$. Floor: the most "
-        r"negative score the scale can reach.}",
+        r"\caption{SICK test half, in percent: 1{,}404 entailments, 2{,}000 neutral, "
+        r"712 contradictions. \textbf{Bold}: the slope the development split selects. "
+        r"Floor: the most negative reachable score. Entailments stay positive "
+        r"throughout, $100.00$ except $99.93$ at $\alpha = 3$.}",
         r"\label{tab:composition}",
         r"\end{table}",
     ]
@@ -314,12 +310,10 @@ def decision_table(tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{What each scale accepts as preserved meaning on the SICK test half, in "
-        r"percent, at three cuts. The first block is the error this paper is about; the "
-        r"second is the control, since a scale that merely shifted everything down would "
-        r"also accept fewer contradictions. Percentile intervals from 1\,000 bootstrap "
-        f"resamplings of the pairs are at most $\\pm{100 * widest:.1f}$ wide and do not "
-        r"overlap between the magnitude and either signed scale at the first two cuts.}",
+        r"\caption{What each scale accepts as preserved meaning, SICK test half, in "
+        r"percent, at three cuts. Percentile intervals from 1{,}000 bootstrap "
+        f"resamplings are at most $\\pm{100 * widest:.1f}$ wide and do not overlap "
+        r"between the magnitude and either signed scale at the first two cuts.}",
         r"\label{tab:decision}",
         r"\end{table}",
     ]
