@@ -46,9 +46,6 @@ ARCH_LABELS: dict[str, str] = {
     "deberta-v3-base": "DeBERTa-v3-base",
     "stsb-roberta-base": r"RoBERTa-base\textsubscript{STS-B}",
     "bert": "BERT-base",
-    "smollm2-1.7b": r"SmolLM2-1.7B",
-    "smollm2-360m": r"SmolLM2-360M",
-    "smollm2-135m": r"SmolLM2-135M",
 }
 
 #: What each metric is called in the paper, and whether higher is better.
@@ -202,9 +199,7 @@ def main_table(cells) -> str:
         r"\midrule",
     ]
     present = [(a, label) for a, label in ARCH_LABELS.items() if (a, "none") in cells or (a, "full") in cells]
-    for position, (arch, label) in enumerate(present):
-        if position:
-            lines.append(r"\addlinespace")
+    for arch, label in present:
         for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
             row = [r"\multirow{2}{*}{" + label + "}" if condition == "none" else "", name]
             for metric in METRICS:
@@ -239,9 +234,7 @@ def suites_table(cells) -> str:
     shown = [
         a for a in ("nli-deberta-v3-large", "deberta-v3-large", "bert") if (a, "none") in cells or (a, "full") in cells
     ]
-    for position, arch in enumerate(shown):
-        if position:
-            lines.append(r"\addlinespace")
+    for arch in shown:
         for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
             row = [r"\multirow{2}{*}{" + ARCH_LABELS[arch] + "}" if condition == "none" else "", name]
             row += [as_percent(cells.get((arch, condition), {}).get(suite, [])) for suite in SUITES]
@@ -421,7 +414,7 @@ def figure(cells, path: str) -> None:
         r"\begin{tikzpicture}",
         r"\begin{groupplot}[",
         r"  group style={group size=2 by 1, horizontal sep=0.6cm, y descriptions at=edge left},",
-        r"  width=0.365\textwidth, height=6.2cm,",
+        r"  width=0.365\textwidth, height=5.0cm,",
         r"  scale only axis,",
         r"  % Tufte : pas de cadre, une seule ligne d'axe, aucune regle verticale. Les",
         r"  % graduations suffisent a situer un point, et la grille entrait en competition",

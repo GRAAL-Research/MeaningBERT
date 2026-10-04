@@ -1,0 +1,71 @@
+{
+  "overall": {
+    "n": 12000,
+    "macro_f1": 0.9131321874997301,
+    "accuracy": 0.9128333333333334,
+    "auc": 0.985534625,
+    "per_class": {
+      "entailment": {
+        "n": 4000,
+        "recall": 0.92975
+      },
+      "neutral": {
+        "n": 4000,
+        "recall": 0.92125
+      },
+      "contradiction": {
+        "n": 4000,
+        "recall": 0.8875
+      }
+    }
+  },
+  "per_corpus": {
+    "sick": {
+      "n": 4116,
+      "macro_f1": 0.9159376609933042,
+      "accuracy": 0.9186103012633625,
+      "auc": 0.985330836454432,
+      "per_class": {
+        "entailment": {
+          "n": 1404,
+          "recall": 0.9038461538461539
+        },
+        "neutral": {
+          "n": 2000,
+          "recall": 0.952
+        },
+        "contradiction": {
+          "n": 712,
+          "recall": 0.8539325842696629
+        }
+      }
+    },
+    "vitaminc": {
+      "n": 7884,
+      "macro_f1": 0.9058467979127771,
+      "accuracy": 0.9098173515981736,
+      "auc": 0.9841608393410788,
+      "per_class": {
+        "entailment": {
+          "n": 2596,
+          "recall": 0.9437596302003082
+        },
+        "neutral": {
+          "n": 2000,
+          "recall": 0.8905
+        },
+        "contradiction": {
+          "n": 3288,
+          "recall": 0.8947688564476886
+        }
+      }
+    }
+  },
+  "corpus_shares": {
+    "vitaminc": 0.657,
+    "sick": 0.343
+  },
+  "checkpoint": "/home/dabea241/MeaningBERT-v3/results/polarity/nli-deberta-v3-large-none-poids/seed45/model",
+  "label": "nli-deberta-v3-large raw seed45",
+  "split": "test"
+}
