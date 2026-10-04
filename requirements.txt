@@ -1,5 +1,9 @@
 torch>=2.6.0
-transformers>=4.40.0
+# Borne haute volontaire. transformers 5.x fait diverger DeBERTa-v3-large des le
+# pas 100 (grad_norm a nan, en fp32 comme en bf16), alors que 4.57.6 apprend
+# normalement sur la meme machine, le meme corpus et les memes hyperparametres.
+# Les 140 cellules publiees viennent de 4.57.6. Voir docs/divergence-deberta-tf5.md.
+transformers>=4.48.0,<5.0.0
 datasets
 evaluate
 sentence-transformers
