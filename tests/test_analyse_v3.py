@@ -280,7 +280,7 @@ class TestUnlabelledCells:
         from figures_generator.analyse_v3 import unlabelled_cells
 
         root = str(tmp_path)
-        write_cell(root, "smollm2-135m", "full", 42, macro_f1=0.9, sanity=0.8)
+        write_cell(root, "bert", "full", 42, macro_f1=0.9, sanity=0.8)
 
         assert unlabelled_cells(root) == set()
 

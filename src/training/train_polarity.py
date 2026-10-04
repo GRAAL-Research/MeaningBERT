@@ -109,10 +109,15 @@ def needs_pair_template(tokenizer) -> bool:
     Encoder tokenizers carry a pair post-processor and produce
     ``[CLS] a [SEP] b [SEP]``, so the boundary is a token the model can attend to.
     Decoder-only tokenizers have none: ``tokenizer(a, b)`` returns the concatenation
-    and nothing marks where the premise ends. SmolLM2 encodes the SICK pair
+    and nothing marks where the premise ends. SmolLM2 encoded the SICK pair
     ("A man is playing a guitar", "A man is playing an instrument") as
-    ``"A man is playing a guitarA man is playing an instrument"``, which is why its
-    three sizes sat near the chance floor of a balanced three-way split.
+    ``"A man is playing a guitarA man is playing an instrument"``, and a model asked
+    whether the second sentence denies the first cannot be told where the first ends.
+
+    No checkpoint in the current registry needs this, since all seven are encoders.
+    It stays because the failure is silent: the run converges, writes a plausible
+    metrics.json and reports a low number that reads as a weak model. See
+    docs/smollm2-ecarte.md.
 
     The separator token is the reliable signal: a tokenizer without one has no pair
     template, whatever its family.

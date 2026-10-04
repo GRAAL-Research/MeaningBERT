@@ -46,9 +46,6 @@ ARCH_LABELS: dict[str, str] = {
     "deberta-v3-base": "DeBERTa-v3-base",
     "stsb-roberta-base": r"RoBERTa-base\textsubscript{STS-B}",
     "bert": "BERT-base",
-    "smollm2-1.7b": r"SmolLM2-1.7B",
-    "smollm2-360m": r"SmolLM2-360M",
-    "smollm2-135m": r"SmolLM2-135M",
 }
 
 #: What each metric is called in the paper, and whether higher is better.

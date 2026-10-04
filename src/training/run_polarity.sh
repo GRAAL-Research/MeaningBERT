@@ -50,10 +50,7 @@ deberta-v3-large|microsoft/deberta-v3-large|4|8|0
 nli-deberta-v3-large|MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli|4|8|0
 roberta-large-mnli|roberta-large-mnli|4|8|0
 modernbert-base|answerdotai/ModernBERT-base|8|4|80
-modernbert-large|answerdotai/ModernBERT-large|4|8|80
-smollm2-135m|HuggingFaceTB/SmolLM2-135M|32|1|80
-smollm2-360m|HuggingFaceTB/SmolLM2-360M|32|1|80
-smollm2-1.7b|HuggingFaceTB/SmolLM2-1.7B|16|2|80"
+modernbert-large|answerdotai/ModernBERT-large|4|8|80"
 
 # Architectures that wedge a given card, as "<arch tag>|<substring of the GPU name>".
 #
