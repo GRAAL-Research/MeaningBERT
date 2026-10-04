@@ -433,6 +433,7 @@ Mirroring alone would take the contradiction class from 50\,641 to 101\,282 agai
 \subsection{Optimisation}
 
 \autoref{tab:optimisation} gives the settings, which are identical for all 140 runs.
+The library version is part of them: a later major release of \texttt{transformers} sends DeBERTaV3-large to a non-finite gradient within a hundred steps, on the same corpus and the same settings, and reports the majority-class floor rather than failing.
 Nothing is tuned per encoder: one setting across the grid is what makes the seven encoders comparable, and the cost is that no encoder sits at its own optimum.
 
 \begin{table}[h]
@@ -450,6 +451,7 @@ Micro-batch & 8 (base), 4 (large) \\
 Gradient accumulation & 4 (base), 8 (large) \\
 Max sequence length & 256 tokens \\
 Precision & fp32 \\
+Library & \texttt{transformers} 4.57 \\
 Seeds & $[42, \ldots, 51]$ \\
 \bottomrule
 \end{tabular}

@@ -15,7 +15,15 @@ import numpy as np
 import pytest
 
 from data.schema import POLARITY_CLASSES
-from training.train_polarity import CLASS_NAMES, compute_metrics, confusion, per_class_f1, summarise
+from training.train_polarity import (
+    CLASS_NAMES,
+    compute_metrics,
+    confusion,
+    degenerate,
+    divergent_log,
+    per_class_f1,
+    summarise,
+)
 
 ENTAIL = POLARITY_CLASSES["entailment"]
 NEUTRAL = POLARITY_CLASSES["neutral"]
@@ -283,3 +291,78 @@ class TestAlignPadding:
 
         with pytest.raises(ValueError, match="end-of-sequence"):
             align_padding(tokenizer, _StubModel())
+
+
+class TestDegenerate:
+    """La garde qui refuse d'ecrire un resultat effondre."""
+
+    @staticmethod
+    def _resume(matrix, macro_f1=0.5):
+        return {"confusion": matrix, "macro_f1": macro_f1}
+
+    def test_une_seule_classe_predite_est_signalee(self):
+        # Les neuf cellules d'AUC du 4 octobre 2026 : tout dans entailment.
+        matrix = [[4000, 0, 0], [4000, 0, 0], [4000, 0, 0]]
+        fault = degenerate(self._resume(matrix, macro_f1=1 / 6))
+        assert fault is not None
+        assert "entailment" in fault
+
+    def test_aucune_prediction_est_signalee(self):
+        fault = degenerate(self._resume([[0, 0, 0]] * 3))
+        assert fault is not None
+        assert "aucune" in fault
+
+    def test_macro_f1_non_fini_est_signale(self):
+        matrix = [[300, 50, 50], [40, 310, 50], [30, 60, 310]]
+        fault = degenerate(self._resume(matrix, macro_f1=float("nan")))
+        assert fault == "macro-F1 non fini"
+
+    def test_deux_classes_predites_passent(self):
+        # Un modele faible mais vivant n'est pas refuse : deux classes suffisent.
+        matrix = [[300, 100, 0], [200, 200, 0], [150, 250, 0]]
+        assert degenerate(self._resume(matrix)) is None
+
+    def test_matrice_saine_passe(self):
+        matrix = [[380, 10, 10], [15, 370, 15], [20, 20, 360]]
+        assert degenerate(self._resume(matrix, macro_f1=0.92)) is None
+
+    def test_resume_reel_est_accepte(self):
+        # Le chemin complet : summarise produit le dict que degenerate inspecte.
+        predictions = np.array([0, 1, 2, 0, 1, 2])
+        labels = np.array([0, 1, 2, 0, 2, 1])
+        assert degenerate(summarise(predictions, labels)) is None
+
+    def test_resume_reel_effondre_est_refuse(self):
+        predictions = np.zeros(6, dtype=int)
+        labels = np.array([0, 1, 2, 0, 1, 2])
+        assert degenerate(summarise(predictions, labels)) is not None
+
+
+class TestDivergentLog:
+    """La garde qui coupe des la premiere ligne non finie."""
+
+    def test_grad_norm_nan_est_signale(self):
+        # La ligne exacte des cellules d'AUC : perte masquee a zero, gradient NaN.
+        fault = divergent_log({"loss": 0.0, "grad_norm": float("nan"), "epoch": 0.042})
+        assert fault is not None
+        assert "grad_norm" in fault
+
+    def test_perte_infinie_est_signalee(self):
+        assert "loss" in divergent_log({"loss": float("inf")})
+
+    def test_perte_enorme_mais_finie_passe(self):
+        # 3e12 est absurde mais fini : c'est le gradient qui tranche, pas l'ampleur.
+        assert divergent_log({"loss": 3.086e12, "grad_norm": 2.0}) is None
+
+    def test_ligne_saine_passe(self):
+        assert divergent_log({"loss": 0.41, "grad_norm": 1.2, "learning_rate": 9e-6}) is None
+
+    def test_ligne_sans_perte_passe(self):
+        # Les lignes d'evaluation n'ont pas ces cles ; elles ne doivent pas lever.
+        assert divergent_log({"eval_accuracy": 0.9, "epoch": 1.0}) is None
+
+    def test_logs_absents_passent(self):
+        assert divergent_log(None) is None
+
+    def test_valeur_non_numerique_est_ignoree(self):
+        assert divergent_log({"loss": "indisponible"}) is None

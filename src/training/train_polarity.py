@@ -29,6 +29,7 @@ Run::
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 from typing import Any, Final, Optional
@@ -90,6 +91,43 @@ def per_class_f1(matrix: list[list[int]]) -> dict[str, float]:
         scores[name] = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     scores["macro"] = sum(scores[name] for name in CLASS_NAMES) / len(CLASS_NAMES)
     return scores
+
+
+class DivergenceError(RuntimeError):
+    """Raised when training stops being a training run."""
+
+
+def divergent_log(logs: dict[str, Any] | None) -> str | None:
+    """Name the field that stopped being finite in a Trainer log line, or None."""
+    for key in ("loss", "grad_norm"):
+        value = (logs or {}).get(key)
+        if value is None:
+            continue
+        try:
+            finite = math.isfinite(float(value))
+        except (TypeError, ValueError):
+            continue
+        if not finite:
+            return f"{key} vaut {value}"
+    return None
+
+
+def degenerate(summary: dict[str, Any]) -> str | None:
+    """Name the way a result is unusable, or None when it looks like learning.
+
+    A cell that diverges still finishes, still writes predictions and still produces a
+    macro-F1. That number is the majority-class floor and it is indistinguishable from a
+    weak-but-real result unless someone opens the confusion matrix. Nine such cells were
+    aggregated into a mean before anyone noticed, so the check belongs in the code.
+    """
+    matrix = summary["confusion"]
+    used = [index for index, _ in enumerate(CLASS_NAMES) if any(row[index] for row in matrix)]
+    if len(used) < 2:
+        name = CLASS_NAMES[used[0]] if used else "aucune"
+        return f"toutes les predictions tombent dans une seule classe ({name})"
+    if not math.isfinite(summary["macro_f1"]):
+        return "macro-F1 non fini"
+    return None
 
 
 def summarise(predictions: np.ndarray, labels: np.ndarray) -> dict[str, Any]:
@@ -253,6 +291,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         AutoTokenizer,
         DataCollatorWithPadding,
         Trainer,
+        TrainerCallback,
         TrainingArguments,
         set_seed,
     )
@@ -307,6 +346,21 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
     model.config.label2id = {name: index for index, name in enumerate(CLASS_NAMES)}
     align_padding(tokenizer, model)
 
+    class StopOnDivergence(TrainerCallback):
+        """Abort on the first non-finite loss or gradient norm.
+
+        Without it a run that turns to NaN in its first hundred steps keeps the card for
+        another three hours and then reports the floor.
+        """
+
+        # La signature est imposee par TrainerCallback : seuls state et logs servent
+        # ici, les trois autres arguments sont passes par le Trainer quoi qu'il arrive.
+        def on_log(self, args, state, control, logs=None, **kwargs):  # pylint: disable=unused-argument
+            if (fault := divergent_log(logs)) is not None:
+                raise DivergenceError(
+                    f"{fault} au pas {state.global_step} : " "l'entrainement a diverge, la cellule est abandonnee"
+                )
+
     trainer = Trainer(
         model=model,
         args=TrainingArguments(
@@ -336,6 +390,7 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         eval_dataset=dev,
         data_collator=DataCollatorWithPadding(tokenizer),
         compute_metrics=compute_metrics,
+        callbacks=[StopOnDivergence()],
     )
     trainer.train()
 
@@ -356,6 +411,12 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         "test": evaluate(splits["test"]),
         "probes": {name: evaluate(probes[name]) for name in probes},
     }
+
+    # Nothing is written before the result is known to be a result. A metrics.json on
+    # disk is what every downstream aggregation treats as "this cell succeeded".
+    for name, summary in [("test", results["test"]), *results["probes"].items()]:
+        if (fault := degenerate(summary)) is not None:
+            raise DivergenceError(f"{name} : {fault}, la cellule n'est pas ecrite")
 
     with open(f"{output_dir}/metrics.json", "w", encoding="utf-8") as handle:
         json.dump(results, handle, indent=2, ensure_ascii=False)
