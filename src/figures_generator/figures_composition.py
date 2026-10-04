@@ -91,8 +91,7 @@ def distribution_figure(pairs: dict, path: str) -> None:
         r"\end{tikzpicture}",
         f"\\caption{{Signed score by gold class on the SICK test half at $\\alpha = 2$, "
         f"bins of width $5$: {named}. The dashed vertical line marks zero, where the "
-        r"sign changes. SICK neutral pairs are related captions, not unrelated "
-        r"sentences, so they belong in the positive half.}",
+        r"sign changes.}",
         r"\label{fig:distribution}",
         r"\end{figure}",
     ]
