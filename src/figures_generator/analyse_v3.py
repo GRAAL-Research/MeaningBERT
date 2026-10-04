@@ -249,7 +249,8 @@ def suites_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{The three generated suites separately, ten seeds, in percent. Identical "
+        r"\caption{The three generated suites separately, ten seeds, in percent, for the "
+        r"best encoder, its plain counterpart and the weakest of the grid. Identical "
         r"pairs must be entailment, unrelated pairs neutral, mirrored pairs contradiction.}",
         r"\label{tab:suites}",
         r"\end{table*}",

@@ -10,7 +10,7 @@
 \maketitle
 
 \begin{abstract}
-Metrics for meaning preservation report how much meaning two sentences share, on a scale from 0 to 100. That scale cannot express opposition. Because contradicting sentences are about the same thing, they overlap heavily, and a released model scores ``I drink milk'' against ``I do not drink milk'' at 58 out of 100. We propose a signed scale on $[-100,100]$, obtained by multiplying a magnitude head by $1 - \alpha\,p_{\mathrm{contra}}$ from a three-way polarity head. The form is a product so that unrelated sentences score 0 whatever their polarity. Thresholded token overlap ranks polarity better than the released metric does, 63.5\% AUC against 60.8\%. Across 140 runs a polarity head reaches 91.1\% macro-F\textsubscript{1} over ten seeds, derived-polarity augmentation leaves task performance unchanged while raising generated sanity suites from 79--90\% to 98--99\% on all seven encoders, and composition puts 84\% of SICK contradictions below zero where the magnitude alone puts none, cutting from 14.1\% to 2.1\% the contradictions a system would accept as preserved meaning.
+Metrics for meaning preservation report how much meaning two sentences share, on a scale from 0 to 100. That scale cannot express opposition. Because contradicting sentences are about the same thing, they overlap heavily, and a released model scores ``I drink milk'' against ``I do not drink milk'' at 58 out of 100. We propose a signed scale on $[-100,100]$, obtained by multiplying a magnitude head by $1 - \alpha\,p_{\mathrm{contra}}$ from a three-way polarity head. The form is a product so that unrelated sentences score 0 whatever their polarity. Thresholded token overlap ranks polarity better than the released metric does, 63.5\% AUC against 60.8\%. Over seven encoders and ten seeds a polarity head reaches 91.1\% macro-F\textsubscript{1}, derived-polarity augmentation leaves task performance unchanged while raising generated sanity suites from 79--90\% to 98--99\% on every one of them, and composition puts 83.7\% of SICK contradictions below zero where the magnitude alone puts none, cutting from 14.1\% to 2.1\% the contradictions a system would accept as preserved meaning.
 \end{abstract}
 
 \section{Introduction}
@@ -187,19 +187,19 @@ Holm-Bonferroni \citep{holm1979} across the fourteen condition tests changes no 
 
 The grid answers three questions: whether the polarity the signed scale needs is learnable at all, what the augmentation changes, and whether meaning-preservation data could have supplied the same signal.
 The best configuration reaches $91.1 \pm 0.14\%$ macro-F\textsubscript{1} on a class-balanced test set of 12\,000 pairs (\autoref{tab:main}), with a seed standard deviation of $0.14$ points over ten runs.
-\autoref{tab:cross} places three references beside it.
+Three references bound it from below, reported as macro-F\textsubscript{1} in the caption of \autoref{tab:cross}.
 The majority class sits at the arithmetic floor of $16.7\%$, Jaccard overlap between the two token sets cut by two thresholds fitted on development data reaches $39.4\%$, and a TF-IDF bag of unigrams and bigrams with a linear model reaches $45.6\%$.
-Consequently, between the floor and the fine-tuned head, token overlap covers $30.5\%$ of the achievable range and TF-IDF $38.8\%$, so roughly two fifths of the task is surface statistics of the corpus and the head is worth $45$ points above the best of the three.
+Consequently, between the floor and the fine-tuned head, token overlap covers $30.5\%$ of the achievable range and TF-IDF $38.9\%$, so roughly two fifths of the task is surface statistics of the corpus and the head is worth $45$ points above the best of the three.
 
 Augmentation then buys sanity rather than performance.
 On the four DeBERTa encoders the macro-F\textsubscript{1} difference between conditions lies between $-0.21$ and $+0.08$ points and is not significant ($p$ from $0.17$ to $0.74$); on the other three it is significant but below one point.
 The sanity suites move in a different regime (\autoref{tab:stats}, \autoref{fig:augmentation}): $+8.4$ to $+20.0$ points, $p < 10^{-4}$ on all seven encoders, with $d$ from $9.9$ to $81.1$.
-Indeed, the effect sizes settle the matter, since $d = 81$ on RoBERTa-base\textsubscript{STS-B} places the shift two orders of magnitude above the seed-to-seed noise, whereas the largest task effect anywhere in the grid is $d = 2.2$ for a difference of $0.73$ points.
+The effect sizes settle the matter: $d = 81$ on RoBERTa-base\textsubscript{STS-B} sits two orders of magnitude above the seed noise, whereas the largest task effect in the grid is $d = 2.2$ for $0.73$ points.
 Every encoder converges to $98.3$--$98.8\%$ regardless of where it started, and the clearest cases are the weakest models: RoBERTa-base\textsubscript{STS-B} moves from $78.7\%$ to $98.7\%$ and BERT-base from $79.4\%$ to $98.3\%$.
 Thus, the augmentation does not make the head better at the task; it repairs how the head behaves at the ends of the scale, which is where a signed metric is read.
 
-The sanity suites are built by the same three generators that produce the augmented training rows, over different sentences but by the same construction, so an \textsc{aug} model is evaluated partly on a distribution whose shape it has seen and the gain is not a claim of generalisation to arbitrary degenerate pairs.
-What the comparison establishes is that this behaviour is learnable and is not acquired incidentally: seven encoders trained without these rows converge nowhere near $98\%$.
+The sanity suites come from the same three generators as the augmented training rows, over different sentences but by the same construction, so an \textsc{aug} model is partly evaluated on a shape it has seen and the gain is not a claim of generalisation to arbitrary degenerate pairs.
+What it establishes is that the behaviour is learnable and not acquired incidentally: seven encoders trained without these rows converge nowhere near $98\%$.
 
 \input{figure_augmentation}
 
@@ -207,8 +207,8 @@ What the comparison establishes is that this behaviour is learnable and is not a
 
 The gain is concentrated on two of the three families.
 \autoref{tab:suites} separates the suites, and identical pairs are essentially solved before augmentation.
-Unrelated pairs rise from $92$--$96\%$ to $99.3$--$99.7\%$: before augmentation, between $2.4\%$ and $7.9\%$ of pairs with nothing in common are predicted contradiction, which on the signed scale returns a negative score where the truth is zero.
-Finally, mirrored contradictions rise from $74$--$75\%$ to $96\%$, and on BERT-base from $50\%$, so the symmetry of contradiction is not a property these encoders hold on their own.
+Unrelated pairs rise from $92$--$96\%$ to $99.3$--$99.7\%$ on the three encoders shown, and across the seven the confusion matrices put between $2.4\%$ and $7.9\%$ of pairs with nothing in common in the contradiction class before augmentation, which on the signed scale returns a negative score where the truth is zero.
+Finally, mirrored contradictions rise from $74$--$75\%$ to $95.6$--$96.5\%$, and on BERT-base from $50\%$, so the symmetry of contradiction is not a property these encoders hold on their own.
 
 \input{table_suites}
 
@@ -216,8 +216,8 @@ Inference pretraining buys something the aggregate does not show.
 Paired by seed, DeBERTa-v3-large\textsubscript{NLI} beats its plain counterpart by $+0.19$ points of macro-F\textsubscript{1} ($p = 0.002$, $d = 1.39$) and by $+12.1$ points on MoNLI ($p < 10^{-4}$, $d = 2.58$).
 At base size the pattern inverts: the task gain is larger ($+0.67$ points, $p = 0.005$) and the MoNLI difference is not significant.
 Consequently, inference pretraining supplies a capability the aggregate test set does not exercise, which is the argument for reporting held-out suites alongside it.
-MoNLI accuracy is low for every configuration, and the confusion matrix locates the failure precisely: the heads almost never call these pairs contradictions, with $0.2\%$ of true entailments predicted contradiction on DeBERTa-v3-large\textsubscript{NLI}, but $93\%$ of true entailments are predicted neutral.
-They have not failed to notice the negation; they have failed to reverse the direction of entailment under it, applying the unnegated rule instead.
+MoNLI accuracy is low everywhere, and the confusion matrix locates the failure: the heads almost never call these pairs contradictions, with $0.2\%$ of true entailments predicted contradiction on DeBERTa-v3-large\textsubscript{NLI} against $93\%$ predicted neutral.
+They have not failed to notice the negation; they have failed to reverse the direction of entailment under it.
 
 The headline also transfers across corpora.
 Stratification leaves the test split one third SICK and two thirds VitaminC.
@@ -244,7 +244,7 @@ BERT-base, retrained & 0.640 & 53.70 \\
 DeBERTa-v3-large, retrained & \textbf{0.705} & 81.50 \\
 \addlinespace
 \multicolumn{3}{l}{\emph{Polarity heads, published then ours}} \\
-DeBERTa-v3-large\textsubscript{MNLI} & -- & 96.60 \\
+DeBERTa-v3-large\textsubscript{MNLI} & -- & 96.62 \\
 DeBERTa-v3-large\textsubscript{NLI} & -- & \textbf{98.72} \\
 \addlinespace
 \multicolumn{3}{l}{\emph{Surface baselines}} \\
@@ -252,12 +252,13 @@ Token overlap, Jaccard & -- & 63.50 \\
 TF-IDF, linear model & -- & 68.50 \\
 \bottomrule
 \end{tabular}
-\caption{Both tasks on one test split. $r$ is on the 1\,536 human-annotated preservation pairs, excluding 116 generated controls that inflate it by up to $+0.21$; AUC ranks entailment above contradiction on our 12\,000 pairs. Dashes: no preservation score. Three-way macro-F\textsubscript{1} of the baselines, $16.67$, $39.36$ and $45.64$, against $91.10$ for the fine-tuned head.}
+\caption{Both tasks on one test split. $r$ is on the 1\,536 human-annotated preservation pairs, excluding 116 generated controls that inflate it by up to $+0.21$; AUC ranks entailment above contradiction on our 12\,000 pairs. Dashes: no preservation score. Three-way macro-F\textsubscript{1} of the baselines, $16.67$, $39.36$ and $45.64$, and $68.36$ for the off-the-shelf head, against $91.10$ for the fine-tuned one.}
 \label{tab:cross}
 \end{table}
 
 An off-the-shelf inference model used as published ranks entailment above contradiction at $96.6\%$, above every magnitude model, which bounds what fine-tuning contributes.
-Against the grid mean, fine-tuning adds $+22.7$ points of macro-F\textsubscript{1}, and on the single run where both are measured it adds $+2.1$ points of AUC, so it improves both the ordering of $p_{\mathrm{contra}}$ and its calibration into three classes, but the ordering was largely available without it.
+Fine-tuning the same architecture adds $+22.7$ points of macro-F\textsubscript{1}, and on the single run where both are measured it adds $+2.1$ points of AUC, so it improves both the ordering of $p_{\mathrm{contra}}$ and its calibration into three classes, but the ordering was largely available without it.
+The macro-F\textsubscript{1} gap flatters fine-tuning, since the off-the-shelf head never saw our label mapping; the AUC gap does not.
 Finally, a practitioner who needs only the sign may reach most of the way with no training at all.
 
 \section{Composing the Two Heads}
@@ -273,16 +274,16 @@ J(\alpha) = c(\alpha) \cdot e(\alpha) \cdot \max\!\left(r(\alpha), 0\right),
 \label{eq:objective}
 \end{equation}
 where $c$ is the share of contradictions scoring below zero, $e$ the share of entailments scoring above it, and $r$ the Pearson correlation between the composed score and human relatedness on the pairs whose sign does not flip.
-A product and not a mean, since a sum would let a composition trade the sign away for correlation and still report a respectable number, while a composition sending every contradiction to $-100$ and everything else to noise maximises the first two factors and is excluded by the third.
+A product and not a mean: a sum would let a composition trade the sign away for correlation and still report a respectable number, and a composition sending every contradiction to $-100$ and everything else to noise maximises the first two factors and is excluded by the third.
 The development split selects $\alpha = 2$, the value the reachability constraint of \autoref{sec:scale} also forces.
 
 \input{table_composition}
 
 \autoref{tab:composition} gives the result and \autoref{fig:distribution} shows it.
-The neutral column is the one the title of this paper is about, and it is also where the composition is slightly worse than what it extends: $97.45\%$ of neutral pairs stay strictly positive against $98.35\%$ for the magnitude alone.
+The neutral column is where the composition is slightly worse than what it extends: $97.45\%$ of neutral pairs stay strictly positive against $98.35\%$ for the magnitude alone.
+SICK neutrals are related captions, not the unrelated pairs of the title, so this column shows the product leaving alone what it has no reason to touch; the title's property is tested in \autoref{tab:suites}.
 Nine tenths of a point is the cost of making the scale signed for the class that should never cross zero, and it is a cost rather than a gain because the product can only move a score downwards.
-The magnitude alone puts no contradiction below the line, which is a property of a non-negative scale rather than a weakness of that model.
-Composition puts $83.7\%$ of them where they belong while retaining $r = 0.795$ with human relatedness on the unflipped pairs, against $0.852$ for the magnitude alone.
+The magnitude alone puts no contradiction below the line, which is a property of a non-negative scale rather than a weakness of that model, while composition puts $83.7\%$ of them where they belong and retains $r = 0.795$ with human relatedness on the unflipped pairs, against $0.852$.
 The cost of requiring the full scale is visible and small: $\alpha = 1.5$ scores $1.5\%$ higher on the combined objective and truncates the negative half at $-50$.
 
 \input{figure_distribution}
@@ -297,7 +298,7 @@ The slope is thus stable against the quality of the magnitude head, which is a n
 
 \subsection{What Fine-Tuning the Polarity Head Buys}
 
-Changing the other head, in contrast, moves everything.
+Changing the polarity head, in contrast, moves everything.
 Composing the same magnitude model with the off-the-shelf polarity head inverts the trade-off (\autoref{tab:zeroshot}).
 The off-the-shelf head is the better sign detector, putting $97.6\%$ of contradictions below zero against $83.7\%$, but it costs $0.196$ of correlation with human relatedness and loses the combined objective by $14\%$ relative.
 \autoref{fig:reliability} shows why (\autoref{an:zeroshot}): among the pairs to which it assigns a contradiction probability near $0.5$, fewer than one in ten is a contradiction, so the product drags down the magnitude of pairs that are merely unrelated.
@@ -307,11 +308,11 @@ The third requirement is what makes this visible, and it is the reason $\alpha$ 
 
 Expressing a distinction is not the same as being a better metric, and \autoref{tab:decision} settles the second by asking what each scale lets through.
 A system that accepts a rewriting when the score exceeds a cut accepts, with the magnitude alone at a cut of $50$, a set in which $14.10\%$ of the pairs are contradictions; the same cut on the signed scale leaves $2.13\%$.
-The reduction is close to sevenfold, it is measured against SICK's inference labels rather than against the conversion rule under test, and the bootstrap intervals do not overlap.
-The second block is the control: a scale that merely shifted everything downwards would also accept fewer contradictions, and here recall falls only from $99.15\%$ to $98.43\%$.
+The reduction is close to sevenfold, measured against SICK's inference labels rather than the conversion rule under test, and the bootstrap intervals do not overlap.
+The second block is the control, since a scale shifting everything downwards would also accept fewer contradictions: recall falls only from $99.15\%$ to $98.43\%$.
 The advantage does not depend on where the cut falls.
 Sweeping it from $0$ to $95$ in steps of five, the signed scale never accepts a larger share of contradictions than the magnitude, and the entailment recall it gives up never exceeds $1.85$ points.
-At a cut of $70$ the magnitude already admits almost no contradiction, the intervals overlap and the scales converge, so the benefit lives where a simplification system operates rather than at the top of the range.
+At a cut of $70$ the magnitude already admits almost no contradiction and the scales converge, so the benefit lives where a simplification system operates rather than at the top of the range.
 
 The second row of each block separates the scale from the model that feeds it.
 Composing the same magnitude with an off-the-shelf inference head, used as published, accepts $0.15\%$ contradictions at the same cut for $96.72\%$ of entailments kept.
@@ -328,14 +329,13 @@ On a corpus that contains no deliberate contradictions, the sign costs $0.06$ of
 
 \section{Conclusion and Future Works}
 
-A meaning-preservation metric that cannot distinguish a paraphrase from a negation is not imprecise but confidently wrong on the pairs where precision matters, and the metric deployed today has exactly this property.
-Making the scale signed does not require a better magnitude model; it requires a second head and an explicit rule for combining them.
-The combination is cheap, training nothing beyond a three-way classifier and fitting one parameter, and it moves $84\%$ of contradictions to the correct side of zero where the magnitude alone moves none.
-What it lacks is a human-annotated signed target for the combining rule.
+A meaning-preservation metric that cannot tell a paraphrase from a negation is not imprecise but confidently wrong where precision matters, and the deployed metric has exactly this property.
+Making the scale signed does not require a better magnitude model; it requires a second head and a rule for combining them.
+The combination trains nothing beyond a three-way classifier, fits one parameter, and moves $83.7\%$ of contradictions to the correct side of zero where the magnitude alone moves none, and what it lacks is a signed gold standard.
 
 \section*{Limitations}
 
-While we believe the signed scale is a useful contribution to the evaluation of meaning preservation, we acknowledge six limitations that bound our claims and offer avenues for future research.
+While we believe the signed scale is a useful contribution to the evaluation of meaning preservation, we acknowledge seven limitations that bound our claims and offer avenues for future research.
 
 First, there is no signed gold standard.
 The composition is calibrated against three necessary conditions rather than against human signed judgements, because none exist.
@@ -362,6 +362,10 @@ Fifth, the sign rests on one head.
 Because the composition is a product with $m \geq 0$, the sign of the score is decided entirely by $p_{\mathrm{contra}}$.
 A polarity head that is wrong about a pair is not corrected by a good magnitude model, and the $16.3\%$ of SICK contradictions that stay positive are exactly the pairs the head misses.
 
+Sixth, the property the title names is never measured on natural unrelated pairs.
+That two sentences about different topics score near zero follows from the product form, since $m \approx 0$ leaves the polarity term nothing to act on, and it is measured on the generated unrelated suite.
+No corpus we know of annotates genuinely unrelated pairs for meaning preservation, because such a pair is not an interesting annotation, so the construction carries this half of the claim and the evidence for it is self-generated.
+
 Finally, the work is English and sentence-level throughout.
 Every corpus we merge is English, and the scale is defined over sentence pairs.
 Neither restriction is incidental.
@@ -377,7 +381,7 @@ A signed scale does not remove that risk, but it makes the failure visible to th
 Our corpora also inherit the biases of the Wikipedia revisions and caption corpora they are drawn from, and a polarity head trained on them carries those biases into whatever it gates \citep{bender2021dangers}.
 
 \section*{Availability}
-The corpus builder, the loaders, the training and composition code, the 140 result files and the script generating every table and figure in this paper will be released under an open licence.
+The corpus builder, the loaders, the training and composition code, the result files of every cell and the script generating every table and figure in this paper will be released under an open licence.
 % Remplacer par l'URL reelle du depot a la camera-ready.
 Repository: removed for double-blind review.
 The merged corpus inherits the most restrictive licence among its sources and will be redistributed under CC BY-NC-SA 4.0.
@@ -502,5 +506,8 @@ Combined objective & 0.574 & \textbf{0.665} \\
 \end{table}
 
 The two heads are composed with the same magnitude model at $\alpha = 2$ and scored on the SICK test half.
+\autoref{tab:zeroshot} gives the trade-off and \autoref{fig:reliability} gives its cause.
+The off-the-shelf head wins the sign criterion and loses the combined objective, because it is confident on pairs that are merely unrelated: in the bins where it predicts a contradiction probability between $0.4$ and $0.9$, the observed rate stays near one in ten, so the product subtracts magnitude from pairs that should keep theirs.
+The fine-tuned head tracks the diagonal over the same range, which is what the third criterion of \autoref{eq:objective} rewards.
 
 \end{document}
