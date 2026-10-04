@@ -21,6 +21,8 @@ from training.train_polarity import (
     confusion,
     degenerate,
     divergent_log,
+    encode_pair,
+    needs_pair_template,
     per_class_f1,
     summarise,
 )
@@ -366,3 +368,54 @@ class TestDivergentLog:
 
     def test_valeur_non_numerique_est_ignoree(self):
         assert divergent_log({"loss": "indisponible"}) is None
+
+
+class _Tokeniseur:
+    """Un tokeniseur reduit a ce que les deux fonctions regardent."""
+
+    def __init__(self, sep_token_id):
+        self.sep_token_id = sep_token_id
+
+
+class TestEncodePair:
+    """La frontiere entre les deux phrases doit exister pour tout modele."""
+
+    def test_encodeur_garde_la_paire_telle_quelle(self):
+        # DeBERTa produit [CLS] a [SEP] b [SEP] : rien a reformuler.
+        tok = _Tokeniseur(sep_token_id=2)
+        first, second = encode_pair(tok, ["un chien court"], ["un animal court"])
+        assert first == ["un chien court"]
+        assert second == ["un animal court"]
+
+    def test_decodeur_recoit_un_gabarit(self):
+        # SmolLM2 n'a pas de separateur : sans gabarit les deux phrases sont collees.
+        tok = _Tokeniseur(sep_token_id=None)
+        first, second = encode_pair(tok, ["un chien court"], ["un animal court"])
+        assert second is None
+        assert first == ["premise: un chien court\nhypothesis: un animal court"]
+
+    def test_le_gabarit_separe_vraiment_les_deux_phrases(self):
+        # Le defaut du 4 octobre 2026 : la concatenation nue, sans frontiere.
+        tok = _Tokeniseur(sep_token_id=None)
+        first, _ = encode_pair(tok, ["un chien court"], ["un animal court"])
+        assert "un chien courtun animal court" not in first[0]
+        assert first[0].index("un chien court") < first[0].index("un animal court")
+
+    def test_le_gabarit_porte_sur_tout_le_lot(self):
+        tok = _Tokeniseur(sep_token_id=None)
+        first, second = encode_pair(tok, ["a", "b", "c"], ["x", "y", "z"])
+        assert len(first) == 3
+        assert second is None
+        assert first[2] == "premise: c\nhypothesis: z"
+
+    def test_lot_vide(self):
+        tok = _Tokeniseur(sep_token_id=None)
+        first, second = encode_pair(tok, [], [])
+        assert first == []
+        assert second is None
+
+    def test_detection_du_besoin(self):
+        assert needs_pair_template(_Tokeniseur(sep_token_id=None)) is True
+        assert needs_pair_template(_Tokeniseur(sep_token_id=2)) is False
+        # L'identifiant zero est un vrai identifiant, pas une absence.
+        assert needs_pair_template(_Tokeniseur(sep_token_id=0)) is False

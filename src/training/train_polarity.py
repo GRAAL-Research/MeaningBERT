@@ -97,6 +97,40 @@ class DivergenceError(RuntimeError):
     """Raised when training stops being a training run."""
 
 
+#: How a sentence pair is written out for a tokenizer that has no pair template.
+#: The labels are the ones the inference literature poses the task with, and the
+#: newline is a token every byte-level vocabulary already has.
+PAIR_TEMPLATE: Final = "premise: {first}\nhypothesis: {second}"
+
+
+def needs_pair_template(tokenizer) -> bool:
+    """Whether this tokenizer silently glues a sentence pair together.
+
+    Encoder tokenizers carry a pair post-processor and produce
+    ``[CLS] a [SEP] b [SEP]``, so the boundary is a token the model can attend to.
+    Decoder-only tokenizers have none: ``tokenizer(a, b)`` returns the concatenation
+    and nothing marks where the premise ends. SmolLM2 encodes the SICK pair
+    ("A man is playing a guitar", "A man is playing an instrument") as
+    ``"A man is playing a guitarA man is playing an instrument"``, which is why its
+    three sizes sat near the chance floor of a balanced three-way split.
+
+    The separator token is the reliable signal: a tokenizer without one has no pair
+    template, whatever its family.
+    """
+    return tokenizer.sep_token_id is None
+
+
+def encode_pair(tokenizer, first: list[str], second: list[str]) -> tuple[list[str], Optional[list[str]]]:
+    """Give the tokenizer a pair it can mark the boundary of.
+
+    Returns the two arguments to pass to ``tokenizer(...)``: the pair unchanged when
+    the tokenizer knows what to do with it, and a single templated string otherwise.
+    """
+    if not needs_pair_template(tokenizer):
+        return first, second
+    return [PAIR_TEMPLATE.format(first=a, second=b) for a, b in zip(first, second)], None
+
+
 def divergent_log(logs: dict[str, Any] | None) -> str | None:
     """Name the field that stopped being finite in a Trainer log line, or None."""
     for key in ("loss", "grad_norm"):
@@ -307,10 +341,11 @@ def main(  # noqa: PLR0913 - a training entry point is a pile of knobs by nature
         # The label column the Trainer reads must be an integer class index; ``polarity``
         # is a float because the schema uses NaN to mean "not annotated", which an int
         # column cannot express.
-        encoded = dataset.map(
-            lambda batch: tokenizer(batch["original"], batch["simplification"], truncation=True, max_length=max_length),
-            batched=True,
-        )
+        def tokenise(batch):
+            first, second = encode_pair(tokenizer, batch["original"], batch["simplification"])
+            return tokenizer(first, second, truncation=True, max_length=max_length)
+
+        encoded = dataset.map(tokenise, batched=True)
         encoded = encoded.map(lambda batch: {"labels": [int(value) for value in batch["polarity"]]}, batched=True)
         return encoded.select_columns(["input_ids", "attention_mask", "labels"])
 

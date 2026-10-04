@@ -221,9 +221,8 @@ They have not failed to notice the negation; they have failed to reverse the dir
 
 The headline also transfers across corpora.
 Stratification leaves the test split one third SICK and two thirds VitaminC.
-Scored separately, DeBERTa-v3-large\textsubscript{NLI} reaches $91.6\%$ macro-F\textsubscript{1} on SICK against $90.4\%$ on VitaminC, and $99.3\%$ against $98.4\%$ AUC.
-These four figures and the AUC of \autoref{tab:cross} come from a single run, since the grid stores predicted classes rather than the probabilities an AUC needs, and they carry no seed variance.
-The aggregate is therefore not an artefact of the larger corpus.
+Scored separately over ten seeds, DeBERTa-v3-large\textsubscript{NLI} reaches $91.17 \pm 0.83\%$ macro-F\textsubscript{1} on SICK against $90.35 \pm 0.16\%$ on VitaminC, so the aggregate is not an artefact of the larger corpus.
+The AUC splits the same way, $98.11 \pm 1.49\%$ against $98.32 \pm 0.10\%$, and the distance between those two standard deviations is the more useful number: the SICK half is 4\,116 pairs against 7\,884, so one seed moves it by a point where it moves VitaminC by a tenth.
 
 Polarity, finally, does not follow from preservation data at all.
 \autoref{tab:cross} scores three released magnitude models on both tasks at once, with the polarity heads and the surface baselines beneath them for reference.
@@ -245,7 +244,7 @@ DeBERTa-v3-large, retrained & \textbf{0.705} & 81.50 \\
 \addlinespace
 \multicolumn{3}{l}{\emph{Polarity heads, published then ours}} \\
 DeBERTa-v3-large\textsubscript{MNLI} & -- & 96.62 \\
-DeBERTa-v3-large\textsubscript{NLI} & -- & \textbf{98.72} \\
+DeBERTa-v3-large\textsubscript{NLI} & -- & \textbf{98.41}\,$\pm$\,0.32 \\
 \addlinespace
 \multicolumn{3}{l}{\emph{Surface baselines}} \\
 Token overlap, Jaccard & -- & 63.50 \\
@@ -257,7 +256,8 @@ TF-IDF, linear model & -- & 68.50 \\
 \end{table}
 
 An off-the-shelf inference model used as published ranks entailment above contradiction at $96.6\%$, above every magnitude model, which bounds what fine-tuning contributes.
-Fine-tuning the same architecture adds $+22.7$ points of macro-F\textsubscript{1}, and on the single run where both are measured it adds $+2.1$ points of AUC, so it improves both the ordering of $p_{\mathrm{contra}}$ and its calibration into three classes, but the ordering was largely available without it.
+Fine-tuning the same architecture adds $+22.7$ points of macro-F\textsubscript{1} and $+1.79$ of AUC, the latter over ten seeds of standard deviation $0.32$, so the advantage is five standard deviations wide.
+It improves both the ordering of $p_{\mathrm{contra}}$ and its calibration into three classes, but the ordering was largely available without it.
 The macro-F\textsubscript{1} gap flatters fine-tuning, since the off-the-shelf head never saw our label mapping; the AUC gap does not.
 Finally, a practitioner who needs only the sign may reach most of the way with no training at all.
 
