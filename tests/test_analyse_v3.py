@@ -201,7 +201,7 @@ class TestTables:
     def test_the_dagger_marks_the_differences_that_are_not_significant(self, grid):
         """Sanity moves by tens of points here and the task barely moves at all."""
         lines = stats_table(grid).splitlines()
-        bert = next(line for line in lines if line.startswith("BERT-base"))
+        bert = next(line for line in lines if line.startswith(r"\texttt{BERT-base}"))
 
         assert r"$^{\dagger}$" in bert
         assert "+38.00" in bert
@@ -210,7 +210,7 @@ class TestTables:
         body = suites_table(grid)
 
         assert "Identical" in body and "Unrelated" in body and "Mirrored" in body
-        assert r"100.00\,$\pm$\,0.00" in body
+        assert r"100.00$_{\pm 0.00}$" in body
 
 
 class TestFigure:

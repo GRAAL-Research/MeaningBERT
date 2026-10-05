@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import math
 import os
-from typing import Optional
+from typing import Optional, Union
 
 import click
 import numpy as np
@@ -53,19 +53,16 @@ def distribution_figure(pairs: dict, path: str) -> None:
     edges = np.linspace(-100, 100, 41)
     centres = (edges[:-1] + edges[1:]) / 2
 
-    plots, counts = [], {}
+    plots = []
     for name, index in POLARITY_CLASSES.items():
         share = histogram(signed[truth == index], edges)
         points = " ".join(f"({x:.1f},{100 * y:.2f})" for x, y in zip(centres, share))
         plots.append(f"\\addplot[draw=c{name}, line width=0.9pt, mark=none, const plot] " f"coordinates {{{points}}};")
-        counts[name] = int((truth == index).sum())
 
     # La legende vit dans la legende de figure, en couleur. Dans le panneau, trois
     # entrees et leurs effectifs occupaient le quart de la surface utile et couvraient
     # le pic des contradictions.
-    named = ", ".join(
-        f"\\textcolor{{c{name}}}{{\\textbf{{{LABELS[name]}}}}} ($n = {counts[name]}$)" for name in POLARITY_CLASSES
-    )
+    named = ", ".join(f"\\textcolor{{c{name}}}{{\\textbf{{{LABELS[name]}}}}}" for name in POLARITY_CLASSES)
 
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
@@ -89,7 +86,7 @@ def distribution_figure(pairs: dict, path: str) -> None:
         *plots,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        f"\\caption{{Signed score by gold class, SICK test half at $\\alpha = 2$, bins "
+        f"\\caption{{Signed score by gold class (\\autoref{{eq:compose}}, one polarity head), bins "
         f"of width $5$: {named}. Dashed line: zero.}}",
         r"\label{fig:distribution}",
         r"\end{figure}",
@@ -158,10 +155,9 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         *series,
         r"\end{axis}",
         r"\end{tikzpicture}",
-        r"\caption{Reliability of $p_{\mathrm{contra}}$, SICK test half, ten bins. The "
-        r"dashed diagonal is perfect calibration. The "
-        r"\textcolor{reltuned}{\textbf{fine-tuned head}} tracks it, the "
-        r"\textcolor{relshelf}{\textbf{off-the-shelf head}} falls far below.}",
+        r"\caption{Observed contradiction rate against predicted $p_{\mathrm{contra}}$, SICK test half, "
+        r"ten bins, for the \textcolor{reltuned}{\textbf{fine-tuned head}} and the "
+        r"\textcolor{relshelf}{\textbf{off-the-shelf head}}. Dashed diagonal: perfect calibration.}",
         r"\label{fig:reliability}",
         r"\end{figure}",
     ]
@@ -169,23 +165,40 @@ def reliability_figure(fine_tuned: dict, off_the_shelf: dict, path: str) -> None
         handle.write("\n".join(lines) + "\n")
 
 
-def composition_table(curve: dict, path: str) -> None:
-    """Sensitivity of the composition to the slope, read off the test curve.
+#: Head counts written out, as the paper writes "ten random seeds".
+HEAD_WORDS = {10: "ten"}
 
-    The neutral column is here because the paper's title is about that class: a scale
-    that fixed contradictions by dragging unrelated pairs negative would satisfy the two
-    sign criteria and fail the thing the product form exists for.
+
+def mean_sd(values: list[float], decimals: int = 2) -> str:
+    """``mean`` alone for one value, ``mean`` with the standard deviation as subscript otherwise."""
+    if len(values) == 1:
+        return f"{values[0]:.{decimals}f}"
+    return f"{np.mean(values):.{decimals}f}$_{{\\pm {np.std(values, ddof=1):.{decimals}f}}}$"
+
+
+def composition_table(curves: Union[dict, list[dict]], path: str) -> None:
+    """Sensitivity of the composition to the factor, read off the test curves.
+
+    One curve per polarity head; with several, each cell is a mean and a standard
+    deviation over the heads, since a single checkpoint would let one seed carry the
+    section. The neutral column is here because the paper's title is about that class: a
+    scale that fixed contradictions by dragging unrelated pairs negative would satisfy the
+    two sign criteria and fail the thing the product form exists for.
     """
+    curves = [curves] if isinstance(curves, dict) else curves
+    curve = curves[0]
     shown = (1.00, 1.25, 1.50, 1.75, 2.00, 3.00)
-    rows = {row["alpha"]: row for row in curve["curve"]}
+    per_head = [{row["alpha"]: row for row in each["curve"]} for each in curves]
+    rows = per_head[0]
     lines = [
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
         r"\begin{table}[t]",
         r"\centering\small",
+        r"\setlength{\tabcolsep}{2pt}",
         r"\begin{tabular}{l ccc c}",
         r"\toprule",
         r" & Contra. & Neutral & Rel. & Floor \\",
-        r"Slope & $<0$ & $>0$ & $r$ & \\",
+        r"Factor & $<0$ & $>0$ & $r$ & \\",
         r"\midrule",
     ]
     for alpha in shown:
@@ -193,10 +206,11 @@ def composition_table(curve: dict, path: str) -> None:
         if row is None:
             continue
         name = f"$\\alpha = {alpha:.2f}$"
+        heads = [head[alpha] for head in per_head if alpha in head]
         cells = [
-            f"{100 * row['contradictions_negatives']:.2f}",
-            f"{100 * row['neutres_positifs']:.2f}",
-            f"{row['pearson_proximite']:.3f}",
+            mean_sd([100 * head["contradictions_negatives"] for head in heads]),
+            mean_sd([100 * head["neutres_positifs"] for head in heads]),
+            mean_sd([head["pearson_proximite"] for head in heads]),
         ]
         floor = f"${row['plancher']:.0f}$"
         if alpha == curve["alpha"]:
@@ -206,16 +220,20 @@ def composition_table(curve: dict, path: str) -> None:
         lines.append(f"{name} & " + " & ".join(cells + [floor]) + r" \\")
     only = curve["magnitude_only"]
     lines += [
-        r"\addlinespace",
         f"Magnitude alone & {100 * only['contradictions_negatives']:.2f}"
         f" & {100 * only['neutres_positifs']:.2f}"
-        f" & {only['pearson_proximite']:.3f} & $0$ \\\\",
+        f" & {only['pearson_proximite']:.2f} & $0$ \\\\",
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{SICK test half, in percent: 1{,}404 entailments, 2{,}000 neutral, "
-        r"712 contradictions. \textbf{Bold}: the slope the development split selects. "
-        r"Floor: the most negative reachable score. Entailments stay positive "
-        r"throughout, $100.00$ except $99.93$ at $\alpha = 3$.}",
+        r"\caption{Composed score per factor $\alpha$ in place of the $2$ of \autoref{eq:compose}, "
+        r"SICK test half (1{,}404 entailments, 2{,}000 "
+        r"neutral, 712 contradictions), in percent"
+        + (
+            f", mean with standard deviation as subscript over {HEAD_WORDS.get(len(curves), len(curves))} polarity heads"
+            if len(curves) > 1
+            else ""
+        )
+        + r". \textbf{Bold}: the factor of \autoref{eq:compose}.}",
         r"\label{tab:composition}",
         r"\end{table}",
     ]
@@ -275,13 +293,19 @@ def decision_point(scales: dict, truth: np.ndarray, thresholds=(25, 50, 70)) -> 
     return out
 
 
-def decision_table(tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 50, 70)) -> None:
-    """The decision-point comparison, three scales and two blocks."""
+def decision_table(
+    tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 50, 70), heads: Optional[list[dict]] = None
+) -> None:
+    """The decision-point comparison, three scales and two blocks.
+
+    ``heads`` holds the per-pair dumps of every fine-tuned head; when given, the
+    fine-tuned rows report a mean and a standard deviation over them.
+    """
     truth = np.array(tuned["truth"], dtype=int)
     scales = {
         "Magnitude alone": np.array(tuned["magnitude"], dtype=float),
-        "Signed, published": np.array(off_the_shelf["signed"], dtype=float),
-        "Signed, fine-tuned": np.array(tuned["signed"], dtype=float),
+        "Off-the-shelf head": np.array(off_the_shelf["signed"], dtype=float),
+        "Fine-tuned head": np.array(tuned["signed"], dtype=float),
     }
     got = decision_point(scales, truth, thresholds)
     widest = max((row["high"] - row["low"]) / 2 for rows in got.values() for row in rows if not math.isnan(row["low"]))
@@ -291,29 +315,51 @@ def decision_table(tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 
         r"% Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.",
         r"\begin{table}[t]",
         r"\centering\small",
+        r"\setlength{\tabcolsep}{2.5pt}",
         r"\begin{tabular}{l " + "c" * len(thresholds) + "}",
         r"\toprule",
         f"Scale & {header} " + r"\\",
         r"\midrule",
         r"\multicolumn{" + str(len(thresholds) + 1) + r"}{l}{\emph{Contradictions accepted}} \\",
     ]
+    spread = {}
+    if heads and len(heads) > 1:
+        for key in ("share", "recall"):
+            spread[key] = [
+                [
+                    100
+                    * accepted_rates(np.array(h["signed"], dtype=float), np.array(h["truth"], dtype=int), cut)[
+                        0 if key == "share" else 1
+                    ]
+                    for h in heads
+                ]
+                for cut in thresholds
+            ]
+
+    def cells_for(name: str, rows: list, key: str) -> list[str]:
+        if name == "Fine-tuned head" and key in spread:
+            return [mean_sd(values) for values in spread[key]]
+        return [f"{100 * row[key]:.2f}" for row in rows]
+
     for name, rows in got.items():
-        cells = [f"{100 * row['share']:.2f}" for row in rows]
-        lines.append(f"\\quad {name} & " + " & ".join(cells) + r" \\")
+        lines.append(f"\\quad {name} & " + " & ".join(cells_for(name, rows, "share")) + r" \\")
     lines += [
-        r"\addlinespace",
         r"\multicolumn{" + str(len(thresholds) + 1) + r"}{l}{\emph{Entailments kept}} \\",
     ]
     for name, rows in got.items():
-        cells = [f"{100 * row['recall']:.2f}" for row in rows]
-        lines.append(f"\\quad {name} & " + " & ".join(cells) + r" \\")
+        lines.append(f"\\quad {name} & " + " & ".join(cells_for(name, rows, "recall")) + r" \\")
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{What each scale accepts as preserved meaning, SICK test half, in "
-        r"percent, at three cuts. Percentile intervals from 1{,}000 bootstrap "
-        f"resamplings are at most $\\pm{100 * widest:.1f}$ wide and do not overlap "
-        r"between the magnitude and either signed scale at the first two cuts.}",
+        r"\caption{Contradictions accepted and entailments kept by each scale at three thresholds, "
+        r"in percent. Percentile bootstrap intervals (1{,}000 resamplings) are at most "
+        f"$\\pm{100 * widest:.1f}$ wide"
+        + (
+            f"; fine-tuned rows: mean with standard deviation as subscript over {HEAD_WORDS.get(len(heads), len(heads))} heads"
+            if heads and len(heads) > 1
+            else ""
+        )
+        + ".}",
         r"\label{tab:decision}",
         r"\end{table}",
     ]
@@ -325,8 +371,17 @@ def decision_table(tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 
 @click.option("--pairs", required=True, help="Per-pair dump for the fine-tuned head.")
 @click.option("--curve", "curve_path", default=None, help="Composition curve of the fine-tuned head.")
 @click.option("--zero-shot", "zero_shot", default=None, help="Same, for the off-the-shelf head.")
+@click.option("--seed-curve", "seed_curves", multiple=True, help="Curve of a further fine-tuned head.")
+@click.option("--seed-pairs", "seed_pairs", multiple=True, help="Per-pair dump of a further fine-tuned head.")
 @click.option("--tex-out", default="paper/v3", show_default=True)
-def main(pairs: str, curve_path: Optional[str], zero_shot: Optional[str], tex_out: str) -> None:
+def main(
+    pairs: str,
+    curve_path: Optional[str],
+    zero_shot: Optional[str],
+    seed_curves: tuple[str, ...],
+    seed_pairs: tuple[str, ...],
+    tex_out: str,
+) -> None:
     """Write both figures as pgfplots source."""
     with open(pairs, encoding="utf-8") as handle:
         tuned = json.load(handle)
@@ -337,14 +392,22 @@ def main(pairs: str, curve_path: Optional[str], zero_shot: Optional[str], tex_ou
 
     if curve_path:
         with open(curve_path, encoding="utf-8") as handle:
-            composition_table(json.load(handle), os.path.join(tex_out, "table_composition.tex"))
+            curves = [json.load(handle)]
+        for extra in seed_curves:
+            with open(extra, encoding="utf-8") as handle:
+                curves.append(json.load(handle))
+        composition_table(curves, os.path.join(tex_out, "table_composition.tex"))
         click.echo(f"composition  : {tex_out}/table_composition.tex")
 
     if zero_shot:
         with open(zero_shot, encoding="utf-8") as handle:
             shelf = json.load(handle)
         reliability_figure(tuned, shelf, os.path.join(tex_out, "figure_reliability.tex"))
-        decision_table(tuned, shelf, os.path.join(tex_out, "table_decision.tex"))
+        heads = [tuned]
+        for extra in seed_pairs:
+            with open(extra, encoding="utf-8") as handle:
+                heads.append(json.load(handle))
+        decision_table(tuned, shelf, os.path.join(tex_out, "table_decision.tex"), heads=heads)
         click.echo(f"point de decision : {tex_out}/table_decision.tex")
         click.echo(f"fiabilite    : {tex_out}/figure_reliability.tex")
 
