@@ -1,17 +1,18 @@
-\begin{table*}[t]
+\begin{table}[t]
 \centering\small
+\setlength{\tabcolsep}{3pt}\resizebox{\columnwidth}{!}{%
 \begin{tabular}{l l ccc}
 \toprule
-Encoder & Condition & Identical & Unrelated & Mirrored \\
+Encoder & & Identical & Unrelated & Mirrored \\
 \midrule
-\multirow{2}{*}{DeBERTa-v3-large\textsubscript{NLI}} & \textsc{raw} & 100.00\,$\pm$\,0.00 & 95.91\,$\pm$\,0.78 & 75.14\,$\pm$\,1.20 \\
- & \textsc{aug} & 100.00\,$\pm$\,0.00 & 99.73\,$\pm$\,0.07 & 96.54\,$\pm$\,0.13 \\
-\multirow{2}{*}{DeBERTa-v3-large} & \textsc{raw} & 100.00\,$\pm$\,0.00 & 92.75\,$\pm$\,0.60 & 73.93\,$\pm$\,1.46 \\
- & \textsc{aug} & 99.99\,$\pm$\,0.04 & 99.71\,$\pm$\,0.13 & 96.41\,$\pm$\,1.14 \\
-\multirow{2}{*}{BERT-base} & \textsc{raw} & 96.46\,$\pm$\,0.16 & 91.99\,$\pm$\,0.67 & 49.68\,$\pm$\,1.74 \\
- & \textsc{aug} & 100.00\,$\pm$\,0.00 & 99.33\,$\pm$\,0.09 & 95.61\,$\pm$\,0.29 \\
+\multirow{2}{*}{\texttt{DeBERTa-v3-large\textsubscript{NLI}}} & \textsc{raw} & 100.00$_{\pm 0.00}$ & 95.91$_{\pm 0.78}$ & 75.14$_{\pm 1.20}$ \\
+ & \textsc{aug} & 100.00$_{\pm 0.00}$ & 99.73$_{\pm 0.07}$ & 96.54$_{\pm 0.13}$ \\
+\multirow{2}{*}{\texttt{DeBERTa-v3-large}} & \textsc{raw} & 100.00$_{\pm 0.00}$ & 92.75$_{\pm 0.60}$ & 73.93$_{\pm 1.46}$ \\
+ & \textsc{aug} & 99.99$_{\pm 0.04}$ & 99.71$_{\pm 0.13}$ & 96.41$_{\pm 1.14}$ \\
+\multirow{2}{*}{\texttt{BERT-base}} & \textsc{raw} & 96.46$_{\pm 0.16}$ & 91.99$_{\pm 0.67}$ & 49.68$_{\pm 1.74}$ \\
+ & \textsc{aug} & 100.00$_{\pm 0.00}$ & 99.33$_{\pm 0.09}$ & 95.61$_{\pm 0.29}$ \\
 \bottomrule
-\end{tabular}
-\caption{The three generated suites, ten seeds, in percent, for the best encoder, its plain counterpart and the weakest of the grid. Identical pairs must be entailment, unrelated neutral, mirrored contradiction.}
+\end{tabular}}
+\caption{Accuracy on each sanity suite, in percent, over ten random seeds, for three encoders. Expected class: entailment for identical pairs, neutral for unrelated pairs, contradiction for mirrored pairs.}
 \label{tab:suites}
-\end{table*}
+\end{table}

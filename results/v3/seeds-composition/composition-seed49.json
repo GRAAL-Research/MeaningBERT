@@ -1,0 +1,94 @@
+{
+  "alpha": 2.0,
+  "curve": [
+    {
+      "contradictions_negatives": 0.0,
+      "implications_positives": 1.0,
+      "neutres_positifs": 0.9835,
+      "pearson_proximite": 0.8237484149854357,
+      "objectif": 0.0,
+      "alpha": 1.0,
+      "plancher": 0.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.7275280898876404,
+      "implications_positives": 0.9985754985754985,
+      "neutres_positifs": 0.9765,
+      "pearson_proximite": 0.8118934661839188,
+      "objectif": 0.5898338848350063,
+      "alpha": 1.25,
+      "plancher": -25.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.7542134831460674,
+      "implications_positives": 0.9985754985754985,
+      "neutres_positifs": 0.975,
+      "pearson_proximite": 0.7983892033314458,
+      "objectif": 0.6012981300107226,
+      "alpha": 1.5,
+      "plancher": -50.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.7682584269662921,
+      "implications_positives": 0.9985754985754985,
+      "neutres_positifs": 0.974,
+      "pearson_proximite": 0.7834283695294424,
+      "objectif": 0.6010180743840954,
+      "alpha": 1.75,
+      "plancher": -75.0,
+      "echelle_complete": false
+    },
+    {
+      "contradictions_negatives": 0.7780898876404494,
+      "implications_positives": 0.9985754985754985,
+      "neutres_positifs": 0.972,
+      "pearson_proximite": 0.7672191706406588,
+      "objectif": 0.5961151001052019,
+      "alpha": 2.0,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.7893258426966292,
+      "implications_positives": 0.9978632478632479,
+      "neutres_positifs": 0.9705,
+      "pearson_proximite": 0.749976502480789,
+      "objectif": 0.590710929193355,
+      "alpha": 2.25,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.7935393258426966,
+      "implications_positives": 0.9971509971509972,
+      "neutres_positifs": 0.969,
+      "pearson_proximite": 0.7330258572825917,
+      "objectif": 0.5800276228337675,
+      "alpha": 2.5,
+      "plancher": -100.0,
+      "echelle_complete": true
+    },
+    {
+      "contradictions_negatives": 0.8019662921348315,
+      "implications_positives": 0.9971509971509972,
+      "neutres_positifs": 0.9665,
+      "pearson_proximite": 0.6988589612264496,
+      "objectif": 0.5588645739344489,
+      "alpha": 3.0,
+      "plancher": -100.0,
+      "echelle_complete": true
+    }
+  ],
+  "magnitude_only": {
+    "contradictions_negatives": 0.0,
+    "implications_positives": 1.0,
+    "neutres_positifs": 0.9835,
+    "pearson_proximite": 0.8518375809504933,
+    "objectif": 0.0
+  },
+  "magnitude_checkpoint": "davebulaval/MeaningBERT",
+  "polarity_checkpoint": "results/polarity/nli-deberta-v3-large-none-poids/seed49/model"
+}

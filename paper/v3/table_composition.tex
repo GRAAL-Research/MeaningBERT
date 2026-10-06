@@ -1,21 +1,21 @@
 % Genere par src/figures_generator/figures_composition.py. Ne pas editer a la main.
 \begin{table}[t]
 \centering\small
+\setlength{\tabcolsep}{2pt}
 \begin{tabular}{l ccc c}
 \toprule
  & Contra. & Neutral & Rel. & Floor \\
-Slope & $<0$ & $>0$ & $r$ & \\
+Factor & $<0$ & $>0$ & $r$ & \\
 \midrule
-$\alpha = 1.00$ & 0.00 & 98.35 & 0.833 & $0$ \\
-$\alpha = 1.25$ & 81.18 & 97.75 & 0.825 & $-25$ \\
-$\alpha = 1.50$ & 82.72 & 97.65 & 0.816 & $-50$ \\
-$\alpha = 1.75$ & 83.29 & 97.50 & 0.806 & $-75$ \\
-$\boldsymbol{\alpha = 2.00}$ & \textbf{83.71} & \textbf{97.45} & \textbf{0.795} & $\mathbf{-100}$ \\
-$\alpha = 3.00$ & 84.69 & 96.90 & 0.745 & $-100$ \\
-\addlinespace
-Magnitude alone & 0.00 & 98.35 & 0.852 & $0$ \\
+$\alpha = 1.00$ & 0.00$_{\pm 0.00}$ & 98.35$_{\pm 0.00}$ & 0.83$_{\pm 0.00}$ & $0$ \\
+$\alpha = 1.25$ & 81.21$_{\pm 3.21}$ & 97.73$_{\pm 0.09}$ & 0.82$_{\pm 0.00}$ & $-25$ \\
+$\alpha = 1.50$ & 82.74$_{\pm 2.72}$ & 97.49$_{\pm 0.12}$ & 0.81$_{\pm 0.01}$ & $-50$ \\
+$\alpha = 1.75$ & 83.36$_{\pm 2.43}$ & 97.37$_{\pm 0.13}$ & 0.79$_{\pm 0.01}$ & $-75$ \\
+$\boldsymbol{\alpha = 2.00}$ & \textbf{83.88$_{\pm 2.24}$} & \textbf{97.23$_{\pm 0.17}$} & \textbf{0.78$_{\pm 0.01}$} & $\mathbf{-100}$ \\
+$\alpha = 3.00$ & 85.11$_{\pm 1.84}$ & 96.70$_{\pm 0.22}$ & 0.72$_{\pm 0.01}$ & $-100$ \\
+Magnitude alone & 0.00 & 98.35 & 0.85 & $0$ \\
 \bottomrule
 \end{tabular}
-\caption{SICK test half, in percent: 1{,}404 entailments, 2{,}000 neutral, 712 contradictions. \textbf{Bold}: the slope the development split selects. Floor: the most negative reachable score. Entailments stay positive throughout, $100.00$ except $99.93$ at $\alpha = 3$.}
+\caption{Composed score per factor $\alpha$ in place of the $2$ of \autoref{eq:compose}, SICK test half (1{,}404 entailments, 2{,}000 neutral, 712 contradictions), in percent, mean with standard deviation as subscript over ten polarity heads. \textbf{Bold}: the factor of \autoref{eq:compose}.}
 \label{tab:composition}
 \end{table}

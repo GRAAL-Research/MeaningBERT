@@ -95,8 +95,8 @@ class TestFigureOutput:
 
         assert r"\addlegendentry" not in body and "legend style" not in body
         caption = body.split(r"\caption{")[1]
-        assert r"\textcolor{centailment}{\textbf{entailment}} ($n = 3$)" in caption
-        assert r"\textcolor{ccontradiction}{\textbf{contradiction}} ($n = 2$)" in caption
+        assert r"\textcolor{centailment}{\textbf{entailment}}" in caption
+        assert r"\textcolor{ccontradiction}{\textbf{contradiction}}" in caption
 
     def test_the_reliability_curves_are_named_in_the_caption_in_their_own_colour(self, tmp_path):
         """Colour is the only thing telling the two curves apart, so it must travel with the name."""
@@ -245,6 +245,51 @@ class TestDecisionPoint:
         body = path.read_text(encoding="utf-8")
 
         assert "Contradictions accepted" in body and "Entailments kept" in body
-        for name in ("Magnitude alone", "Signed, published", "Signed, fine-tuned"):
+        for name in ("Magnitude alone", "Off-the-shelf head", "Fine-tuned head"):
             assert body.count(name) == 2
         assert "bootstrap" in body
+
+
+class TestSeveralHeads:
+    """Section 7 rests on ten heads; one lucky seed must not carry the table."""
+
+    @staticmethod
+    def _curve(share: float, pearson: float) -> dict:
+        row = {
+            "alpha": 2.00,
+            "contradictions_negatives": share,
+            "implications_positives": 1.0,
+            "neutres_positifs": 0.97,
+            "pearson_proximite": pearson,
+            "objectif": 0.6,
+            "plancher": -100.0,
+        }
+        only = {"contradictions_negatives": 0.0, "neutres_positifs": 0.98, "pearson_proximite": 0.85}
+        return {"alpha": 2.0, "curve": [row], "magnitude_only": only}
+
+    def test_the_composition_table_reports_the_mean_and_spread_over_heads(self, tmp_path):
+        path = tmp_path / "t.tex"
+
+        composition_table([self._curve(0.80, 0.78), self._curve(0.90, 0.80)], str(path))
+        body = path.read_text(encoding="utf-8")
+
+        # mean 85.00, sample standard deviation of (80, 90) is 7.07
+        assert r"\textbf{85.00$_{\pm 7.07}$}" in body
+        assert r"\textbf{0.79$_{\pm 0.01}$}" in body
+        assert "over 2 polarity heads" in body
+
+    def test_the_fine_tuned_decision_rows_average_the_heads_not_the_first_one(self, tmp_path):
+        from figures_generator.figures_composition import decision_table
+
+        contra, entail = POLARITY_CLASSES["contradiction"], POLARITY_CLASSES["entailment"]
+        truth = [contra, entail, entail, entail]
+        first = {"truth": truth, "magnitude": [80.0, 90.0, 90.0, 90.0], "signed": [60.0, 89.0, 89.0, 89.0]}
+        second = {"truth": truth, "magnitude": [80.0, 90.0, 90.0, 90.0], "signed": [-60.0, 89.0, 89.0, 89.0]}
+        shelf = {"truth": truth, "signed": [-70.0, 60.0, 60.0, 60.0]}
+        path = tmp_path / "t.tex"
+
+        decision_table(first, shelf, str(path), thresholds=(50,), heads=[first, second])
+        body = path.read_text(encoding="utf-8")
+
+        # first head accepts the contradiction (1 of 4 accepted), second rejects it (0 of 3)
+        assert r"Fine-tuned head & 12.50$_{\pm 17.68}$" in body

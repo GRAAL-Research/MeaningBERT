@@ -39,13 +39,13 @@ from scipy import stats
 
 #: Architectures in the order the paper presents them: by test macro-F1, best first.
 ARCH_LABELS: dict[str, str] = {
-    "nli-deberta-v3-large": r"DeBERTa-v3-large\textsubscript{NLI}",
-    "deberta-v3-large": "DeBERTa-v3-large",
-    "roberta-large-mnli": r"RoBERTa-large\textsubscript{MNLI}",
-    "nli-deberta-v3-base": r"DeBERTa-v3-base\textsubscript{NLI}",
-    "deberta-v3-base": "DeBERTa-v3-base",
-    "stsb-roberta-base": r"RoBERTa-base\textsubscript{STS-B}",
-    "bert": "BERT-base",
+    "nli-deberta-v3-large": r"\texttt{DeBERTa-v3-large\textsubscript{NLI}}",
+    "deberta-v3-large": r"\texttt{DeBERTa-v3-large}",
+    "roberta-large-mnli": r"\texttt{RoBERTa-large\textsubscript{MNLI}}",
+    "nli-deberta-v3-base": r"\texttt{DeBERTa-v3-base\textsubscript{NLI}}",
+    "deberta-v3-base": r"\texttt{DeBERTa-v3-base}",
+    "stsb-roberta-base": r"\texttt{RoBERTa-base\textsubscript{STS-B}}",
+    "bert": r"\texttt{BERT-base}",
 }
 
 #: What each metric is called in the paper, and whether higher is better.
@@ -178,6 +178,14 @@ def as_percent(values: list[float]) -> str:
     return f"{100 * mean:.2f}\\,$\\pm$\\,{100 * sd:.2f}"
 
 
+def as_percent_compact(values: list[float]) -> str:
+    """``as_percent`` with the deviation as a subscript, for a table held to one column."""
+    if not values:
+        return "--"
+    mean, sd = mean_sd(values)
+    return f"{100 * mean:.2f}$_{{\\pm {100 * sd:.2f}}}$"
+
+
 def main_table(cells) -> str:
     """The paper's main results table: one row per encoder and condition.
 
@@ -212,9 +220,8 @@ def main_table(cells) -> str:
     lines += [
         r"\bottomrule",
         r"\end{tabular}",
-        r"\caption{Polarity head over ten seeds, in percent. \textsc{aug} adds the "
-        r"derived-polarity augmentation to \textsc{raw}; NaN-NLI and MoNLI are held out. "
-        r"\textbf{Bold}: best per column.}",
+        r"\caption{Polarity head per encoder and condition, mean $\pm$ standard deviation over ten random"
+        r" seeds, in percent, where \textbf{Bold} are the best per column.}",
         r"\label{tab:main}",
         r"\end{table*}",
     ]
@@ -224,11 +231,12 @@ def main_table(cells) -> str:
 def suites_table(cells) -> str:
     """The three generated families separately, read off the sanity confusion matrix."""
     lines = [
-        r"\begin{table*}[t]",
+        r"\begin{table}[t]",
         r"\centering\small",
+        r"\setlength{\tabcolsep}{3pt}\resizebox{\columnwidth}{!}{%",
         r"\begin{tabular}{l l ccc}",
         r"\toprule",
-        r"Encoder & Condition & Identical & Unrelated & Mirrored \\",
+        r"Encoder & & Identical & Unrelated & Mirrored \\",
         r"\midrule",
     ]
     shown = [
@@ -237,16 +245,16 @@ def suites_table(cells) -> str:
     for arch in shown:
         for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
             row = [r"\multirow{2}{*}{" + ARCH_LABELS[arch] + "}" if condition == "none" else "", name]
-            row += [as_percent(cells.get((arch, condition), {}).get(suite, [])) for suite in SUITES]
+            row += [as_percent_compact(cells.get((arch, condition), {}).get(suite, [])) for suite in SUITES]
             lines.append(" & ".join(row) + r" \\")
     lines += [
         r"\bottomrule",
-        r"\end{tabular}",
-        r"\caption{The three generated suites, ten seeds, in percent, for the best "
-        r"encoder, its plain counterpart and the weakest of the grid. Identical pairs "
-        r"must be entailment, unrelated neutral, mirrored contradiction.}",
+        r"\end{tabular}}",
+        r"\caption{Accuracy on each sanity suite, in percent, over ten random seeds, for three encoders. "
+        r"Expected class: entailment for identical pairs, neutral for unrelated pairs, contradiction for "
+        r"mirrored pairs.}",
         r"\label{tab:suites}",
-        r"\end{table*}",
+        r"\end{table}",
     ]
     return "\n".join(lines)
 
@@ -258,8 +266,9 @@ def stats_table(cells) -> str:
     the metric that moved would leave the reader to take "nothing changed" on trust.
     """
     lines = [
-        r"\begin{table*}[t]",
+        r"\begin{table}[t]",
         r"\centering\small",
+        r"\setlength{\tabcolsep}{3pt}\resizebox{\columnwidth}{!}{%",
         r"\begin{tabular}{l cc cc}",
         r"\toprule",
         r" & \multicolumn{2}{c}{Macro-F\textsubscript{1}} & \multicolumn{2}{c}{Sanity suites} \\",
@@ -275,19 +284,18 @@ def stats_table(cells) -> str:
         sanity = welch(aug["sanity"], raw["sanity"])
         mark = "" if task["p"] < 0.05 else r"$^{\dagger}$"
         lines.append(
-            f"{label} & {100 * task['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['macro_f1'], raw['macro_f1']):.2f}{mark}"
+            f"{label} & {100 * task['diff']:+.2f}$_{{\\pm {100 * error(aug['macro_f1'], raw['macro_f1']):.2f}}}${mark}"
             f" & {task['d']:+.2f} "
-            f"& {100 * sanity['diff']:+.2f}\\,$\\pm$\\,{100 * error(aug['sanity'], raw['sanity']):.2f}"
-            f" & {sanity['d']:+.1f} " + r"\\"
+            f"& {100 * sanity['diff']:+.2f}$_{{\\pm {100 * error(aug['sanity'], raw['sanity']):.2f}}}$"
+            f" & {sanity['d']:+.2f} " + r"\\"
         )
     lines += [
         r"\bottomrule",
-        r"\end{tabular}",
-        r"\caption{\textsc{aug} minus \textsc{raw} in points, with the standard error of "
-        r"the difference and Cohen's $d$ (Welch, ten seeds). $\dagger$: not significant "
-        r"at $p<0.05$; every sanity difference has $p<10^{-4}$.}",
+        r"\end{tabular}}",
+        r"\caption{\textsc{aug} minus \textsc{raw}, in points, with the standard error of the difference as subscript "
+        r"and Cohen's $d$ (Welch, ten random seeds). $\dagger$: not significant at $p<0.05$.}",
         r"\label{tab:stats}",
-        r"\end{table*}",
+        r"\end{table}",
     ]
     return "\n".join(lines)
 
@@ -435,10 +443,9 @@ def figure(cells, path: str) -> None:
         panels[1],
         r"\end{groupplot}",
         r"\end{tikzpicture}",
-        r"\caption{Augmentation moves one axis and not the other. "
-        r"\textcolor{condraw}{\textbf{\textsc{raw}}} and "
-        r"\textcolor{condaug}{\textbf{\textsc{aug}}}: means over ten seeds, bars one "
-        r"standard deviation. The panels share no $x$ range.}",
+        r"\caption{Macro-F$_1$ (left) and sanity-suite accuracy (right) per encoder. "
+        r"\textcolor{condraw}{\textbf{\textsc{raw}}} and \textcolor{condaug}{\textbf{\textsc{aug}}}: mean"
+        r" over ten random seeds, bars one standard deviation.}",
         r"\label{fig:augmentation}",
         r"\end{figure*}",
     ]
