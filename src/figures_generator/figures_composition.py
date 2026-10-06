@@ -229,7 +229,8 @@ def composition_table(curves: Union[dict, list[dict]], path: str) -> None:
         r"SICK test half (1{,}404 entailments, 2{,}000 "
         r"neutral, 712 contradictions), in percent"
         + (
-            f", mean with standard deviation as subscript over {HEAD_WORDS.get(len(curves), len(curves))} polarity heads"
+            ", mean with standard deviation as subscript over "
+            f"{HEAD_WORDS.get(len(curves), len(curves))} polarity heads"
             if len(curves) > 1
             else ""
         )
@@ -355,7 +356,8 @@ def decision_table(
         r"in percent. Percentile bootstrap intervals (1{,}000 resamplings) are at most "
         f"$\\pm{100 * widest:.1f}$ wide"
         + (
-            f"; fine-tuned rows: mean with standard deviation as subscript over {HEAD_WORDS.get(len(heads), len(heads))} heads"
+            "; fine-tuned rows: mean with standard deviation as subscript over "
+            f"{HEAD_WORDS.get(len(heads), len(heads))} heads"
             if heads and len(heads) > 1
             else ""
         )
