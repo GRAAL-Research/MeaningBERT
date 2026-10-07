@@ -32,7 +32,7 @@ import json
 import math
 import os
 import statistics as st
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 import click
 from scipy import stats
@@ -57,6 +57,11 @@ METRICS: dict[str, str] = {
 }
 
 
+#: Training conditions read from disk: the grid's two, and the lexical augmentation of
+#: Section 7, trained for one encoder only.
+CONDITIONS: Final[tuple[str, ...]] = ("none", "full", "lex", "fulllex")
+
+
 def unlabelled_cells(root: str) -> set[str]:
     """Architecture tags present on disk that no label covers.
 
@@ -68,7 +73,7 @@ def unlabelled_cells(root: str) -> set[str]:
     found = set()
     for path in glob.glob(os.path.join(root, "polarity", "*", "seed*", "metrics.json")):
         arch, _, condition = os.path.basename(os.path.dirname(os.path.dirname(path))).rpartition("-")
-        if condition in ("none", "full") and arch not in ARCH_LABELS:
+        if condition in CONDITIONS and arch not in ARCH_LABELS:
             found.add(arch)
     return found
 
@@ -83,7 +88,7 @@ def load(root: str) -> dict[tuple[str, str], dict[str, list[float]]]:
     out: dict[tuple[str, str], dict[str, list[float]]] = collections.defaultdict(lambda: collections.defaultdict(list))
     for path in sorted(glob.glob(os.path.join(root, "polarity", "*", "seed*", "metrics.json"))):
         arch, _, condition = os.path.basename(os.path.dirname(os.path.dirname(path))).rpartition("-")
-        if arch not in ARCH_LABELS or condition not in ("none", "full"):
+        if arch not in ARCH_LABELS or condition not in CONDITIONS:
             continue
         with open(path, encoding="utf-8") as handle:
             cell = json.load(handle)
@@ -208,8 +213,19 @@ def main_table(cells) -> str:
     ]
     present = [(a, label) for a, label in ARCH_LABELS.items() if (a, "none") in cells or (a, "full") in cells]
     for arch, label in present:
-        for condition, name in (("none", r"\textsc{raw}"), ("full", r"\textsc{aug}")):
-            row = [r"\multirow{2}{*}{" + label + "}" if condition == "none" else "", name]
+        shown = [
+            (condition, name)
+            for condition, name in (
+                ("none", r"\textsc{raw}"),
+                ("full", r"\textsc{aug}"),
+                ("lex", r"\textsc{lex}"),
+                ("fulllex", r"\textsc{aug+lex}"),
+            )
+            if (arch, condition) in cells
+        ]
+        for condition, name in shown:
+            first = condition == shown[0][0]
+            row = [r"\multirow{" + str(len(shown)) + "}{*}{" + label + "}" if first else "", name]
             for metric in METRICS:
                 values = cells.get((arch, condition), {}).get(metric, [])
                 cell = as_percent(values)
@@ -221,7 +237,7 @@ def main_table(cells) -> str:
         r"\bottomrule",
         r"\end{tabular}",
         r"\caption{Polarity head per encoder and condition, mean $\pm$ standard deviation over ten random"
-        r" seeds, in percent, where \textbf{Bold} are the best per column.}",
+        r" seeds, in percent. \textbf{Bold}: best per column.}",
         r"\label{tab:main}",
         r"\end{table*}",
     ]
