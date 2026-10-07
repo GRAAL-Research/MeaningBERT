@@ -245,7 +245,7 @@ class TestDecisionPoint:
         body = path.read_text(encoding="utf-8")
 
         assert "Contradictions accepted" in body and "Entailments kept" in body
-        for name in ("Magnitude alone", "Off-the-shelf head", "Fine-tuned head"):
+        for name in ("Magnitude alone", "Off-the-shelf head", "Ours, \\textsc{raw}"):
             assert body.count(name) == 2
         assert "bootstrap" in body
 
@@ -292,4 +292,4 @@ class TestSeveralHeads:
         body = path.read_text(encoding="utf-8")
 
         # first head accepts the contradiction (1 of 4 accepted), second rejects it (0 of 3)
-        assert r"Fine-tuned head & 12.50$_{\pm 17.68}$" in body
+        assert r"Ours, \textsc{raw} & 12.50$_{\pm 17.68}$" in body

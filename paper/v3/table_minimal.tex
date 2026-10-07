@@ -1,0 +1,20 @@
+% Genere par src/figures_generator/minimal_pairs_table.py. Ne pas editer a la main.
+\begin{table*}[t]
+\centering\small
+\begin{tabular}{l cccccc}
+\toprule
+Edit & Negation & Antonym, seen & Antonym, unseen & Synonym & Hypernym & Co-hyponym \\
+Expected sign & $<0$ & $<0$ & $<0$ & $>0$ & $>0$ & $>0$ \\
+Pairs & 2000 & 1560 & 254 & 2000 & 2000 & 2000 \\
+\midrule
+Similarity alone & 0.00 & 0.00 & 0.00 & 100.00 & 100.00 & 100.00 \\
+\texttt{Negation lookup} & 99.85 & 0.00 & 0.00 & 100.00 & 100.00 & 100.00 \\
+Off-the-shelf head & 97.00 & 88.08 & 87.80 & 100.00 & 99.95 & 25.30 \\
+Ours, \textsc{raw} & 97.94$_{\pm 0.72}$ & 4.86$_{\pm 1.67}$ & 11.22$_{\pm 2.72}$ & 99.99$_{\pm 0.03}$ & 99.97$_{\pm 0.06}$ & 99.73$_{\pm 0.12}$ \\
+Ours, \textsc{lex} & 99.50$_{\pm 0.62}$ & 87.15$_{\pm 3.56}$ & 73.94$_{\pm 5.43}$ & 100.00$_{\pm 0.00}$ & 100.00$_{\pm 0.02}$ & 94.85$_{\pm 1.32}$ \\
+Ours, \textsc{aug+lex} & 99.67$_{\pm 0.25}$ & 87.51$_{\pm 3.10}$ & 76.30$_{\pm 3.38}$ & 100.00$_{\pm 0.00}$ & 100.00$_{\pm 0.00}$ & 95.84$_{\pm 1.63}$ \\
+\bottomrule
+\end{tabular}
+\caption{One-word edits of SICK test sentences: percent of pairs on the expected side of zero. Ours: mean with standard deviation as subscript over ten heads. Unseen antonyms are held out of \textsc{lex}.}
+\label{tab:minimal}
+\end{table*}

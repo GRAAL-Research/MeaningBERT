@@ -4,8 +4,10 @@
 \toprule
 Encoder & Condition & Macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI \\
 \midrule
-\multirow{2}{*}{\texttt{DeBERTa-v3-large\textsubscript{NLI}}} & \textsc{raw} & \textbf{91.10\,$\pm$\,0.14} & 90.35\,$\pm$\,0.47 & \textbf{72.95\,$\pm$\,0.65} & \textbf{34.93\,$\pm$\,3.13} \\
- & \textsc{aug} & 90.98\,$\pm$\,0.31 & \textbf{98.76\,$\pm$\,0.04} & 71.90\,$\pm$\,1.83 & 31.23\,$\pm$\,5.11 \\
+\multirow{4}{*}{\texttt{DeBERTa-v3-large\textsubscript{NLI}}} & \textsc{raw} & \textbf{91.10\,$\pm$\,0.14} & 90.35\,$\pm$\,0.47 & \textbf{72.95\,$\pm$\,0.65} & \textbf{34.93\,$\pm$\,3.13} \\
+ & \textsc{aug} & 90.98\,$\pm$\,0.31 & 98.76\,$\pm$\,0.04 & 71.90\,$\pm$\,1.83 & 31.23\,$\pm$\,5.11 \\
+ & \textsc{lex} & 91.04\,$\pm$\,0.12 & 90.47\,$\pm$\,0.46 & 72.67\,$\pm$\,0.67 & 17.74\,$\pm$\,3.19 \\
+ & \textsc{aug+lex} & 90.89\,$\pm$\,0.14 & \textbf{98.96\,$\pm$\,0.10} & 72.29\,$\pm$\,1.26 & 19.20\,$\pm$\,2.56 \\
 \multirow{2}{*}{\texttt{DeBERTa-v3-large}} & \textsc{raw} & 90.91\,$\pm$\,0.10 & 88.89\,$\pm$\,0.42 & 70.62\,$\pm$\,1.17 & 22.79\,$\pm$\,5.22 \\
  & \textsc{aug} & 90.70\,$\pm$\,0.43 & 98.70\,$\pm$\,0.40 & 69.11\,$\pm$\,1.24 & 15.97\,$\pm$\,5.84 \\
 \multirow{2}{*}{\texttt{RoBERTa-large\textsubscript{MNLI}}} & \textsc{raw} & 89.52\,$\pm$\,0.10 & 84.59\,$\pm$\,1.07 & 68.06\,$\pm$\,1.02 & 7.02\,$\pm$\,1.10 \\
@@ -20,6 +22,6 @@ Encoder & Condition & Macro-F\textsubscript{1} & Sanity suites & NaN-NLI & MoNLI
  & \textsc{aug} & 78.45\,$\pm$\,0.26 & 98.31\,$\pm$\,0.10 & 49.03\,$\pm$\,1.13 & 17.48\,$\pm$\,2.57 \\
 \bottomrule
 \end{tabular}
-\caption{Polarity head per encoder and condition, mean $\pm$ standard deviation over ten random seeds, in percent, where \textbf{Bold} are the best per column.}
+\caption{Polarity head per encoder and condition, mean $\pm$ standard deviation over ten random seeds, in percent. \textbf{Bold}: best per column.}
 \label{tab:main}
 \end{table*}

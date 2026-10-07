@@ -8,14 +8,20 @@ Scale & $s > 25$ & $s > 50$ & $s > 70$ \\
 \midrule
 \multicolumn{4}{l}{\emph{Contradictions accepted}} \\
 \quad Magnitude alone & 17.83 & 14.10 & 0.91 \\
+\quad Negation lookup & 2.36 & 2.30 & 0.85 \\
 \quad Off-the-shelf head & 0.49 & 0.15 & 0.00 \\
-\quad Fine-tuned head & 2.99$_{\pm 0.29}$ & 2.03$_{\pm 0.09}$ & 0.47$_{\pm 0.07}$ \\
+\quad Ours, \textsc{raw} & 2.99$_{\pm 0.29}$ & 2.03$_{\pm 0.09}$ & 0.47$_{\pm 0.07}$ \\
+\quad Ours, \textsc{lex} & 2.55$_{\pm 0.32}$ & 1.42$_{\pm 0.18}$ & 0.13$_{\pm 0.04}$ \\
+\quad Ours, \textsc{aug+lex} & 2.29$_{\pm 0.16}$ & 1.26$_{\pm 0.11}$ & 0.10$_{\pm 0.03}$ \\
 \multicolumn{4}{l}{\emph{Entailments kept}} \\
 \quad Magnitude alone & 100.00 & 99.15 & 88.32 \\
+\quad Negation lookup & 99.64 & 99.00 & 88.32 \\
 \quad Off-the-shelf head & 97.86 & 96.72 & 86.18 \\
-\quad Fine-tuned head & 99.74$_{\pm 0.11}$ & 98.17$_{\pm 0.16}$ & 86.28$_{\pm 0.56}$ \\
+\quad Ours, \textsc{raw} & 99.74$_{\pm 0.11}$ & 98.17$_{\pm 0.16}$ & 86.28$_{\pm 0.56}$ \\
+\quad Ours, \textsc{lex} & 99.73$_{\pm 0.11}$ & 98.31$_{\pm 0.13}$ & 86.93$_{\pm 0.40}$ \\
+\quad Ours, \textsc{aug+lex} & 99.80$_{\pm 0.10}$ & 98.48$_{\pm 0.19}$ & 87.23$_{\pm 0.12}$ \\
 \bottomrule
 \end{tabular}
-\caption{Contradictions accepted and entailments kept by each scale at three thresholds, in percent. Percentile bootstrap intervals (1{,}000 resamplings) are at most $\pm1.2$ wide; fine-tuned rows: mean with standard deviation as subscript over ten heads.}
+\caption{Contradictions accepted and entailments kept by each scale at three thresholds, in percent. Percentile bootstrap intervals (1{,}000 resamplings) are at most $\pm1.2$ wide; ours: mean with standard deviation as subscript over ten heads.}
 \label{tab:decision}
 \end{table}

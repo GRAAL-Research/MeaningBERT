@@ -295,18 +295,36 @@ def decision_point(scales: dict, truth: np.ndarray, thresholds=(25, 50, 70)) -> 
 
 
 def decision_table(
-    tuned: dict, off_the_shelf: dict, path: str, thresholds=(25, 50, 70), heads: Optional[list[dict]] = None
+    tuned: dict,
+    off_the_shelf: dict,
+    path: str,
+    thresholds=(25, 50, 70),
+    heads: Optional[list[dict]] = None,
+    lookup: Optional[list[bool]] = None,
+    lexical: Optional[list[dict]] = None,
+    combined: Optional[list[dict]] = None,
 ) -> None:
-    """The decision-point comparison, three scales and two blocks.
+    """The decision-point comparison, one row per scale and two blocks.
 
-    ``heads`` holds the per-pair dumps of every fine-tuned head; when given, the
-    fine-tuned rows report a mean and a standard deviation over them.
+    ``heads`` holds the per-pair dumps of every fine-tuned head and ``lexical`` those of
+    the heads trained with lexical contradictions; each group reports a mean and a
+    standard deviation over its heads.
     """
     truth = np.array(tuned["truth"], dtype=int)
     scales = {
         "Magnitude alone": np.array(tuned["magnitude"], dtype=float),
+        **(
+            {
+                "Negation lookup": np.where(np.array(lookup, dtype=bool), -1.0, 1.0)
+                * np.array(tuned["magnitude"], dtype=float)
+            }
+            if lookup is not None
+            else {}
+        ),
         "Off-the-shelf head": np.array(off_the_shelf["signed"], dtype=float),
-        "Fine-tuned head": np.array(tuned["signed"], dtype=float),
+        "Ours, \\textsc{raw}": np.array(tuned["signed"], dtype=float),
+        **({"Ours, \\textsc{lex}": np.array(lexical[0]["signed"], dtype=float)} if lexical else {}),
+        **({"Ours, \\textsc{aug+lex}": np.array(combined[0]["signed"], dtype=float)} if combined else {}),
     }
     got = decision_point(scales, truth, thresholds)
     widest = max((row["high"] - row["low"]) / 2 for rows in got.values() for row in rows if not math.isnan(row["low"]))
@@ -323,23 +341,25 @@ def decision_table(
         r"\midrule",
         r"\multicolumn{" + str(len(thresholds) + 1) + r"}{l}{\emph{Contradictions accepted}} \\",
     ]
-    spread = {}
-    if heads and len(heads) > 1:
-        for key in ("share", "recall"):
-            spread[key] = [
-                [
-                    100
-                    * accepted_rates(np.array(h["signed"], dtype=float), np.array(h["truth"], dtype=int), cut)[
-                        0 if key == "share" else 1
-                    ]
-                    for h in heads
-                ]
-                for cut in thresholds
+    groups = {
+        "Ours, \\textsc{raw}": heads or [],
+        "Ours, \\textsc{lex}": lexical or [],
+        "Ours, \\textsc{aug+lex}": combined or [],
+    }
+
+    def spread(group: list[dict], key: str) -> list[list[float]]:
+        index = 0 if key == "share" else 1
+        return [
+            [
+                100 * accepted_rates(np.array(h["signed"], dtype=float), np.array(h["truth"], dtype=int), cut)[index]
+                for h in group
             ]
+            for cut in thresholds
+        ]
 
     def cells_for(name: str, rows: list, key: str) -> list[str]:
-        if name == "Fine-tuned head" and key in spread:
-            return [mean_sd(values) for values in spread[key]]
+        if len(groups.get(name, [])) > 1:
+            return [mean_sd(values) for values in spread(groups[name], key)]
         return [f"{100 * row[key]:.2f}" for row in rows]
 
     for name, rows in got.items():
@@ -356,8 +376,7 @@ def decision_table(
         r"in percent. Percentile bootstrap intervals (1{,}000 resamplings) are at most "
         f"$\\pm{100 * widest:.1f}$ wide"
         + (
-            "; fine-tuned rows: mean with standard deviation as subscript over "
-            f"{HEAD_WORDS.get(len(heads), len(heads))} heads"
+            "; ours: mean with standard deviation as subscript over " f"{HEAD_WORDS.get(len(heads), len(heads))} heads"
             if heads and len(heads) > 1
             else ""
         )
@@ -375,6 +394,11 @@ def decision_table(
 @click.option("--zero-shot", "zero_shot", default=None, help="Same, for the off-the-shelf head.")
 @click.option("--seed-curve", "seed_curves", multiple=True, help="Curve of a further fine-tuned head.")
 @click.option("--seed-pairs", "seed_pairs", multiple=True, help="Per-pair dump of a further fine-tuned head.")
+@click.option("--lookup", "lookup_path", default=None, help="Negation-lookup flags for the same pairs.")
+@click.option("--lex-pairs", "lex_pairs", multiple=True, help="Per-pair dump of a head trained with lexical pairs.")
+@click.option(
+    "--aug-lex-pairs", "aug_lex_pairs", multiple=True, help="Same, for heads trained with both augmentations."
+)
 @click.option("--tex-out", default="paper/v3", show_default=True)
 def main(
     pairs: str,
@@ -382,6 +406,9 @@ def main(
     zero_shot: Optional[str],
     seed_curves: tuple[str, ...],
     seed_pairs: tuple[str, ...],
+    lookup_path: Optional[str],
+    lex_pairs: tuple[str, ...],
+    aug_lex_pairs: tuple[str, ...],
     tex_out: str,
 ) -> None:
     """Write both figures as pgfplots source."""
@@ -409,7 +436,27 @@ def main(
         for extra in seed_pairs:
             with open(extra, encoding="utf-8") as handle:
                 heads.append(json.load(handle))
-        decision_table(tuned, shelf, os.path.join(tex_out, "table_decision.tex"), heads=heads)
+        lookup = None
+        if lookup_path:
+            with open(lookup_path, encoding="utf-8") as handle:
+                lookup = json.load(handle)["flags"]
+        lexical = []
+        for extra in lex_pairs:
+            with open(extra, encoding="utf-8") as handle:
+                lexical.append(json.load(handle))
+        combined = []
+        for extra in aug_lex_pairs:
+            with open(extra, encoding="utf-8") as handle:
+                combined.append(json.load(handle))
+        decision_table(
+            tuned,
+            shelf,
+            os.path.join(tex_out, "table_decision.tex"),
+            heads=heads,
+            lookup=lookup,
+            lexical=lexical,
+            combined=combined,
+        )
         click.echo(f"point de decision : {tex_out}/table_decision.tex")
         click.echo(f"fiabilite    : {tex_out}/figure_reliability.tex")
 
