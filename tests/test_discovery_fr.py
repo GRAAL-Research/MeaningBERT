@@ -203,3 +203,32 @@ def test_report_averages_seeds_into_one_ensemble() -> None:
     below = out["corpora"]["daccord"]["v3-auglex-ensemble/mt"]["below_zero_contradiction"]
     assert below == 1.0  # mean 0.7 on both contradictions
     assert out["v3_translate_test_daccord_auc_per_seed"]["std"] == 0.0
+
+
+def test_each_trained_family_gets_its_own_ensemble_and_is_never_a_bar() -> None:
+    scores = {
+        "v4-xlmr-fr-seed42": {"fr": [0.1, 0.1, 0.9, 0.9, 0.9], "fr_index": [0, 1, 2, 3, 4]},
+        "v4-xlmr-fr-seed43": {"fr": [0.3, 0.3, 0.7, 0.7, 0.7], "fr_index": [0, 1, 2, 3, 4]},
+        "offshelf-xlm-roberta-large": {"fr": [0.4, 0.5, 0.6, 0.45, 0.6], "fr_index": [0, 1, 2, 3, 4]},
+    }
+    out = report(_pairs(), scores)
+    assert out["seeds"] == {"v4-xlmr-fr": 2}
+    assert "v4-xlmr-fr-ensemble/fr" in out["corpora"]["daccord"]
+    # The trained French head is what is measured against the bar, never the bar itself.
+    assert out["criterion_1"]["1a"]["reference"] == "offshelf-xlm-roberta-large/fr"
+    assert "v4-xlmr-fr-ensemble/fr" in out["criterion_1"]["1a"]["gaps"]
+    assert "| `XLM-R-large AUG+LEX (FR traduit)` | français |" in tables(out)
+
+
+def test_xnli_rows_pair_french_with_its_english_item() -> None:
+    rows = [
+        {
+            "premise": "Il pleut.",
+            "hypothesis": "Il fait sec.",
+            "premise_en": "It rains.",
+            "hypothesis_en": "It is dry.",
+            "label": "2",
+        }
+    ]
+    pair = normalize("xnli_fr", rows)[0]
+    assert (pair["label"], pair["en_a"], pair["fr_b"]) == ("contradiction", "It rains.", "Il fait sec.")
