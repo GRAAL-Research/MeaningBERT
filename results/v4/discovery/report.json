@@ -1,0 +1,453 @@
+{
+  "n_pairs": {
+    "daccord": 1034,
+    "sick_fr": 4892,
+    "breaking_fr": 8193,
+    "rte3_fr": 800,
+    "gqnli_fr": 300,
+    "fracas_fr": 307
+  },
+  "corpora": {
+    "daccord": {
+      "v3-auglex-ensemble/mt": {
+        "n": 1034,
+        "auc": 0.840439979796846,
+        "below_zero_compatible": 0.030828516377649325,
+        "below_zero_contradiction": 0.5359223300970873
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.8469910395270965,
+        "below_zero_compatible": 0.015414258188824663,
+        "below_zero_contradiction": 0.49902912621359224
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 1034,
+        "auc": 0.9671025310062293,
+        "below_zero_compatible": 0.04046242774566474,
+        "below_zero_contradiction": 0.8233009708737864
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 1034,
+        "auc": 0.9084348167686178,
+        "below_zero_compatible": 0.07707129094412331,
+        "below_zero_contradiction": 0.6932038834951456
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 1034,
+        "auc": 0.9095422489103392,
+        "below_zero_compatible": 0.0674373795761079,
+        "below_zero_contradiction": 0.6951456310679611
+      }
+    },
+    "sick_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 4892,
+        "auc": 0.9810590894936284,
+        "below_zero_contradiction": 0.8375706214689266,
+        "below_zero_entailment": 0.008589835361488905,
+        "below_zero_neutral": 0.025475421600287047
+      },
+      "v3-auglex-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9954573763795704,
+        "below_zero_contradiction": 0.8714689265536724,
+        "below_zero_entailment": 0.0007158196134574087,
+        "below_zero_neutral": 0.025116612845353426
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9746116577492528,
+        "below_zero_contradiction": 0.8234463276836158,
+        "below_zero_entailment": 0.0035790980672870437,
+        "below_zero_neutral": 0.03480444922856118
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 4892,
+        "auc": 0.9914677941836624,
+        "below_zero_contradiction": 0.9449152542372882,
+        "below_zero_entailment": 0.04151753758052971,
+        "below_zero_neutral": 0.5055615357014711
+      },
+      "offshelf-deberta-v3-large/orig": {
+        "n": 4892,
+        "auc": 0.9977403152032807,
+        "below_zero_contradiction": 0.9759887005649718,
+        "below_zero_entailment": 0.01717967072297781,
+        "below_zero_neutral": 0.5105848582705418
+      },
+      "offshelf-mdeberta-v3-base/orig": {
+        "n": 4892,
+        "auc": 0.9929843611613264,
+        "below_zero_contradiction": 0.9251412429378532,
+        "below_zero_entailment": 0.014316392269148175,
+        "below_zero_neutral": 0.36132041621815575
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 4892,
+        "auc": 0.9874155272193441,
+        "below_zero_contradiction": 0.9138418079096046,
+        "below_zero_entailment": 0.020758768790264854,
+        "below_zero_neutral": 0.33118048080373164
+      },
+      "offshelf-xlm-roberta-large/orig": {
+        "n": 4892,
+        "auc": 0.9968986205306771,
+        "below_zero_contradiction": 0.9675141242937854,
+        "below_zero_entailment": 0.014316392269148175,
+        "below_zero_neutral": 0.4951560818083961
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 4892,
+        "auc": 0.9923544803432699,
+        "below_zero_contradiction": 0.9124293785310734,
+        "below_zero_entailment": 0.0071581961345740875,
+        "below_zero_neutral": 0.3824901327592393
+      }
+    },
+    "breaking_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 8193,
+        "auc": 0.9479214640752984,
+        "below_zero_contradiction": 0.40605806811836964,
+        "below_zero_entailment": 0.024439918533604887,
+        "below_zero_neutral": 0.2765957446808511,
+        "per_family_below_zero": {
+          "antonymes": 0.7665390924002187,
+          "co-hyponymes": 0.09717314487632508,
+          "nombres": 0.8171886380189366,
+          "synonymes": 0.01901565995525727
+        }
+      },
+      "v3-auglex-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9902994265284331,
+        "below_zero_contradiction": 0.41624790619765495,
+        "below_zero_entailment": 0.004073319755600814,
+        "below_zero_neutral": 0.2553191489361702,
+        "per_family_below_zero": {
+          "antonymes": 0.839803171131766,
+          "co-hyponymes": 0.09288238263503282,
+          "nombres": 0.7851420247632921,
+          "synonymes": 0.0
+        }
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9640869543462959,
+        "below_zero_contradiction": 0.4685929648241206,
+        "below_zero_entailment": 0.013238289205702648,
+        "below_zero_neutral": 0.40425531914893614,
+        "per_family_below_zero": {
+          "antonymes": 0.825587752870421,
+          "co-hyponymes": 0.14386673397274105,
+          "nombres": 0.9300801165331392,
+          "synonymes": 0.006711409395973154
+        }
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 8193,
+        "auc": 0.9707849896688694,
+        "below_zero_contradiction": 0.768425460636516,
+        "below_zero_entailment": 0.029531568228105907,
+        "below_zero_neutral": 0.5106382978723404,
+        "per_family_below_zero": {
+          "antonymes": 0.7736468015308912,
+          "co-hyponymes": 0.7147905098435133,
+          "nombres": 0.9162418062636563,
+          "synonymes": 0.026845637583892617
+        }
+      },
+      "offshelf-deberta-v3-large/orig": {
+        "n": 8193,
+        "auc": 0.9950657053086205,
+        "below_zero_contradiction": 0.8256560580681184,
+        "below_zero_entailment": 0.008146639511201629,
+        "below_zero_neutral": 0.5106382978723404,
+        "per_family_below_zero": {
+          "antonymes": 0.8523783488244943,
+          "co-hyponymes": 0.7778899545683998,
+          "nombres": 0.9278951201747997,
+          "synonymes": 0.0
+        }
+      },
+      "offshelf-mdeberta-v3-base/orig": {
+        "n": 8193,
+        "auc": 0.9113224245236138,
+        "below_zero_contradiction": 0.6166945840312674,
+        "below_zero_entailment": 0.0050916496945010185,
+        "below_zero_neutral": 0.7659574468085106,
+        "per_family_below_zero": {
+          "antonymes": 0.6451612903225806,
+          "co-hyponymes": 0.5252397778899546,
+          "nombres": 0.842680262199563,
+          "synonymes": 0.0
+        }
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 8193,
+        "auc": 0.8892063707312302,
+        "below_zero_contradiction": 0.5196817420435511,
+        "below_zero_entailment": 0.008146639511201629,
+        "below_zero_neutral": 0.5531914893617021,
+        "per_family_below_zero": {
+          "antonymes": 0.6019682886823401,
+          "co-hyponymes": 0.37859666834931854,
+          "nombres": 0.8171886380189366,
+          "synonymes": 0.003355704697986577
+        }
+      },
+      "offshelf-xlm-roberta-large/orig": {
+        "n": 8193,
+        "auc": 0.9941268346712062,
+        "below_zero_contradiction": 0.9257398101619208,
+        "below_zero_entailment": 0.01120162932790224,
+        "below_zero_neutral": 0.723404255319149,
+        "per_family_below_zero": {
+          "antonymes": 0.9125205030071077,
+          "co-hyponymes": 0.9083796062594649,
+          "nombres": 0.9934450109249818,
+          "synonymes": 0.0044742729306487695
+        }
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 8193,
+        "auc": 0.9817143394046494,
+        "below_zero_contradiction": 0.7882467895030709,
+        "below_zero_entailment": 0.007128309572301426,
+        "below_zero_neutral": 0.46808510638297873,
+        "per_family_below_zero": {
+          "antonymes": 0.7993439037725533,
+          "co-hyponymes": 0.7248864209994952,
+          "nombres": 0.956300072833212,
+          "synonymes": 0.0022371364653243847
+        }
+      }
+    },
+    "rte3_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 800,
+        "auc": 0.9024684328633151,
+        "below_zero_contradiction": 0.6438356164383562,
+        "below_zero_entailment": 0.061124694376528114,
+        "below_zero_neutral": 0.09433962264150944
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8875975483136282,
+        "below_zero_contradiction": 0.5616438356164384,
+        "below_zero_entailment": 0.029339853300733496,
+        "below_zero_neutral": 0.10062893081761007
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 800,
+        "auc": 0.9572964463944803,
+        "below_zero_contradiction": 0.6438356164383562,
+        "below_zero_entailment": 0.04156479217603912,
+        "below_zero_neutral": 0.12264150943396226
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 800,
+        "auc": 0.8659945741367183,
+        "below_zero_contradiction": 0.4383561643835616,
+        "below_zero_entailment": 0.029339853300733496,
+        "below_zero_neutral": 0.1509433962264151
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 800,
+        "auc": 0.8407408647888267,
+        "below_zero_contradiction": 0.3561643835616438,
+        "below_zero_entailment": 0.019559902200488997,
+        "below_zero_neutral": 0.1509433962264151
+      }
+    },
+    "gqnli_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 300,
+        "auc": 0.7368631768591732,
+        "below_zero_contradiction": 0.6407766990291263,
+        "below_zero_entailment": 0.2268041237113402,
+        "below_zero_neutral": 0.42
+      },
+      "v3-auglex-ensemble/orig": {
+        "n": 300,
+        "auc": 0.7241517365629067,
+        "below_zero_contradiction": 0.6796116504854369,
+        "below_zero_entailment": 0.23711340206185566,
+        "below_zero_neutral": 0.45
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 300,
+        "auc": 0.688119307376639,
+        "below_zero_contradiction": 0.6407766990291263,
+        "below_zero_entailment": 0.35051546391752575,
+        "below_zero_neutral": 0.46
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 300,
+        "auc": 0.8310479431488339,
+        "below_zero_contradiction": 0.7184466019417476,
+        "below_zero_entailment": 0.18556701030927836,
+        "below_zero_neutral": 0.46
+      },
+      "offshelf-deberta-v3-large/orig": {
+        "n": 300,
+        "auc": 0.8406565909318386,
+        "below_zero_contradiction": 0.7572815533980582,
+        "below_zero_entailment": 0.14432989690721648,
+        "below_zero_neutral": 0.43
+      },
+      "offshelf-mdeberta-v3-base/orig": {
+        "n": 300,
+        "auc": 0.5075568011210089,
+        "below_zero_contradiction": 0.3106796116504854,
+        "below_zero_entailment": 0.32989690721649484,
+        "below_zero_neutral": 0.48
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 300,
+        "auc": 0.542187969172255,
+        "below_zero_contradiction": 0.36893203883495146,
+        "below_zero_entailment": 0.35051546391752575,
+        "below_zero_neutral": 0.47
+      },
+      "offshelf-xlm-roberta-large/orig": {
+        "n": 300,
+        "auc": 0.45120608547692925,
+        "below_zero_contradiction": 0.10679611650485436,
+        "below_zero_entailment": 0.26804123711340205,
+        "below_zero_neutral": 0.29
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 300,
+        "auc": 0.4258832949654689,
+        "below_zero_contradiction": 0.10679611650485436,
+        "below_zero_entailment": 0.24742268041237114,
+        "below_zero_neutral": 0.25
+      }
+    },
+    "fracas_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 307,
+        "auc": 0.9267990074441688,
+        "below_zero_contradiction": 0.8387096774193549,
+        "below_zero_entailment": 0.0989010989010989,
+        "below_zero_neutral": 0.1702127659574468
+      },
+      "v3-auglex-ensemble/orig": {
+        "n": 307,
+        "auc": 0.9361928394186458,
+        "below_zero_contradiction": 0.9032258064516129,
+        "below_zero_entailment": 0.08241758241758242,
+        "below_zero_neutral": 0.18085106382978725
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 307,
+        "auc": 0.9331797235023042,
+        "below_zero_contradiction": 0.8064516129032258,
+        "below_zero_entailment": 0.09340659340659341,
+        "below_zero_neutral": 0.22340425531914893
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 307,
+        "auc": 0.9592343140730237,
+        "below_zero_contradiction": 0.9032258064516129,
+        "below_zero_entailment": 0.09340659340659341,
+        "below_zero_neutral": 0.1702127659574468
+      },
+      "offshelf-deberta-v3-large/orig": {
+        "n": 307,
+        "auc": 0.9711095356256647,
+        "below_zero_contradiction": 0.9032258064516129,
+        "below_zero_entailment": 0.06043956043956044,
+        "below_zero_neutral": 0.13829787234042554
+      },
+      "offshelf-mdeberta-v3-base/orig": {
+        "n": 307,
+        "auc": 0.8956043956043956,
+        "below_zero_contradiction": 0.7741935483870968,
+        "below_zero_entailment": 0.12637362637362637,
+        "below_zero_neutral": 0.24468085106382978
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 307,
+        "auc": 0.9126196384260901,
+        "below_zero_contradiction": 0.7419354838709677,
+        "below_zero_entailment": 0.09340659340659341,
+        "below_zero_neutral": 0.14893617021276595
+      },
+      "offshelf-xlm-roberta-large/orig": {
+        "n": 307,
+        "auc": 0.8821339950372209,
+        "below_zero_contradiction": 0.6451612903225806,
+        "below_zero_entailment": 0.0989010989010989,
+        "below_zero_neutral": 0.1595744680851064
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 307,
+        "auc": 0.9080113434952145,
+        "below_zero_contradiction": 0.6451612903225806,
+        "below_zero_entailment": 0.07692307692307693,
+        "below_zero_neutral": 0.11702127659574468
+      }
+    }
+  },
+  "v3_translate_test_daccord_auc_per_seed": {
+    "mean": 0.840439979796846,
+    "std": NaN
+  },
+  "criterion_1": {
+    "1a": {
+      "reference": "offshelf-xlm-roberta-large/fr",
+      "auc": 0.9095422489103392,
+      "gaps": {
+        "v3-auglex-ensemble/mt": {
+          "gap": -0.06910226911349315,
+          "low": -0.09738733935686619,
+          "high": -0.0430586265596648
+        },
+        "v3-auglex-ensemble/fr": {
+          "gap": -0.06255120938324266,
+          "low": -0.0892013206876555,
+          "high": -0.03830527339731
+        },
+        "offshelf-deberta-v3-large/mt": {
+          "gap": 0.05756028209589015,
+          "low": 0.04086209476775724,
+          "high": 0.07425556989730057
+        },
+        "offshelf-mdeberta-v3-base/fr": {
+          "gap": -0.0011074321417213762,
+          "low": -0.020742185307817504,
+          "high": 0.01769459565632193
+        }
+      }
+    },
+    "1b": {
+      "reference": "offshelf-deberta-v3-large/mt",
+      "auc": 0.9671025310062293,
+      "gaps": {
+        "v3-auglex-ensemble/mt": {
+          "gap": -0.1266625512093833,
+          "low": -0.1491594178498606,
+          "high": -0.10463971042146028
+        },
+        "v3-auglex-ensemble/fr": {
+          "gap": -0.1201114914791328,
+          "low": -0.14263361206203123,
+          "high": -0.09849982228707192
+        },
+        "offshelf-mdeberta-v3-base/fr": {
+          "gap": -0.058667714237611523,
+          "low": -0.07610125895579625,
+          "high": -0.04042080550723012
+        },
+        "offshelf-xlm-roberta-large/fr": {
+          "gap": -0.05756028209589015,
+          "low": -0.0742555698973006,
+          "high": -0.04086209476775724
+        }
+      }
+    }
+  }
+}
