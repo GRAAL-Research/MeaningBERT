@@ -49,6 +49,8 @@ stsb-roberta-base|cross-encoder/stsb-roberta-base|8|4|0
 deberta-v3-large|microsoft/deberta-v3-large|4|8|0
 nli-deberta-v3-large|MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli|4|8|0
 roberta-large-mnli|roberta-large-mnli|4|8|0
+xlmr-large-nli|joeddav/xlm-roberta-large-xnli|4|8|0
+mdeberta-v3-base-nli|MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7|8|4|0
 modernbert-base|answerdotai/ModernBERT-base|8|4|80
 modernbert-large|answerdotai/ModernBERT-large|4|8|80"
 

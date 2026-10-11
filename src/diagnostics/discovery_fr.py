@@ -34,6 +34,7 @@ import csv
 import glob
 import json
 import os
+import re
 from collections.abc import Iterable
 from typing import Any, Final, Optional
 
@@ -53,6 +54,9 @@ CORPORA: Final[dict[str, tuple[str, str]]] = {
     "rte3_fr": ("maximoss/rte3-french", "RTE3-FR-test-gold-3class.tsv"),
     "gqnli_fr": ("maximoss/gqnli-fr", "gqnli.test.fr.tsv"),
     "fracas_fr": ("maximoss/fracas", "fracas_in_english_and_french.tsv"),
+    # XNLI's test split holds the same 5,010 items in every language, in the same order:
+    # the paired set criterion 2 (parity with English) is measured on.
+    "xnli_fr": ("facebook/xnli", "test"),
 }
 
 #: The corpus that decides criterion 1, and the only one written in French.
@@ -73,6 +77,19 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
         ("offshelf-mdeberta-v3-base", "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7", ("fr", "orig")),
         ("offshelf-xlm-roberta-large", "joeddav/xlm-roberta-large-xnli", ("fr", "orig")),
     ],
+    # The v4 grid (run_v4_queue.sh): AUG+LEX on XLM-R-large, trained in English, in
+    # translated French, or on both. Read in French for criterion 1, in English for parity.
+    **{
+        f"v4-{regime}": [
+            (
+                f"v4-xlmr-{regime}-seed{seed}",
+                f"results/polarity/xlmr-large-nli-v4{regime}/seed{seed}/model",
+                ("fr", "orig"),
+            )
+            for seed in V3_SEEDS
+        ]
+        for regime in ("en", "fr", "enfr")
+    },
 }
 
 Pair = dict[str, Any]
@@ -106,6 +123,9 @@ HEAD_LABELS: Final[dict[str, str]] = {
     "offshelf-deberta-v3-large": "DeBERTa-v3-large NLI",
     "offshelf-mdeberta-v3-base": "mDeBERTa-v3-base NLI",
     "offshelf-xlm-roberta-large": "XLM-R-large NLI",
+    "v4-xlmr-en-ensemble": "XLM-R-large AUG+LEX (EN)",
+    "v4-xlmr-fr-ensemble": "XLM-R-large AUG+LEX (FR traduit)",
+    "v4-xlmr-enfr-ensemble": "XLM-R-large AUG+LEX (EN+FR)",
 }
 INPUT_LABELS: Final[dict[str, str]] = {"fr": "français", "mt": "traduit", "orig": "anglais d'origine"}
 CORPUS_LABELS: Final[dict[str, str]] = {
@@ -115,6 +135,7 @@ CORPUS_LABELS: Final[dict[str, str]] = {
     "rte3_fr": "RTE3-FR",
     "fracas_fr": "FraCaS-fr",
     "gqnli_fr": "GQNLI-fr",
+    "xnli_fr": "XNLI-fr",
 }
 
 
@@ -186,6 +207,10 @@ def normalize(
             fr_a, fr_b = row["premises"], row["hypothesis"]
             en_a, en_b = row["premises_original"], row["hypothesis_original"]
             label = _fracas_label(row)
+        elif corpus == "xnli_fr":
+            fr_a, fr_b = row["premise"], row["hypothesis"]
+            en_a, en_b = row["premise_en"], row["hypothesis_en"]
+            label = _nli(str(row["label"]))
         else:
             raise ValueError(f"unknown corpus {corpus!r}")
         if label is None or not fr_a.strip() or not fr_b.strip():
@@ -204,12 +229,40 @@ def normalize(
     return pairs
 
 
+def xnli_rows() -> list[dict[str, str]]:
+    """XNLI test in French, each row carrying its English counterpart.
+
+    Raises:
+        ValueError: If the two languages do not hold the same labels in the same order,
+            the one property the pairing rests on.
+    """
+    from datasets import load_dataset
+
+    french = load_dataset("facebook/xnli", "fr", split="test")
+    english = load_dataset("facebook/xnli", "en", split="test")
+    if french["label"] != english["label"]:
+        raise ValueError("XNLI fr et en ne sont pas alignes item par item")
+    return [
+        {
+            "premise": fr["premise"],
+            "hypothesis": fr["hypothesis"],
+            "premise_en": en["premise"],
+            "hypothesis_en": en["hypothesis"],
+            "label": str(fr["label"]),
+        }
+        for fr, en in zip(french, english)
+    ]
+
+
 def load_corpora(seen: frozenset[tuple[str, str]] = frozenset()) -> list[Pair]:
-    """Download and normalize the six corpora."""
+    """Download and normalize the seven corpora."""
     from huggingface_hub import hf_hub_download
 
     pairs: list[Pair] = []
     for name, (repo, filename) in CORPORA.items():
+        if name == "xnli_fr":
+            pairs.extend(normalize(name, xnli_rows(), seen))
+            continue
         path = hf_hub_download(repo, filename, repo_type="dataset")
         pairs.extend(normalize(name, _rows(path), seen))
     return pairs
@@ -373,22 +426,34 @@ def report(pairs: list[Pair], scores: dict[str, dict[str, Any]]) -> dict[str, An
         values[np.array(scores[name][f"{key}_index"], dtype=int)] = scores[name][key]
         return values
 
-    v3_names = [name for name in scores if name.startswith("v3-")]
-    columns: dict[str, np.ndarray] = {}
-    for key in ("mt", "orig", "fr"):
-        stacked = [full(name, key) for name in v3_names]
-        stacked = [s for s in stacked if s is not None]
-        if stacked:
-            columns[f"v3-auglex-ensemble/{key}"] = np.mean(stacked, axis=0)
+    # Seeds of one trained family average into one column, ``<family>-ensemble``.
+    families: dict[str, list[str]] = {}
     for name in scores:
-        if name.startswith("v3-"):
+        match = re.fullmatch(r"(.+)-seed\d+", name)
+        if match:
+            families.setdefault(match.group(1), []).append(name)
+    v3_names = families.get("v3-auglex", [])
+    columns: dict[str, np.ndarray] = {}
+    for family, names in families.items():
+        for key in ("mt", "orig", "fr"):
+            stacked = [s for s in (full(name, key) for name in names) if s is not None]
+            if stacked:
+                columns[f"{family}-ensemble/{key}"] = np.mean(stacked, axis=0)
+    seeded = {name for names in families.values() for name in names}
+    for name in scores:
+        if name in seeded:
             continue
         for key in ("mt", "orig", "fr"):
             values = full(name, key)
             if values is not None:
                 columns[f"{name}/{key}"] = values
+    out_seeds = {family: len(names) for family, names in families.items()}
 
-    out: dict[str, Any] = {"n_pairs": {c: int((corpora == c).sum()) for c in CORPORA}, "corpora": {}}
+    out: dict[str, Any] = {
+        "n_pairs": {c: int((corpora == c).sum()) for c in CORPORA},
+        "seeds": out_seeds,
+        "corpora": {},
+    }
     for corpus in CORPORA:
         keep = corpora == corpus
         positive = "compatible" if corpus == DECIDING else "entailment"
@@ -429,8 +494,8 @@ def report(pairs: list[Pair], scores: dict[str, dict[str, Any]]) -> dict[str, An
         if not np.isnan(values[keep]).any()
     }
     candidates = {
-        "1a": [c for c in daccord_auc if c.endswith("/fr") and not c.startswith("v3-")],
-        "1b": [c for c in daccord_auc if c.endswith("/mt")],
+        "1a": [c for c in daccord_auc if c.endswith("/fr") and c.startswith("offshelf-")],
+        "1b": [c for c in daccord_auc if c.endswith("/mt") and not c.startswith("v4-")],
     }
     pos, neg = keep & (labels == "compatible"), keep & (labels == "contradiction")
     criterion: dict[str, Any] = {}
@@ -536,18 +601,22 @@ def cli() -> None:
 @click.option("--out", required=True, help="JSON of p_contra per head and input.")
 @click.option("--v3-corpus", default="datastore/polarity-full-lex/corpus", show_default=True)
 @click.option("--translations", default="results/v4/discovery/translations.json", show_default=True)
-def score(heads: str, out: str, v3_corpus: str, translations: str) -> None:
-    """Score every French pair with one head family."""
+@click.option("--only", default="", help="Score only this head of the family, e.g. v4-xlmr-en-seed42.")
+def score(heads: str, out: str, v3_corpus: str, translations: str, only: str) -> None:
+    """Score every French pair with one head family, or one head of it."""
+    family = [head for head in HEADS[heads] if not only or head[0] == only]
+    if not family:
+        raise click.ClickException(f"{only} n'est pas une tete de la famille {heads}")
     seen = v3_seen_pairs(v3_corpus) if os.path.exists(v3_corpus) else frozenset()
     if not seen:
         raise click.ClickException(f"corpus v3 introuvable : {v3_corpus} ; sans lui, SICK-fr fuit")
     pairs = load_corpora(seen)
-    needs_mt = any("mt" in inputs for _, _, inputs in HEADS[heads])
+    needs_mt = any("mt" in inputs for _, _, inputs in family)
     sentences = [s for pair in pairs for s in (pair["fr_a"], pair["fr_b"])]
     table = translate(sentences, translations) if needs_mt else {}
 
     result: dict[str, Any] = {"n_pairs": len(pairs)}
-    for name, checkpoint, kinds in HEADS[heads]:
+    for name, checkpoint, kinds in family:
         # A local seed not copied to this host is skipped out loud, never silently: the
         # report's per-seed spread says how many seeds it rests on.
         if checkpoint.startswith("results/") and not os.path.isdir(checkpoint):

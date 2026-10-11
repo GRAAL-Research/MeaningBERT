@@ -174,12 +174,19 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 |---|---|---|---|
 | V4-H1 | Translate-test perd une part mesurable de la polarité en français. | La v4 ne bat rien et se réduit à une note de coût. | Translate-test et une tête NLI multilingue prête à l'emploi sur les held-out, sans entraînement. |
 | V4-H2 | Un backbone multilingue atteint en anglais les chiffres de la v3 à 2 points près. | La parité FR/EN mélange langue et backbone. | Réentraîner AUG+LEX anglais sur le backbone multilingue, dix graines. |
-| V4-H3 | La composition tient avec une magnitude française empruntée. | Pas d'ancrage humain de la magnitude en français. | Corrélation des magnitudes candidates sur les 297 paires de FrJUDGE. |
+| V4-H3 | ~~La composition tient avec une magnitude française empruntée.~~ **Réfutée pour MeaningBERT le 2026-10-11** (Pearson 0,28 contre 0,58 pour BERTScore sur FrJUDGE). | Pas d'ancrage humain de la magnitude en français. | Corrélation des magnitudes candidates sur les 297 paires de FrJUDGE. |
 | V4-H4 | L'augmentation lexicale se porte en français sans apprendre le biais du générateur. | Le gain sur les antonymes ne se reproduit pas. | Lexique coupé en deux moitiés, une moitié tenue à l'écart. |
 | V4-H5 | Le train traduit n'injecte pas d'artefacts de traduction. | Bons chiffres sur XNLI-fr, mauvais sur DACCORD. | Écart XNLI-fr contre DACCORD et RTE3-FR. |
 
 ## Journal
 
+- 2026-10-11 : **V4-H3 réfutée pour MeaningBERT.** Sur FrJUDGE (276 paires), `MeaningBERT
+  v2-large` corrèle à 0,28 [0,17 ; 0,38] avec le jugement humain après traduction et à 0,27
+  en lisant le français, contre 0,58 [0,48 ; 0,66] pour `BERTScore XLM-R-large`. La
+  magnitude de la v3 ne s'emprunte pas. Comme la traduction n'aide pas, l'échec vient du
+  domaine (juridique, phrases longues) plus que de la langue. Le choix de la magnitude
+  française (BERTScore, JUDGEBERT ou une magnitude multilingue entraînée) est reporté au
+  point de décision. Résultat : `results/v4/magnitude-frjudge.json`.
 - 2026-10-11 : **discovery V4-H1, premier chiffre.** Sur DACCORD, le meilleur translate-test
   (`DeBERTa-v3-large NLI` sur la traduction) fait 96,71 d'AUC, et bat de 5,76 points
   [4,09 ; 7,43] la meilleure tête multilingue qui lit le français (`XLM-R-large NLI`,

@@ -1,0 +1,89 @@
+{
+  "n": {
+    "train": 186,
+    "test": 90,
+    "all": 276
+  },
+  "candidates": {
+    "BERTScore XLM-R-large / français": {
+      "all": {
+        "n": 276,
+        "pearson": 0.5760679667788765,
+        "pearson_low": 0.47552639636891103,
+        "pearson_high": 0.659428297287948,
+        "spearman": 0.5832576736333032
+      },
+      "test": {
+        "n": 90,
+        "pearson": 0.6517629153237829,
+        "pearson_low": 0.5139708952386478,
+        "pearson_high": 0.7695910665265318,
+        "spearman": 0.6366396687397173
+      }
+    },
+    "MeaningBERT v1 / français": {
+      "all": {
+        "n": 276,
+        "pearson": 0.16251878439248071,
+        "pearson_low": 0.04680108463520152,
+        "pearson_high": 0.28430127865220617,
+        "spearman": 0.1968755148664723
+      },
+      "test": {
+        "n": 90,
+        "pearson": 0.17056583034391215,
+        "pearson_low": -0.0640533592449475,
+        "pearson_high": 0.384742749654419,
+        "spearman": 0.16299807291915502
+      }
+    },
+    "MeaningBERT v1 / traduit": {
+      "all": {
+        "n": 276,
+        "pearson": 0.1820734255378428,
+        "pearson_low": 0.05685505803329614,
+        "pearson_high": 0.30932036841562033,
+        "spearman": 0.25307552770458835
+      },
+      "test": {
+        "n": 90,
+        "pearson": 0.24428679343132526,
+        "pearson_low": 0.04214851784074427,
+        "pearson_high": 0.43537873831473484,
+        "spearman": 0.2920799116689861
+      }
+    },
+    "MeaningBERT v2-large / français": {
+      "all": {
+        "n": 276,
+        "pearson": 0.2722991383654123,
+        "pearson_low": 0.14868184522284755,
+        "pearson_high": 0.39023722524425686,
+        "spearman": 0.18677774573737094
+      },
+      "test": {
+        "n": 90,
+        "pearson": 0.15576618836548856,
+        "pearson_low": -0.07419998723136136,
+        "pearson_high": 0.38165819107594173,
+        "spearman": 0.10214317057780999
+      }
+    },
+    "MeaningBERT v2-large / traduit": {
+      "all": {
+        "n": 276,
+        "pearson": 0.28079803995052105,
+        "pearson_low": 0.17327603414260842,
+        "pearson_high": 0.3834433755461486,
+        "spearman": 0.24343874600376492
+      },
+      "test": {
+        "n": 90,
+        "pearson": 0.21101076831396517,
+        "pearson_low": 0.01220359728927241,
+        "pearson_high": 0.4000449206634427,
+        "spearman": 0.1697828090481628
+      }
+    }
+  }
+}
