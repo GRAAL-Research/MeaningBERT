@@ -134,21 +134,18 @@ polarité écrit en français est DACCORD. RTE3-FR, GQNLI-FR, FraCaS-fr et XNLI-
 traduits de l'anglais : retraduire vers l'anglais retrouve souvent l'original, ce qui
 avantage translate-test. Ils sont donc rapportés, mais ne décident pas du critère 1.
 
-**Critère 1, battre translate-test.**
-- L'AUC sur DACCORD doit dépasser translate-test d'au moins 2 points, avec un intervalle
-  bootstrap à 95 % qui exclut 0.
-- C'est **la seule mesure qui décide**. Les négations et les antonymes sous zéro viennent
-  des paires générées : ils sont rapportés contre translate-test, mais ne décident pas,
-  parce que le générateur n'est validé par personne.
-- Les antonymes testés sont **inédits pour les deux concurrents** : leur traduction anglaise
-  n'apparaît dans aucune moitié du lexique de la v3 (ni dans `FACTUAL_ANTONYMS`), et ils
-  appartiennent à la moitié française tenue à l'écart. L'ensemble est généré **avant** la
-  discovery, ce qui avance la coupe du lexique de V4-H4.
-- Le translate-test qui décide est la v3 publiée (`DeBERTa-v3-large`), celle qu'un
-  praticien utiliserait. Une variante sur le même backbone multilingue est rapportée pour
-  séparer ce que l'écart doit à la taille du modèle et ce qu'il doit à la langue.
-- La tête entraînée doit aussi battre B, la tête NLI multilingue prête à l'emploi. Sinon,
-  la contribution se limite à « B composé avec une magnitude ».
+**Critère 1, deux barres sur DACCORD (décision du 2026-10-11).** Chaque barre est la
+meilleure tête mesurée dans sa catégorie, fixée par la discovery et non choisie après avoir
+vu la tête française.
+- **1a, décide si on construit** : battre la meilleure tête multilingue prête à l'emploi
+  qui lit le français (`XLM-R-large NLI`, 90,95).
+- **1b, décide ce que l'article revendique** : battre le meilleur translate-test
+  (`DeBERTa-v3-large NLI` sur la traduction, 96,71).
+- Le seuil est le même pour les deux : au moins 2 points d'AUC, avec un intervalle
+  bootstrap à 95 % qui exclut 0. C'est la seule mesure qui décide. Les paires générées sont
+  rapportées sans décider.
+- La v3 publiée en translate-test (84,04) n'est plus une barre : les têtes multilingues
+  prêtes à l'emploi la battent déjà de près de 7 points, sans entraînement.
 
 **Critère 2, parité avec l'anglais.**
 - Mesurée sur des items appariés : le test de XNLI, dont les items anglais et français sont

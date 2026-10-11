@@ -77,6 +77,46 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
 
 Pair = dict[str, Any]
 
+#: Breaking-NLI categories grouped by the lexical relation the edit introduces. The gold
+#: label each family is scored on: contradiction for the first three, entailment for
+#: synonyms, whose share below zero is a false alarm.
+FAMILIES: Final[dict[str, tuple[tuple[str, ...], str]]] = {
+    "antonymes": (("antonyms", "antonyms_wordnet"), "contradiction"),
+    "co-hyponymes": (
+        (
+            "colors",
+            "countries",
+            "drinks",
+            "instruments",
+            "materials",
+            "nationalities",
+            "planets",
+            "rooms",
+            "vegetables",
+        ),
+        "contradiction",
+    ),
+    "nombres": (("cardinals", "ordinals"), "contradiction"),
+    "synonymes": (("synonyms",), "entailment"),
+}
+
+#: Readable names of the heads in the v4 tables, and of what each head reads.
+HEAD_LABELS: Final[dict[str, str]] = {
+    "v3-auglex-ensemble": "v3 AUG+LEX",
+    "offshelf-deberta-v3-large": "DeBERTa-v3-large NLI",
+    "offshelf-mdeberta-v3-base": "mDeBERTa-v3-base NLI",
+    "offshelf-xlm-roberta-large": "XLM-R-large NLI",
+}
+INPUT_LABELS: Final[dict[str, str]] = {"fr": "français", "mt": "traduit", "orig": "anglais d'origine"}
+CORPUS_LABELS: Final[dict[str, str]] = {
+    "daccord": "DACCORD",
+    "sick_fr": "SICK-fr",
+    "breaking_fr": "Breaking-fr",
+    "rte3_fr": "RTE3-FR",
+    "fracas_fr": "FraCaS-fr",
+    "gqnli_fr": "GQNLI-fr",
+}
+
 
 def _rows(path: str) -> list[dict[str, str]]:
     with open(path, encoding="utf-8-sig", newline="") as handle:
@@ -358,9 +398,10 @@ def report(pairs: list[Pair], scores: dict[str, dict[str, Any]]) -> dict[str, An
             if usable.any():
                 block[column] = slice_report(values[usable], labels[usable], positive)
                 if corpus == "breaking_fr":
-                    block[column]["per_category_below_zero"] = {
-                        cat: float(_below_zero(values[usable & (categories == cat)]).mean())
-                        for cat in sorted(set(categories[usable].tolist()))
+                    block[column]["per_family_below_zero"] = {
+                        family: float(_below_zero(values[usable & np.isin(categories, cats) & (labels == gold)]).mean())
+                        for family, (cats, gold) in FAMILIES.items()
+                        if (usable & np.isin(categories, cats) & (labels == gold)).any()
                     }
         out["corpora"][corpus] = block
 
@@ -376,22 +417,110 @@ def report(pairs: list[Pair], scores: dict[str, dict[str, Any]]) -> dict[str, An
         "std": float(np.std(seed_aucs, ddof=1)) if len(seed_aucs) > 1 else float("nan"),
     }
 
-    # Criterion 1 cannot be decided yet, no French head being trained; what the discovery
-    # measures is the bar a French head would have to clear, against every candidate.
-    reference = columns.get("v3-auglex-ensemble/mt")
-    gaps: dict[str, Any] = {}
-    if reference is not None:
-        pos, neg = keep & (labels == "compatible"), keep & (labels == "contradiction")
-        for column, values in columns.items():
-            if column.endswith("/mt") and column.startswith("v3-"):
-                continue
-            if np.isnan(values[keep]).any():
-                continue
-            gaps[column] = bootstrap_auc_gap(
-                _agreement(values[pos]), _agreement(values[neg]), _agreement(reference[pos]), _agreement(reference[neg])
-            )
-    out["daccord_auc_gap_vs_translate_test"] = gaps
+    # Criterion 1, split in two (decision of 2026-10-11). 1a: beat the best off-the-shelf
+    # multilingual head reading French, which decides whether a French head is worth
+    # building. 1b: beat the best translate-test, which decides what the article may claim.
+    # Each bar is the best measured candidate, never one picked after seeing the French head.
+    daccord_auc = {
+        column: auc(
+            _agreement(values[keep & (labels == "compatible")]), _agreement(values[keep & (labels == "contradiction")])
+        )
+        for column, values in columns.items()
+        if not np.isnan(values[keep]).any()
+    }
+    candidates = {
+        "1a": [c for c in daccord_auc if c.endswith("/fr") and not c.startswith("v3-")],
+        "1b": [c for c in daccord_auc if c.endswith("/mt")],
+    }
+    pos, neg = keep & (labels == "compatible"), keep & (labels == "contradiction")
+    criterion: dict[str, Any] = {}
+    for key, pool in candidates.items():
+        if not pool:
+            continue
+        best = max(pool, key=lambda c: daccord_auc[c])
+        reference = columns[best]
+        criterion[key] = {
+            "reference": best,
+            "auc": daccord_auc[best],
+            "gaps": {
+                column: bootstrap_auc_gap(
+                    _agreement(columns[column][pos]),
+                    _agreement(columns[column][neg]),
+                    _agreement(reference[pos]),
+                    _agreement(reference[neg]),
+                )
+                for column in daccord_auc
+                if column != best
+            },
+        }
+    out["criterion_1"] = criterion
     return out
+
+
+def readable(column: str) -> tuple[str, str]:
+    """Readable (model, input) for a report column such as ``offshelf-xlm-roberta-large/fr``."""
+    head, kind = column.rsplit("/", 1)
+    return f"`{HEAD_LABELS.get(head, head)}`", INPUT_LABELS.get(kind, kind)
+
+
+def _pct(value: float) -> str:
+    return "-" if value is None or np.isnan(value) else f"{100 * value:.2f}"
+
+
+def tables(result: dict[str, Any]) -> str:
+    """The discovery report as three short Markdown tables."""
+    daccord = result["corpora"][DECIDING]
+    order = sorted(daccord, key=lambda c: -daccord[c]["auc"])
+    criterion = result.get("criterion_1", {})
+    bars = {criterion[k]["reference"]: k for k in criterion}
+
+    lines = [
+        "## DACCORD, le seul corpus écrit en français",
+        "",
+        "| Modèle | Entrée | AUC | Contradictions < 0 | Compatibles < 0 | Barre |",
+        "|---|---|---|---|---|---|",
+    ]
+    for column in order:
+        model, kind = readable(column)
+        m = daccord[column]
+        lines.append(
+            f"| {model} | {kind} | {_pct(m['auc'])} | {_pct(m.get('below_zero_contradiction'))} "
+            f"| {_pct(m.get('below_zero_compatible'))} | {bars.get(column, '')} |"
+        )
+    lines += [
+        "",
+        "Barre 1a : meilleure tête multilingue prête à l'emploi qui lit le français. "
+        "Barre 1b : meilleur translate-test.",
+        "",
+        "## AUC par corpus",
+        "",
+        "| Modèle | Entrée | " + " | ".join(CORPUS_LABELS[c] for c in CORPORA) + " |",
+        "|---|---|" + "---|" * len(CORPORA),
+    ]
+    columns = sorted({c for block in result["corpora"].values() for c in block}, key=readable)
+    for column in columns:
+        model, kind = readable(column)
+        cells = [_pct(result["corpora"][corpus].get(column, {}).get("auc", float("nan"))) for corpus in CORPORA]
+        lines.append(f"| {model} | {kind} | " + " | ".join(cells) + " |")
+    lines += [
+        "",
+        "## Breaking-fr, part sous zéro par famille lexicale",
+        "",
+        "| Modèle | Entrée | " + " | ".join(FAMILIES) + " |",
+        "|---|---|" + "---|" * len(FAMILIES),
+    ]
+    breaking = result["corpora"]["breaking_fr"]
+    for column in sorted(breaking, key=readable):
+        model, kind = readable(column)
+        family = breaking[column].get("per_family_below_zero", {})
+        lines.append(f"| {model} | {kind} | " + " | ".join(_pct(family.get(f, float("nan"))) for f in FAMILIES) + " |")
+    lines += [
+        "",
+        "Synonymes sous zéro = fausses alarmes. Co-hyponymes : Breaking-NLI les étiquette "
+        "contradiction, la v3 est conçue pour les garder au-dessus de zéro.",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 # --------------------------------------------------------------------------- CLI
@@ -457,7 +586,10 @@ def report_command(scores_dir: str, out: str, v3_corpus: str) -> None:
     result = report(pairs, merged)
     with open(out, "w", encoding="utf-8") as handle:
         json.dump(result, handle, indent=2)
-    click.echo(f"rapport : {out}")
+    markdown = os.path.splitext(out)[0] + ".md"
+    with open(markdown, "w", encoding="utf-8") as handle:
+        handle.write(tables(result))
+    click.echo(f"rapport : {out} ; tableaux : {markdown}")
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ from diagnostics.discovery_fr import (
     normalize,
     report,
     slice_report,
+    tables,
 )
 
 
@@ -149,10 +150,48 @@ def test_report_scatters_scores_back_onto_their_own_pairs() -> None:
     assert daccord["offshelf-mdeberta-v3-base/fr"]["auc"] == 0.0
     assert "v3-auglex-ensemble/orig" not in daccord
     breaking = out["corpora"]["breaking_fr"]
-    assert breaking["v3-auglex-ensemble/orig"]["per_category_below_zero"] == {"antonyms": 1.0}
-    gap = out["daccord_auc_gap_vs_translate_test"]["offshelf-mdeberta-v3-base/fr"]
-    assert gap["gap"] == -1.0
-    assert "v3-auglex-ensemble/mt" not in out["daccord_auc_gap_vs_translate_test"]
+    assert breaking["v3-auglex-ensemble/orig"]["per_family_below_zero"] == {"antonymes": 1.0}
+    # 1a: the only multilingual head reading French is the bar, and a v3 head is never one.
+    assert out["criterion_1"]["1a"]["reference"] == "offshelf-mdeberta-v3-base/fr"
+    assert out["criterion_1"]["1a"]["gaps"]["v3-auglex-ensemble/mt"]["gap"] == 1.0
+    # 1b: the best translate-test is the bar, and it is not compared with itself.
+    assert out["criterion_1"]["1b"]["reference"] == "v3-auglex-ensemble/mt"
+    assert out["criterion_1"]["1b"]["gaps"]["offshelf-mdeberta-v3-base/fr"]["gap"] == -1.0
+    assert "v3-auglex-ensemble/mt" not in out["criterion_1"]["1b"]["gaps"]
+
+
+def test_bar_1b_is_the_best_translate_test_not_the_first() -> None:
+    scores = {
+        "v3-auglex-seed42": {"mt": [0.6, 0.6, 0.4, 0.4, 0.5], "mt_index": [0, 1, 2, 3, 4]},
+        "offshelf-deberta-v3-large": {"mt": [0.1, 0.2, 0.8, 0.9, 0.5], "mt_index": [0, 1, 2, 3, 4]},
+    }
+    out = report(_pairs(), scores)
+    assert out["criterion_1"]["1b"]["reference"] == "offshelf-deberta-v3-large/mt"
+    assert "1a" not in out["criterion_1"]
+
+
+def test_breaking_families_score_synonyms_on_entailment_only() -> None:
+    pairs = [
+        {"corpus": "breaking_fr", "label": "entailment", "category": "synonyms", "en_a": "", "en_b": ""},
+        {"corpus": "breaking_fr", "label": "contradiction", "category": "colors", "en_a": "", "en_b": ""},
+        {"corpus": "breaking_fr", "label": "entailment", "category": "colors", "en_a": "", "en_b": ""},
+    ]
+    scores = {"offshelf-xlm-roberta-large": {"fr": [0.9, 0.9, 0.9], "fr_index": [0, 1, 2]}}
+    family = report(pairs, scores)["corpora"]["breaking_fr"]["offshelf-xlm-roberta-large/fr"]["per_family_below_zero"]
+    # The entailment-labelled colour pair is noise in the corpus, not a co-hyponym contradiction.
+    assert family == {"co-hyponymes": 1.0, "synonymes": 1.0}
+
+
+def test_tables_use_readable_names_two_decimals_and_mark_the_bars() -> None:
+    scores = {
+        "v3-auglex-seed42": {"mt": [0.1, 0.2, 0.8, 0.9, 0.7], "mt_index": [0, 1, 2, 3, 4]},
+        "offshelf-xlm-roberta-large": {"fr": [0.3, 0.5, 0.6, 0.35, 0.6], "fr_index": [0, 1, 2, 3, 4]},
+    }
+    text = tables(report(_pairs(), scores))
+    assert "| `v3 AUG+LEX` | traduit | 100.00 |" in text
+    assert "| `XLM-R-large NLI` | français | 75.00 |" in text
+    assert "1a |" in text and "1b |" in text
+    assert "offshelf-" not in text and "/mt" not in text
 
 
 def test_report_averages_seeds_into_one_ensemble() -> None:

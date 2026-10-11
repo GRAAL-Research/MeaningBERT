@@ -124,13 +124,16 @@ d'annotation humaine.
 mesure française, pour qu'aucun résultat ne puisse être relu après coup. Détail dans
 `docs/produit/cadrage-v4-multilingue.md`, section « Critères de passage ».
 
-1. **Battre translate-test sur du français écrit en français.** On décide sur DACCORD, le
-   seul corpus de polarité natif : AUC supérieure d'au moins 2 points, avec un intervalle
-   bootstrap à 95 % qui exclut 0. C'est la seule mesure qui décide. Les négations et les
-   antonymes générés sont rapportés contre translate-test, sans décider. Le translate-test qui décide
-   est la v3 publiée (`DeBERTa-v3-large`), celle qu'un praticien utiliserait. RTE3-FR,
-   GQNLI-FR, FraCaS-fr et XNLI-fr sont traduits de l'anglais, ce qui avantage
-   translate-test : ils sont rapportés, mais ne décident pas.
+1. **Battre les deux barres sur DACCORD**, le seul corpus de polarité écrit en français.
+   Chaque barre est la meilleure tête mesurée dans sa catégorie (décision du 2026-10-11) :
+   - **1a, décide si on construit** : battre la meilleure tête multilingue prête à l'emploi
+     qui lit le français (`XLM-R-large NLI`, AUC 90,95).
+   - **1b, décide ce que l'article revendique** : battre le meilleur translate-test
+     (`DeBERTa-v3-large NLI` sur la traduction, AUC 96,71).
+
+   Le seuil est le même pour les deux : au moins 2 points d'AUC, avec un intervalle
+   bootstrap à 95 % qui exclut 0. RTE3-FR, GQNLI-FR, FraCaS-fr et SICK-fr sont traduits
+   de l'anglais, ce qui avantage translate-test : ils sont rapportés, mais ne décident pas.
 2. **Parité avec l'anglais à 2 points, sur des items appariés.** La mesure se fait sur le
    test de XNLI, dont les items anglais et français sont les mêmes, et sur des paires
    minimales générées des mêmes gabarits dans les deux langues. La référence est la v3
@@ -142,8 +145,9 @@ mesure française, pour qu'aucun résultat ne puisse être relu après coup. Dé
 4. **Magnitude empruntée.** Le Pearson sur FrJUDGE doit être au moins celui de BERTScore
    multilingue. JUDGEBERT est exclu de cette mesure s'il a été entraîné sur FrJUDGE.
 
-Valeur actuelle : non mesurée. La première mesure de la discovery est translate-test et la
-tête prête à l'emploi sur DACCORD.
+Valeur actuelle (discovery du 2026-10-11, `results/v4/discovery/report.md`) : barre 1a
+90,95, barre 1b 96,71. La v3 AUG+LEX fait 84,04 en translate-test et 84,70 en lisant le
+français.
 
 Point de décision à la fin de la discovery (vers le 2026-10-23) : si translate-test ou la
 tête prête à l'emploi arrive à moins de 2 points d'AUC sur DACCORD, David tranche à ce
@@ -176,6 +180,14 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-11 : **discovery V4-H1, premier chiffre.** Sur DACCORD, le meilleur translate-test
+  (`DeBERTa-v3-large NLI` sur la traduction) fait 96,71 d'AUC, et bat de 5,76 points
+  [4,09 ; 7,43] la meilleure tête multilingue qui lit le français (`XLM-R-large NLI`,
+  90,95). La v3 AUG+LEX ne fait que 84,04 : sa faiblesse vient du domaine (actualité contre
+  scènes de SICK), pas de la langue. Lire le français coûte 0,45 à 1,24 point d'AUC, et
+  traduire 0,62 à 2,43, sur les mêmes items de SICK-fr et Breaking-fr. Le critère 1 est
+  scindé : 1a contre la meilleure tête multilingue, 1b contre le meilleur translate-test.
+  V4-H1 est très menacée pour 1b. Une seule graine v3 mesurée.
 - 2026-10-11 : **cadrage v4.** Le chantier se recentre sur une tête de polarité
   multilingue : la magnitude pourrait s'emprunter (hypothèse V4-H3, non vérifiée). Translate-test devient la ligne de base à battre, et V4-H1 est la première
   hypothèse à vérifier, parce qu'elle décide si la v4 a une raison d'être. Le commit
