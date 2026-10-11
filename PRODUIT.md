@@ -96,8 +96,90 @@ Le test externe et les sanity checks tournent dans la CI a chaque entrainement, 
 seulement a la fin. Un entrainement qui ne produit pas ces quatre chiffres est un
 entrainement non mesure.
 
+## v4 : multilingue (cadrage du 2026-10-11)
+
+Point de départ : tag `v3-arr` (`67e5a00`), l'échelle signée et AUG+LEX. Document complet :
+`docs/produit/cadrage-v4-multilingue.md`.
+
+### Problème
+
+Dans une autre langue que l'anglais, rien ne dit si une réécriture contredit sa source.
+Les métriques disponibles (BERTScore multilingue, LaBSE, JUDGEBERT) sont non signées, et on
+ignore si traduire vers l'anglais avant d'appliquer la v3 suffit à le dire.
+
+### Utilisateurs bloqués
+
+Les chercheurs qui évaluent la simplification en français, en allemand ou en arabe, et qui
+retombent sur une métrique de similarité au moment de comparer des systèmes.
+
+### Job to be done
+
+Quand j'évalue des simplifications en français, je veux savoir si une sortie dit le
+contraire de sa source, afin de pénaliser un système qui inverse le sens sans lancer
+d'annotation humaine.
+
+### Résultat visé, mesurable
+
+Étape 1, le pilote français, pour ARR février 2027. Les seuils sont fixés ici, avant toute
+mesure française, pour qu'aucun résultat ne puisse être relu après coup. Détail dans
+`docs/produit/cadrage-v4-multilingue.md`, section « Critères de passage ».
+
+1. **Battre translate-test sur du français écrit en français.** On décide sur DACCORD, le
+   seul corpus de polarité natif : AUC supérieure d'au moins 2 points, avec un intervalle
+   bootstrap à 95 % qui exclut 0. C'est la seule mesure qui décide. Les négations et les
+   antonymes générés sont rapportés contre translate-test, sans décider. Le translate-test qui décide
+   est la v3 publiée (`DeBERTa-v3-large`), celle qu'un praticien utiliserait. RTE3-FR,
+   GQNLI-FR, FraCaS-fr et XNLI-fr sont traduits de l'anglais, ce qui avantage
+   translate-test : ils sont rapportés, mais ne décident pas.
+2. **Parité avec l'anglais à 2 points, sur des items appariés.** La mesure se fait sur le
+   test de XNLI, dont les items anglais et français sont les mêmes, et sur des paires
+   minimales générées des mêmes gabarits dans les deux langues. La référence est la v3
+   AUG+LEX réentraînée sur le même backbone multilingue (barreau V4-H2) : le français doit
+   être au moins à 2 points sous l'anglais en AUC et en macro-F1.
+3. **Garde-fous contre les fausses alarmes, valables pour les deux critères.** Au moins
+   95 % des synonymes et hyperonymes et au moins 90 % des co-hyponymes restent au-dessus
+   de zéro. Une tête qui met tout sous zéro ne passe pas.
+4. **Magnitude empruntée.** Le Pearson sur FrJUDGE doit être au moins celui de BERTScore
+   multilingue. JUDGEBERT est exclu de cette mesure s'il a été entraîné sur FrJUDGE.
+
+Valeur actuelle : non mesurée. La première mesure de la discovery est translate-test et la
+tête prête à l'emploi sur DACCORD.
+
+Point de décision à la fin de la discovery (vers le 2026-10-23) : si translate-test ou la
+tête prête à l'emploi arrive à moins de 2 points d'AUC sur DACCORD, David tranche à ce
+moment-là, au vu des chiffres. Les non-objectifs restent en vigueur jusque-là.
+
+Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), puis étape 3
+(XNLI et PAWS-X à grande échelle).
+
+### Non-objectifs de la v4
+
+- **Pas d'allemand ni d'arabe avant que le français passe ses deux critères.**
+- **Pas d'interlingue (source EN, cible FR) dans le résultat visé.** C'est une expérience
+  secondaire possible : section, annexe ou autre article.
+- **Aucune annotation ni validation humaine de données.** On s'appuie seulement sur des
+  corpus déjà annotés et sur des paires générées ; le biais du générateur est déclaré en
+  limitation.
+- **Pas de changement de la formule** `magnitude x (1 - 2 p_contra)`.
+- **Pas de passage au document, pas de LLM-as-judge comme métrique.** Un LLM peut servir de
+  ligne de base.
+
+### Hypothèses à risque v4
+
+| # | Hypothèse | Risque si fausse | Comment on la teste |
+|---|---|---|---|
+| V4-H1 | Translate-test perd une part mesurable de la polarité en français. | La v4 ne bat rien et se réduit à une note de coût. | Translate-test et une tête NLI multilingue prête à l'emploi sur les held-out, sans entraînement. |
+| V4-H2 | Un backbone multilingue atteint en anglais les chiffres de la v3 à 2 points près. | La parité FR/EN mélange langue et backbone. | Réentraîner AUG+LEX anglais sur le backbone multilingue, dix graines. |
+| V4-H3 | La composition tient avec une magnitude française empruntée. | Pas d'ancrage humain de la magnitude en français. | Corrélation des magnitudes candidates sur les 297 paires de FrJUDGE. |
+| V4-H4 | L'augmentation lexicale se porte en français sans apprendre le biais du générateur. | Le gain sur les antonymes ne se reproduit pas. | Lexique coupé en deux moitiés, une moitié tenue à l'écart. |
+| V4-H5 | Le train traduit n'injecte pas d'artefacts de traduction. | Bons chiffres sur XNLI-fr, mauvais sur DACCORD. | Écart XNLI-fr contre DACCORD et RTE3-FR. |
+
 ## Journal
 
+- 2026-10-11 : **cadrage v4.** Le chantier se recentre sur une tête de polarité
+  multilingue : la magnitude pourrait s'emprunter (hypothèse V4-H3, non vérifiée). Translate-test devient la ligne de base à battre, et V4-H1 est la première
+  hypothèse à vérifier, parce qu'elle décide si la v4 a une raison d'être. Le commit
+  `67e5a00` est tagué `v3-arr`.
 - 2026-09-19 : **H6, le resultat central du chantier.** Les 360 paires que CSMD partage
   avec SimpDA_2022 portent exactement le meme multiensemble d'etiquettes (360/360, ecart
   max 0,000000) mais correlent a 0,009 : les etiquettes sont permutees entre les paires.
