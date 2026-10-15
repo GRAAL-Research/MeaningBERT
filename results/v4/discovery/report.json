@@ -5,21 +5,46 @@
     "breaking_fr": 8193,
     "rte3_fr": 800,
     "gqnli_fr": 300,
-    "fracas_fr": 307
+    "fracas_fr": 307,
+    "xnli_fr": 5010
+  },
+  "seeds": {
+    "v3-auglex": 10,
+    "v4-xlmr-en": 2,
+    "v4-xlmr-enfr": 2,
+    "v4-xlmr-fr": 3
   },
   "corpora": {
     "daccord": {
       "v3-auglex-ensemble/mt": {
         "n": 1034,
-        "auc": 0.840439979796846,
-        "below_zero_compatible": 0.030828516377649325,
-        "below_zero_contradiction": 0.5359223300970873
+        "auc": 0.8597003198832707,
+        "below_zero_compatible": 0.023121387283236993,
+        "below_zero_contradiction": 0.5631067961165048
       },
       "v3-auglex-ensemble/fr": {
         "n": 1034,
-        "auc": 0.8469910395270965,
-        "below_zero_compatible": 0.015414258188824663,
-        "below_zero_contradiction": 0.49902912621359224
+        "auc": 0.8608301999738107,
+        "below_zero_compatible": 0.007707129094412331,
+        "below_zero_contradiction": 0.5262135922330097
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.8232672989505584,
+        "below_zero_compatible": 0.0674373795761079,
+        "below_zero_contradiction": 0.5281553398058253
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.7860411171595862,
+        "below_zero_compatible": 0.0905587668593449,
+        "below_zero_contradiction": 0.4893203883495146
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.8122865106534224,
+        "below_zero_compatible": 0.09248554913294797,
+        "below_zero_contradiction": 0.5223300970873787
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 1034,
@@ -43,24 +68,66 @@
     "sick_fr": {
       "v3-auglex-ensemble/mt": {
         "n": 4892,
-        "auc": 0.9810590894936284,
-        "below_zero_contradiction": 0.8375706214689266,
-        "below_zero_entailment": 0.008589835361488905,
-        "below_zero_neutral": 0.025475421600287047
+        "auc": 0.9828587489737897,
+        "below_zero_contradiction": 0.847457627118644,
+        "below_zero_entailment": 0.0071581961345740875,
+        "below_zero_neutral": 0.02726946537495515
       },
       "v3-auglex-ensemble/orig": {
         "n": 4892,
-        "auc": 0.9954573763795704,
-        "below_zero_contradiction": 0.8714689265536724,
+        "auc": 0.9962550906098216,
+        "below_zero_contradiction": 0.8813559322033898,
         "below_zero_entailment": 0.0007158196134574087,
-        "below_zero_neutral": 0.025116612845353426
+        "below_zero_neutral": 0.020093290276282743
       },
       "v3-auglex-ensemble/fr": {
         "n": 4892,
-        "auc": 0.9746116577492528,
-        "below_zero_contradiction": 0.8234463276836158,
+        "auc": 0.9787994046969091,
+        "below_zero_contradiction": 0.8361581920903954,
+        "below_zero_entailment": 0.004294917680744453,
+        "below_zero_neutral": 0.036239684248295656
+      },
+      "v4-xlmr-en-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9948113188470855,
+        "below_zero_contradiction": 0.8686440677966102,
+        "below_zero_entailment": 0.0007158196134574087,
+        "below_zero_neutral": 0.03157517043415859
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9896560021676797,
+        "below_zero_contradiction": 0.8615819209039548,
+        "below_zero_entailment": 0.004294917680744453,
+        "below_zero_neutral": 0.040186580552565486
+      },
+      "v4-xlmr-enfr-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9945080054515527,
+        "below_zero_contradiction": 0.8700564971751412,
+        "below_zero_entailment": 0.0021474588403722263,
+        "below_zero_neutral": 0.02834589163975601
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9855471167028621,
+        "below_zero_contradiction": 0.8389830508474576,
         "below_zero_entailment": 0.0035790980672870437,
-        "below_zero_neutral": 0.03480444922856118
+        "below_zero_neutral": 0.02726946537495515
+      },
+      "v4-xlmr-fr-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9932078020293689,
+        "below_zero_contradiction": 0.8954802259887006,
+        "below_zero_entailment": 0.0035790980672870437,
+        "below_zero_neutral": 0.048797990670972374
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9859980426175542,
+        "below_zero_contradiction": 0.8559322033898306,
+        "below_zero_entailment": 0.002863278453829635,
+        "below_zero_neutral": 0.02942231790455687
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 4892,
@@ -71,7 +138,7 @@
       },
       "offshelf-deberta-v3-large/orig": {
         "n": 4892,
-        "auc": 0.9977403152032807,
+        "auc": 0.9977413262479324,
         "below_zero_contradiction": 0.9759887005649718,
         "below_zero_entailment": 0.01717967072297781,
         "below_zero_neutral": 0.5105848582705418
@@ -108,46 +175,124 @@
     "breaking_fr": {
       "v3-auglex-ensemble/mt": {
         "n": 8193,
-        "auc": 0.9479214640752984,
-        "below_zero_contradiction": 0.40605806811836964,
+        "auc": 0.9531200782141074,
+        "below_zero_contradiction": 0.4635678391959799,
         "below_zero_entailment": 0.024439918533604887,
-        "below_zero_neutral": 0.2765957446808511,
+        "below_zero_neutral": 0.3404255319148936,
         "per_family_below_zero": {
-          "antonymes": 0.7665390924002187,
-          "co-hyponymes": 0.09717314487632508,
-          "nombres": 0.8171886380189366,
-          "synonymes": 0.01901565995525727
+          "antonymes": 0.8004373974849645,
+          "co-hyponymes": 0.15598182735991922,
+          "nombres": 0.9024034959941734,
+          "synonymes": 0.020134228187919462
         }
       },
       "v3-auglex-ensemble/orig": {
         "n": 8193,
-        "auc": 0.9902994265284331,
-        "below_zero_contradiction": 0.41624790619765495,
-        "below_zero_entailment": 0.004073319755600814,
-        "below_zero_neutral": 0.2553191489361702,
+        "auc": 0.991513064303186,
+        "below_zero_contradiction": 0.47571189279731996,
+        "below_zero_entailment": 0.0050916496945010185,
+        "below_zero_neutral": 0.3829787234042553,
         "per_family_below_zero": {
-          "antonymes": 0.839803171131766,
-          "co-hyponymes": 0.09288238263503282,
-          "nombres": 0.7851420247632921,
+          "antonymes": 0.8600328048113723,
+          "co-hyponymes": 0.15951539626451286,
+          "nombres": 0.8761835396941005,
           "synonymes": 0.0
         }
       },
       "v3-auglex-ensemble/fr": {
         "n": 8193,
-        "auc": 0.9640869543462959,
-        "below_zero_contradiction": 0.4685929648241206,
-        "below_zero_entailment": 0.013238289205702648,
-        "below_zero_neutral": 0.40425531914893614,
+        "auc": 0.9726314589466909,
+        "below_zero_contradiction": 0.5255443886097152,
+        "below_zero_entailment": 0.014256619144602852,
+        "below_zero_neutral": 0.5319148936170213,
         "per_family_below_zero": {
-          "antonymes": 0.825587752870421,
-          "co-hyponymes": 0.14386673397274105,
-          "nombres": 0.9300801165331392,
+          "antonymes": 0.8594860579551667,
+          "co-hyponymes": 0.22236244321049975,
+          "nombres": 0.9555717407137655,
           "synonymes": 0.006711409395973154
+        }
+      },
+      "v4-xlmr-en-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9893645359633652,
+        "below_zero_contradiction": 0.4917643774427694,
+        "below_zero_entailment": 0.007128309572301426,
+        "below_zero_neutral": 0.425531914893617,
+        "per_family_below_zero": {
+          "antonymes": 0.8693275013668671,
+          "co-hyponymes": 0.15068147400302878,
+          "nombres": 0.9730517115804806,
+          "synonymes": 0.0
+        }
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9827924415014653,
+        "below_zero_contradiction": 0.4836683417085427,
+        "below_zero_entailment": 0.008146639511201629,
+        "below_zero_neutral": 0.5319148936170213,
+        "per_family_below_zero": {
+          "antonymes": 0.8119190814652816,
+          "co-hyponymes": 0.1686017163048965,
+          "nombres": 0.9555717407137655,
+          "synonymes": 0.0022371364653243847
+        }
+      },
+      "v4-xlmr-enfr-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9769103210098922,
+        "below_zero_contradiction": 0.41610831937465104,
+        "below_zero_entailment": 0.012219959266802444,
+        "below_zero_neutral": 0.2765957446808511,
+        "per_family_below_zero": {
+          "antonymes": 0.8469108802624384,
+          "co-hyponymes": 0.054770318021201414,
+          "nombres": 0.8849235251274581,
+          "synonymes": 0.0
+        }
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9102141875933185,
+        "below_zero_contradiction": 0.41164154103852596,
+        "below_zero_entailment": 0.012219959266802444,
+        "below_zero_neutral": 0.2978723404255319,
+        "per_family_below_zero": {
+          "antonymes": 0.8119190814652816,
+          "co-hyponymes": 0.05502271580010096,
+          "nombres": 0.9075018208302986,
+          "synonymes": 0.003355704697986577
+        }
+      },
+      "v4-xlmr-fr-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9860292353371292,
+        "below_zero_contradiction": 0.4768285873813512,
+        "below_zero_entailment": 0.008146639511201629,
+        "below_zero_neutral": 0.425531914893617,
+        "per_family_below_zero": {
+          "antonymes": 0.8906506287588847,
+          "co-hyponymes": 0.1203937405350833,
+          "nombres": 0.9541150764748726,
+          "synonymes": 0.0
+        }
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9676205478626443,
+        "below_zero_contradiction": 0.44123394751535455,
+        "below_zero_entailment": 0.013238289205702648,
+        "below_zero_neutral": 0.3829787234042553,
+        "per_family_below_zero": {
+          "antonymes": 0.8348824494259158,
+          "co-hyponymes": 0.08682483594144372,
+          "nombres": 0.9395484340859432,
+          "synonymes": 0.003355704697986577
         }
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 8193,
-        "auc": 0.9707849896688694,
+        "auc": 0.9707850607415899,
         "below_zero_contradiction": 0.768425460636516,
         "below_zero_entailment": 0.029531568228105907,
         "below_zero_neutral": 0.5106382978723404,
@@ -227,17 +372,38 @@
     "rte3_fr": {
       "v3-auglex-ensemble/mt": {
         "n": 800,
-        "auc": 0.9024684328633151,
-        "below_zero_contradiction": 0.6438356164383562,
-        "below_zero_entailment": 0.061124694376528114,
-        "below_zero_neutral": 0.09433962264150944
+        "auc": 0.9111766085005192,
+        "below_zero_contradiction": 0.589041095890411,
+        "below_zero_entailment": 0.06356968215158924,
+        "below_zero_neutral": 0.09119496855345911
       },
       "v3-auglex-ensemble/fr": {
         "n": 800,
-        "auc": 0.8875975483136282,
-        "below_zero_contradiction": 0.5616438356164384,
-        "below_zero_entailment": 0.029339853300733496,
-        "below_zero_neutral": 0.10062893081761007
+        "auc": 0.8932578624778109,
+        "below_zero_contradiction": 0.547945205479452,
+        "below_zero_entailment": 0.03178484107579462,
+        "below_zero_neutral": 0.09119496855345911
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8385303278963058,
+        "below_zero_contradiction": 0.4520547945205479,
+        "below_zero_entailment": 0.044009779951100246,
+        "below_zero_neutral": 0.11949685534591195
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8301235891080818,
+        "below_zero_contradiction": 0.4657534246575342,
+        "below_zero_entailment": 0.061124694376528114,
+        "below_zero_neutral": 0.1761006289308176
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8425829788659276,
+        "below_zero_contradiction": 0.4794520547945205,
+        "below_zero_entailment": 0.05378973105134474,
+        "below_zero_neutral": 0.17295597484276728
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 800,
@@ -264,24 +430,66 @@
     "gqnli_fr": {
       "v3-auglex-ensemble/mt": {
         "n": 300,
-        "auc": 0.7368631768591732,
-        "below_zero_contradiction": 0.6407766990291263,
-        "below_zero_entailment": 0.2268041237113402,
-        "below_zero_neutral": 0.42
+        "auc": 0.7567811029926934,
+        "below_zero_contradiction": 0.5825242718446602,
+        "below_zero_entailment": 0.21649484536082475,
+        "below_zero_neutral": 0.43
       },
       "v3-auglex-ensemble/orig": {
         "n": 300,
-        "auc": 0.7241517365629067,
-        "below_zero_contradiction": 0.6796116504854369,
-        "below_zero_entailment": 0.23711340206185566,
-        "below_zero_neutral": 0.45
+        "auc": 0.737463717345611,
+        "below_zero_contradiction": 0.6893203883495146,
+        "below_zero_entailment": 0.26804123711340205,
+        "below_zero_neutral": 0.46
       },
       "v3-auglex-ensemble/fr": {
         "n": 300,
-        "auc": 0.688119307376639,
+        "auc": 0.7195475928335502,
         "below_zero_contradiction": 0.6407766990291263,
-        "below_zero_entailment": 0.35051546391752575,
-        "below_zero_neutral": 0.46
+        "below_zero_entailment": 0.31958762886597936,
+        "below_zero_neutral": 0.48
+      },
+      "v4-xlmr-en-ensemble/orig": {
+        "n": 300,
+        "auc": 0.46281653488139324,
+        "below_zero_contradiction": 0.3106796116504854,
+        "below_zero_entailment": 0.4020618556701031,
+        "below_zero_neutral": 0.52
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 300,
+        "auc": 0.4539085176658993,
+        "below_zero_contradiction": 0.2912621359223301,
+        "below_zero_entailment": 0.3711340206185567,
+        "below_zero_neutral": 0.52
+      },
+      "v4-xlmr-enfr-ensemble/orig": {
+        "n": 300,
+        "auc": 0.5048543689320388,
+        "below_zero_contradiction": 0.3786407766990291,
+        "below_zero_entailment": 0.31958762886597936,
+        "below_zero_neutral": 0.53
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 300,
+        "auc": 0.4697227504754279,
+        "below_zero_contradiction": 0.36893203883495146,
+        "below_zero_entailment": 0.38144329896907214,
+        "below_zero_neutral": 0.59
+      },
+      "v4-xlmr-fr-ensemble/orig": {
+        "n": 300,
+        "auc": 0.44770293263937544,
+        "below_zero_contradiction": 0.4077669902912621,
+        "below_zero_entailment": 0.4742268041237113,
+        "below_zero_neutral": 0.53
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 300,
+        "auc": 0.44960464417976176,
+        "below_zero_contradiction": 0.39805825242718446,
+        "below_zero_entailment": 0.4329896907216495,
+        "below_zero_neutral": 0.6
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 300,
@@ -331,22 +539,64 @@
         "n": 307,
         "auc": 0.9267990074441688,
         "below_zero_contradiction": 0.8387096774193549,
-        "below_zero_entailment": 0.0989010989010989,
-        "below_zero_neutral": 0.1702127659574468
+        "below_zero_entailment": 0.11538461538461539,
+        "below_zero_neutral": 0.1595744680851064
       },
       "v3-auglex-ensemble/orig": {
         "n": 307,
-        "auc": 0.9361928394186458,
-        "below_zero_contradiction": 0.9032258064516129,
-        "below_zero_entailment": 0.08241758241758242,
+        "auc": 0.9438142502658632,
+        "below_zero_contradiction": 0.8709677419354839,
+        "below_zero_entailment": 0.09340659340659341,
         "below_zero_neutral": 0.18085106382978725
       },
       "v3-auglex-ensemble/fr": {
         "n": 307,
-        "auc": 0.9331797235023042,
+        "auc": 0.9298121233605104,
+        "below_zero_contradiction": 0.8387096774193549,
+        "below_zero_entailment": 0.08791208791208792,
+        "below_zero_neutral": 0.2127659574468085
+      },
+      "v4-xlmr-en-ensemble/orig": {
+        "n": 307,
+        "auc": 0.8658277206664303,
+        "below_zero_contradiction": 0.7096774193548387,
+        "below_zero_entailment": 0.15934065934065933,
+        "below_zero_neutral": 0.2765957446808511
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 307,
+        "auc": 0.8761077632045374,
+        "below_zero_contradiction": 0.6774193548387096,
+        "below_zero_entailment": 0.11538461538461539,
+        "below_zero_neutral": 0.30851063829787234
+      },
+      "v4-xlmr-enfr-ensemble/orig": {
+        "n": 307,
+        "auc": 0.8725629209500178,
         "below_zero_contradiction": 0.8064516129032258,
-        "below_zero_entailment": 0.09340659340659341,
-        "below_zero_neutral": 0.22340425531914893
+        "below_zero_entailment": 0.14835164835164835,
+        "below_zero_neutral": 0.24468085106382978
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 307,
+        "auc": 0.8335696561503013,
+        "below_zero_contradiction": 0.7096774193548387,
+        "below_zero_entailment": 0.17032967032967034,
+        "below_zero_neutral": 0.2872340425531915
+      },
+      "v4-xlmr-fr-ensemble/orig": {
+        "n": 307,
+        "auc": 0.881247784473591,
+        "below_zero_contradiction": 0.8387096774193549,
+        "below_zero_entailment": 0.15384615384615385,
+        "below_zero_neutral": 0.3191489361702128
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 307,
+        "auc": 0.8773484579936193,
+        "below_zero_contradiction": 0.6774193548387096,
+        "below_zero_entailment": 0.15934065934065933,
+        "below_zero_neutral": 0.2978723404255319
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 307,
@@ -390,11 +640,118 @@
         "below_zero_entailment": 0.07692307692307693,
         "below_zero_neutral": 0.11702127659574468
       }
+    },
+    "xnli_fr": {
+      "v3-auglex-ensemble/mt": {
+        "n": 5010,
+        "auc": 0.8263716877622002,
+        "below_zero_contradiction": 0.6029940119760479,
+        "below_zero_entailment": 0.06107784431137724,
+        "below_zero_neutral": 0.024550898203592814
+      },
+      "v3-auglex-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.9396471727204274,
+        "below_zero_contradiction": 0.7467065868263473,
+        "below_zero_entailment": 0.023353293413173652,
+        "below_zero_neutral": 0.020958083832335328
+      },
+      "v3-auglex-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.8018953709347771,
+        "below_zero_contradiction": 0.5425149700598803,
+        "below_zero_entailment": 0.053293413173652694,
+        "below_zero_neutral": 0.02215568862275449
+      },
+      "v4-xlmr-en-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.966163720463265,
+        "below_zero_contradiction": 0.8059880239520958,
+        "below_zero_entailment": 0.018562874251497007,
+        "below_zero_neutral": 0.014970059880239521
+      },
+      "v4-xlmr-en-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.9369597332281545,
+        "below_zero_contradiction": 0.7455089820359282,
+        "below_zero_entailment": 0.031137724550898204,
+        "below_zero_neutral": 0.011377245508982036
+      },
+      "v4-xlmr-enfr-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.9555502169314066,
+        "below_zero_contradiction": 0.7916167664670659,
+        "below_zero_entailment": 0.023353293413173652,
+        "below_zero_neutral": 0.016766467065868262
+      },
+      "v4-xlmr-enfr-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.9127559252751981,
+        "below_zero_contradiction": 0.7209580838323353,
+        "below_zero_entailment": 0.048502994011976046,
+        "below_zero_neutral": 0.020958083832335328
+      },
+      "v4-xlmr-fr-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.9750575495715157,
+        "below_zero_contradiction": 0.8251497005988024,
+        "below_zero_entailment": 0.022754491017964073,
+        "below_zero_neutral": 0.018562874251497007
+      },
+      "v4-xlmr-fr-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.9429169206497185,
+        "below_zero_contradiction": 0.7514970059880239,
+        "below_zero_entailment": 0.03473053892215569,
+        "below_zero_neutral": 0.020958083832335328
+      },
+      "offshelf-deberta-v3-large/mt": {
+        "n": 5010,
+        "auc": 0.9718605901968518,
+        "below_zero_contradiction": 0.8862275449101796,
+        "below_zero_entailment": 0.05808383233532934,
+        "below_zero_neutral": 0.0562874251497006
+      },
+      "offshelf-deberta-v3-large/orig": {
+        "n": 5010,
+        "auc": 0.9956757144393847,
+        "below_zero_contradiction": 0.9461077844311377,
+        "below_zero_entailment": 0.012574850299401197,
+        "below_zero_neutral": 0.040119760479041915
+      },
+      "offshelf-mdeberta-v3-base/orig": {
+        "n": 5010,
+        "auc": 0.98305604360142,
+        "below_zero_contradiction": 0.88562874251497,
+        "below_zero_entailment": 0.023952095808383235,
+        "below_zero_neutral": 0.05449101796407185
+      },
+      "offshelf-mdeberta-v3-base/fr": {
+        "n": 5010,
+        "auc": 0.9658887016386389,
+        "below_zero_contradiction": 0.8407185628742515,
+        "below_zero_entailment": 0.04970059880239521,
+        "below_zero_neutral": 0.06526946107784432
+      },
+      "offshelf-xlm-roberta-large/orig": {
+        "n": 5010,
+        "auc": 1.0,
+        "below_zero_contradiction": 1.0,
+        "below_zero_entailment": 0.0,
+        "below_zero_neutral": 0.0
+      },
+      "offshelf-xlm-roberta-large/fr": {
+        "n": 5010,
+        "auc": 0.9996195632686722,
+        "below_zero_contradiction": 0.9928143712574851,
+        "below_zero_entailment": 0.0017964071856287425,
+        "below_zero_neutral": 0.0005988023952095808
+      }
     }
   },
   "v3_translate_test_daccord_auc_per_seed": {
-    "mean": 0.840439979796846,
-    "std": NaN
+    "mean": 0.8461380174719869,
+    "std": 0.010019987127226085
   },
   "criterion_1": {
     "1a": {
@@ -402,14 +759,29 @@
       "auc": 0.9095422489103392,
       "gaps": {
         "v3-auglex-ensemble/mt": {
-          "gap": -0.06910226911349315,
-          "low": -0.09738733935686619,
-          "high": -0.0430586265596648
+          "gap": -0.04984192902706852,
+          "low": -0.07783190227659614,
+          "high": -0.024560300802514225
         },
         "v3-auglex-ensemble/fr": {
-          "gap": -0.06255120938324266,
-          "low": -0.0892013206876555,
-          "high": -0.03830527339731
+          "gap": -0.048712048936528474,
+          "low": -0.07483482050994263,
+          "high": -0.02499410741343518
+        },
+        "v4-xlmr-en-ensemble/fr": {
+          "gap": -0.0862749499597808,
+          "low": -0.11113277961726242,
+          "high": -0.06115073797631744
+        },
+        "v4-xlmr-enfr-ensemble/fr": {
+          "gap": -0.12350113175075295,
+          "low": -0.1511682286697719,
+          "high": -0.09544605944965125
+        },
+        "v4-xlmr-fr-ensemble/fr": {
+          "gap": -0.0972557382569168,
+          "low": -0.12401388031501955,
+          "high": -0.07225817011803885
         },
         "offshelf-deberta-v3-large/mt": {
           "gap": 0.05756028209589015,
@@ -428,14 +800,29 @@
       "auc": 0.9671025310062293,
       "gaps": {
         "v3-auglex-ensemble/mt": {
-          "gap": -0.1266625512093833,
-          "low": -0.1491594178498606,
-          "high": -0.10463971042146028
+          "gap": -0.10740221112295867,
+          "low": -0.12894943599528602,
+          "high": -0.0877286417120302
         },
         "v3-auglex-ensemble/fr": {
-          "gap": -0.1201114914791328,
-          "low": -0.14263361206203123,
-          "high": -0.09849982228707192
+          "gap": -0.10627233103241862,
+          "low": -0.12827085320912135,
+          "high": -0.08489655236919394
+        },
+        "v4-xlmr-en-ensemble/fr": {
+          "gap": -0.14383523205567095,
+          "low": -0.16879894120508063,
+          "high": -0.11921385412574605
+        },
+        "v4-xlmr-enfr-ensemble/fr": {
+          "gap": -0.1810614138466431,
+          "low": -0.20811970368707558,
+          "high": -0.15322923097068672
+        },
+        "v4-xlmr-fr-ensemble/fr": {
+          "gap": -0.15481602035280695,
+          "low": -0.18001113044128925,
+          "high": -0.12953962998297697
         },
         "offshelf-mdeberta-v3-base/fr": {
           "gap": -0.058667714237611523,
