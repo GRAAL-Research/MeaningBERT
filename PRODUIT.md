@@ -180,6 +180,13 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-15 : **critère 1a, verdict provisoire (2 à 3 graines par régime).** Sur DACCORD,
+  `XLM-R-large` entraîné sur AUG+LEX fait 82,33 (EN), 81,23 (FR traduit) et 78,60 (EN+FR),
+  soit 8,63 à 12,35 points sous le même modèle prêt à l'emploi (90,95), avec des intervalles
+  loin de 0. La recette AUG+LEX dégrade la généralité de la tête, en français comme en
+  anglais (v3 : 86,08 ± 1,00 sur dix graines). Ce n'est pas la langue : traduire n'aide pas
+  et mélanger EN+FR fait pire. La parité XNLI FR/EN est à 2,92 à 4,28 points, pour 2 visés.
+  Décision de David : finir la grille avant de trancher. Trois runs ont figé la 1080 Ti.
 - 2026-10-11 : **V4-H3 réfutée pour MeaningBERT.** Sur FrJUDGE (276 paires), `MeaningBERT
   v2-large` corrèle à 0,28 [0,17 ; 0,38] avec le jugement humain après traduction et à 0,27
   en lisant le français, contre 0,58 [0,48 ; 0,66] pour `BERTScore XLM-R-large`. La

@@ -43,7 +43,9 @@ candidates() {
     done
 }
 
-while pgrep -f "[t]ranslate_polarity_corpus.py" > /dev/null; do
+# WAIT_TRANSLATION=0 scores alongside the translation: the card has room for one head, and
+# the translation halves its batch on out-of-memory rather than dying.
+while [ "${WAIT_TRANSLATION:-1}" = "1" ] && pgrep -f "[t]ranslate_polarity_corpus.py" > /dev/null; do
     echo "[WAIT] traduction en cours, nouvel essai dans $POLL s"
     sleep "$POLL"
 done
