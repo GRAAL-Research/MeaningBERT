@@ -22,7 +22,7 @@ OUT="$REPO/results/v4/discovery"
 SCRATCH="${SCRATCH:-$REPO/results/v4/scoring-tmp}"
 POLL="${POLL:-600}"
 SEEDS="42 43 44 45 46 47 48 49 50 51"
-EXPECTED=40  # 30 v4 heads and 10 v3 seeds
+EXPECTED=70  # 30 XLM-R and 30 mDeBERTa v4 heads, 10 v3 seeds
 
 cd "$REPO" || exit 1
 mkdir -p "$OUT" "$SCRATCH"
@@ -39,6 +39,8 @@ candidates() {
         for regime in en fr enfr; do
             cell="results/polarity/xlmr-large-nli-v4$regime/seed$seed"
             echo "v4-xlmr-$regime-seed$seed|v4-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
+            cell="results/polarity/mdeberta-v3-base-nli-v4$regime/seed$seed"
+            echo "v4-mdeberta-$regime-seed$seed|v4m-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
         done
     done
 }

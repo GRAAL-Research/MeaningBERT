@@ -10,9 +10,12 @@
   },
   "seeds": {
     "v3-auglex": 10,
-    "v4-xlmr-en": 2,
-    "v4-xlmr-enfr": 2,
-    "v4-xlmr-fr": 3
+    "v4-mdeberta-en": 3,
+    "v4-mdeberta-enfr": 2,
+    "v4-mdeberta-fr": 2,
+    "v4-xlmr-en": 5,
+    "v4-xlmr-enfr": 3,
+    "v4-xlmr-fr": 6
   },
   "corpora": {
     "daccord": {
@@ -28,23 +31,41 @@
         "below_zero_compatible": 0.007707129094412331,
         "below_zero_contradiction": 0.5262135922330097
       },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.7922479750079503,
+        "below_zero_compatible": 0.057803468208092484,
+        "below_zero_contradiction": 0.47378640776699027
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.766994032586939,
+        "below_zero_compatible": 0.11560693641618497,
+        "below_zero_contradiction": 0.5106796116504855
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 1034,
+        "auc": 0.7690891744766822,
+        "below_zero_compatible": 0.10789980732177264,
+        "below_zero_contradiction": 0.5262135922330097
+      },
       "v4-xlmr-en-ensemble/fr": {
         "n": 1034,
-        "auc": 0.8232672989505584,
+        "auc": 0.8305142450941878,
         "below_zero_compatible": 0.0674373795761079,
-        "below_zero_contradiction": 0.5281553398058253
+        "below_zero_contradiction": 0.5184466019417475
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 1034,
-        "auc": 0.7860411171595862,
-        "below_zero_compatible": 0.0905587668593449,
-        "below_zero_contradiction": 0.4893203883495146
+        "auc": 0.7890304356772733,
+        "below_zero_compatible": 0.08863198458574181,
+        "below_zero_contradiction": 0.49514563106796117
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 1034,
-        "auc": 0.8122865106534224,
-        "below_zero_compatible": 0.09248554913294797,
-        "below_zero_contradiction": 0.5223300970873787
+        "auc": 0.8084965486278691,
+        "below_zero_compatible": 0.10211946050096339,
+        "below_zero_contradiction": 0.5320388349514563
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 1034,
@@ -87,47 +108,89 @@
         "below_zero_entailment": 0.004294917680744453,
         "below_zero_neutral": 0.036239684248295656
       },
+      "v4-mdeberta-en-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.996005362580833,
+        "below_zero_contradiction": 0.8629943502824858,
+        "below_zero_entailment": 0.0014316392269148174,
+        "below_zero_neutral": 0.030139935414424113
+      },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9895457983006362,
+        "below_zero_contradiction": 0.8361581920903954,
+        "below_zero_entailment": 0.002863278453829635,
+        "below_zero_neutral": 0.03265159669895946
+      },
+      "v4-mdeberta-enfr-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9951510298500823,
+        "below_zero_contradiction": 0.8629943502824858,
+        "below_zero_entailment": 0.0021474588403722263,
+        "below_zero_neutral": 0.030498744169357734
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.9879726128224727,
+        "below_zero_contradiction": 0.8403954802259888,
+        "below_zero_entailment": 0.005010737294201861,
+        "below_zero_neutral": 0.03157517043415859
+      },
+      "v4-mdeberta-fr-ensemble/orig": {
+        "n": 4892,
+        "auc": 0.9902120767261565,
+        "below_zero_contradiction": 0.8601694915254238,
+        "below_zero_entailment": 0.0035790980672870437,
+        "below_zero_neutral": 0.034086831718693936
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 4892,
+        "auc": 0.983191382664224,
+        "below_zero_contradiction": 0.8389830508474576,
+        "below_zero_entailment": 0.004294917680744453,
+        "below_zero_neutral": 0.02942231790455687
+      },
       "v4-xlmr-en-ensemble/orig": {
         "n": 4892,
-        "auc": 0.9948113188470855,
-        "below_zero_contradiction": 0.8686440677966102,
+        "auc": 0.9961782512162867,
+        "below_zero_contradiction": 0.8771186440677966,
         "below_zero_entailment": 0.0007158196134574087,
         "below_zero_neutral": 0.03157517043415859
       },
       "v4-xlmr-en-ensemble/fr": {
         "n": 4892,
-        "auc": 0.9896560021676797,
-        "below_zero_contradiction": 0.8615819209039548,
-        "below_zero_entailment": 0.004294917680744453,
-        "below_zero_neutral": 0.040186580552565486
+        "auc": 0.9907216432306516,
+        "below_zero_contradiction": 0.867231638418079,
+        "below_zero_entailment": 0.002863278453829635,
+        "below_zero_neutral": 0.03767491926803014
       },
       "v4-xlmr-enfr-ensemble/orig": {
         "n": 4892,
-        "auc": 0.9945080054515527,
-        "below_zero_contradiction": 0.8700564971751412,
-        "below_zero_entailment": 0.0021474588403722263,
+        "auc": 0.9949690418127626,
+        "below_zero_contradiction": 0.865819209039548,
+        "below_zero_entailment": 0.0014316392269148174,
         "below_zero_neutral": 0.02834589163975601
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 4892,
-        "auc": 0.9855471167028621,
-        "below_zero_contradiction": 0.8389830508474576,
-        "below_zero_entailment": 0.0035790980672870437,
-        "below_zero_neutral": 0.02726946537495515
+        "auc": 0.9857695465262528,
+        "below_zero_contradiction": 0.8502824858757062,
+        "below_zero_entailment": 0.002863278453829635,
+        "below_zero_neutral": 0.02798708288482239
       },
       "v4-xlmr-fr-ensemble/orig": {
         "n": 4892,
-        "auc": 0.9932078020293689,
-        "below_zero_contradiction": 0.8954802259887006,
-        "below_zero_entailment": 0.0035790980672870437,
+        "auc": 0.9928215829723904,
+        "below_zero_contradiction": 0.8940677966101694,
+        "below_zero_entailment": 0.004294917680744453,
         "below_zero_neutral": 0.048797990670972374
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 4892,
-        "auc": 0.9859980426175542,
-        "below_zero_contradiction": 0.8559322033898306,
-        "below_zero_entailment": 0.002863278453829635,
-        "below_zero_neutral": 0.02942231790455687
+        "auc": 0.985687651909459,
+        "below_zero_contradiction": 0.8531073446327684,
+        "below_zero_entailment": 0.0035790980672870437,
+        "below_zero_neutral": 0.031933979189092215
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 4892,
@@ -212,81 +275,159 @@
           "synonymes": 0.006711409395973154
         }
       },
+      "v4-mdeberta-en-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9892607697914784,
+        "below_zero_contradiction": 0.3990787269681742,
+        "below_zero_entailment": 0.010183299389002037,
+        "below_zero_neutral": 0.2765957446808511,
+        "per_family_below_zero": {
+          "antonymes": 0.8031711317659923,
+          "co-hyponymes": 0.07193336698637053,
+          "nombres": 0.8048069919883467,
+          "synonymes": 0.0011185682326621924
+        }
+      },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9743118312767731,
+        "below_zero_contradiction": 0.37158012283640424,
+        "below_zero_entailment": 0.007128309572301426,
+        "below_zero_neutral": 0.2553191489361702,
+        "per_family_below_zero": {
+          "antonymes": 0.7577911427009295,
+          "co-hyponymes": 0.06309944472488642,
+          "nombres": 0.7472687545520758,
+          "synonymes": 0.0022371364653243847
+        }
+      },
+      "v4-mdeberta-enfr-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.987168673191711,
+        "below_zero_contradiction": 0.38930764935790063,
+        "below_zero_entailment": 0.010183299389002037,
+        "below_zero_neutral": 0.2553191489361702,
+        "per_family_below_zero": {
+          "antonymes": 0.8102788408966648,
+          "co-hyponymes": 0.05224634023220596,
+          "nombres": 0.8011653313911143,
+          "synonymes": 0.0
+        }
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9530973349435569,
+        "below_zero_contradiction": 0.4028475711892797,
+        "below_zero_entailment": 0.01120162932790224,
+        "below_zero_neutral": 0.2765957446808511,
+        "per_family_below_zero": {
+          "antonymes": 0.8217605248769819,
+          "co-hyponymes": 0.06234225138818778,
+          "nombres": 0.8273852876911871,
+          "synonymes": 0.0044742729306487695
+        }
+      },
+      "v4-mdeberta-fr-ensemble/orig": {
+        "n": 8193,
+        "auc": 0.9666899216608046,
+        "below_zero_contradiction": 0.42741485203796764,
+        "below_zero_entailment": 0.010183299389002037,
+        "below_zero_neutral": 0.48936170212765956,
+        "per_family_below_zero": {
+          "antonymes": 0.8031711317659923,
+          "co-hyponymes": 0.1254416961130742,
+          "nombres": 0.7982520029133284,
+          "synonymes": 0.0
+        }
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 8193,
+        "auc": 0.9119894420052287,
+        "below_zero_contradiction": 0.40773310999441653,
+        "below_zero_entailment": 0.01120162932790224,
+        "below_zero_neutral": 0.3404255319148936,
+        "per_family_below_zero": {
+          "antonymes": 0.8080918534718425,
+          "co-hyponymes": 0.09212518929833417,
+          "nombres": 0.7851420247632921,
+          "synonymes": 0.0044742729306487695
+        }
+      },
       "v4-xlmr-en-ensemble/orig": {
         "n": 8193,
-        "auc": 0.9893645359633652,
-        "below_zero_contradiction": 0.4917643774427694,
+        "auc": 0.9910340341672154,
+        "below_zero_contradiction": 0.4871580122836404,
         "below_zero_entailment": 0.007128309572301426,
-        "below_zero_neutral": 0.425531914893617,
+        "below_zero_neutral": 0.5106382978723404,
         "per_family_below_zero": {
-          "antonymes": 0.8693275013668671,
-          "co-hyponymes": 0.15068147400302878,
-          "nombres": 0.9730517115804806,
+          "antonymes": 0.8709677419354839,
+          "co-hyponymes": 0.14336193841494194,
+          "nombres": 0.9679533867443554,
           "synonymes": 0.0
         }
       },
       "v4-xlmr-en-ensemble/fr": {
         "n": 8193,
-        "auc": 0.9827924415014653,
-        "below_zero_contradiction": 0.4836683417085427,
-        "below_zero_entailment": 0.008146639511201629,
-        "below_zero_neutral": 0.5319148936170213,
+        "auc": 0.9832715427101564,
+        "below_zero_contradiction": 0.47822445561139026,
+        "below_zero_entailment": 0.009164969450101833,
+        "below_zero_neutral": 0.5531914893617021,
         "per_family_below_zero": {
-          "antonymes": 0.8119190814652816,
-          "co-hyponymes": 0.1686017163048965,
-          "nombres": 0.9555717407137655,
-          "synonymes": 0.0022371364653243847
+          "antonymes": 0.8037178786221979,
+          "co-hyponymes": 0.16203937405350832,
+          "nombres": 0.9570284049526584,
+          "synonymes": 0.003355704697986577
         }
       },
       "v4-xlmr-enfr-ensemble/orig": {
         "n": 8193,
-        "auc": 0.9769103210098922,
-        "below_zero_contradiction": 0.41610831937465104,
-        "below_zero_entailment": 0.012219959266802444,
+        "auc": 0.9784002895218341,
+        "below_zero_contradiction": 0.41987716359575655,
+        "below_zero_entailment": 0.010183299389002037,
         "below_zero_neutral": 0.2765957446808511,
         "per_family_below_zero": {
-          "antonymes": 0.8469108802624384,
-          "co-hyponymes": 0.054770318021201414,
-          "nombres": 0.8849235251274581,
+          "antonymes": 0.8529250956806999,
+          "co-hyponymes": 0.057041898031297326,
+          "nombres": 0.8900218499635834,
           "synonymes": 0.0
         }
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 8193,
-        "auc": 0.9102141875933185,
-        "below_zero_contradiction": 0.41164154103852596,
+        "auc": 0.913290925662483,
+        "below_zero_contradiction": 0.4166666666666667,
         "below_zero_entailment": 0.012219959266802444,
         "below_zero_neutral": 0.2978723404255319,
         "per_family_below_zero": {
-          "antonymes": 0.8119190814652816,
-          "co-hyponymes": 0.05502271580010096,
-          "nombres": 0.9075018208302986,
+          "antonymes": 0.8190267905959541,
+          "co-hyponymes": 0.05830388692579505,
+          "nombres": 0.9147851420247632,
           "synonymes": 0.003355704697986577
         }
       },
       "v4-xlmr-fr-ensemble/orig": {
         "n": 8193,
-        "auc": 0.9860292353371292,
+        "auc": 0.9864097586825278,
         "below_zero_contradiction": 0.4768285873813512,
         "below_zero_entailment": 0.008146639511201629,
-        "below_zero_neutral": 0.425531914893617,
+        "below_zero_neutral": 0.40425531914893614,
         "per_family_below_zero": {
-          "antonymes": 0.8906506287588847,
-          "co-hyponymes": 0.1203937405350833,
-          "nombres": 0.9541150764748726,
+          "antonymes": 0.8879168944778567,
+          "co-hyponymes": 0.12064613831398284,
+          "nombres": 0.9570284049526584,
           "synonymes": 0.0
         }
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 8193,
-        "auc": 0.9676205478626443,
-        "below_zero_contradiction": 0.44123394751535455,
+        "auc": 0.965218289910744,
+        "below_zero_contradiction": 0.44402568397543274,
         "below_zero_entailment": 0.013238289205702648,
-        "below_zero_neutral": 0.3829787234042553,
+        "below_zero_neutral": 0.3617021276595745,
         "per_family_below_zero": {
-          "antonymes": 0.8348824494259158,
-          "co-hyponymes": 0.08682483594144372,
-          "nombres": 0.9395484340859432,
+          "antonymes": 0.8316019682886824,
+          "co-hyponymes": 0.09187279151943463,
+          "nombres": 0.943918426802622,
           "synonymes": 0.003355704697986577
         }
       },
@@ -384,26 +525,47 @@
         "below_zero_entailment": 0.03178484107579462,
         "below_zero_neutral": 0.09119496855345911
       },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8201091871252972,
+        "below_zero_contradiction": 0.4246575342465753,
+        "below_zero_entailment": 0.02689486552567237,
+        "below_zero_neutral": 0.1069182389937107
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 800,
+        "auc": 0.7895635864286432,
+        "below_zero_contradiction": 0.4657534246575342,
+        "below_zero_entailment": 0.061124694376528114,
+        "below_zero_neutral": 0.16037735849056603
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 800,
+        "auc": 0.8050708376595104,
+        "below_zero_contradiction": 0.4520547945205479,
+        "below_zero_entailment": 0.03667481662591687,
+        "below_zero_neutral": 0.16037735849056603
+      },
       "v4-xlmr-en-ensemble/fr": {
         "n": 800,
-        "auc": 0.8385303278963058,
+        "auc": 0.8455303613892889,
         "below_zero_contradiction": 0.4520547945205479,
-        "below_zero_entailment": 0.044009779951100246,
-        "below_zero_neutral": 0.11949685534591195
+        "below_zero_entailment": 0.039119804400977995,
+        "below_zero_neutral": 0.11635220125786164
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 800,
-        "auc": 0.8301235891080818,
-        "below_zero_contradiction": 0.4657534246575342,
-        "below_zero_entailment": 0.061124694376528114,
-        "below_zero_neutral": 0.1761006289308176
+        "auc": 0.8306594768396021,
+        "below_zero_contradiction": 0.4794520547945205,
+        "below_zero_entailment": 0.05623471882640587,
+        "below_zero_neutral": 0.16981132075471697
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 800,
-        "auc": 0.8425829788659276,
-        "below_zero_contradiction": 0.4794520547945205,
-        "below_zero_entailment": 0.05378973105134474,
-        "below_zero_neutral": 0.17295597484276728
+        "auc": 0.8389322436949459,
+        "below_zero_contradiction": 0.4657534246575342,
+        "below_zero_entailment": 0.05134474327628362,
+        "below_zero_neutral": 0.16981132075471697
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 800,
@@ -449,47 +611,89 @@
         "below_zero_entailment": 0.31958762886597936,
         "below_zero_neutral": 0.48
       },
+      "v4-mdeberta-en-ensemble/orig": {
+        "n": 300,
+        "auc": 0.5463917525773195,
+        "below_zero_contradiction": 0.4077669902912621,
+        "below_zero_entailment": 0.28865979381443296,
+        "below_zero_neutral": 0.49
+      },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 300,
+        "auc": 0.5609048143328996,
+        "below_zero_contradiction": 0.4368932038834951,
+        "below_zero_entailment": 0.36082474226804123,
+        "below_zero_neutral": 0.47
+      },
+      "v4-mdeberta-enfr-ensemble/orig": {
+        "n": 300,
+        "auc": 0.5461915724151737,
+        "below_zero_contradiction": 0.4368932038834951,
+        "below_zero_entailment": 0.30927835051546393,
+        "below_zero_neutral": 0.46
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 300,
+        "auc": 0.5584025623060754,
+        "below_zero_contradiction": 0.4854368932038835,
+        "below_zero_entailment": 0.422680412371134,
+        "below_zero_neutral": 0.58
+      },
+      "v4-mdeberta-fr-ensemble/orig": {
+        "n": 300,
+        "auc": 0.5493944550095086,
+        "below_zero_contradiction": 0.39805825242718446,
+        "below_zero_entailment": 0.29896907216494845,
+        "below_zero_neutral": 0.42
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 300,
+        "auc": 0.5710139125212691,
+        "below_zero_contradiction": 0.4854368932038835,
+        "below_zero_entailment": 0.422680412371134,
+        "below_zero_neutral": 0.57
+      },
       "v4-xlmr-en-ensemble/orig": {
         "n": 300,
-        "auc": 0.46281653488139324,
-        "below_zero_contradiction": 0.3106796116504854,
-        "below_zero_entailment": 0.4020618556701031,
-        "below_zero_neutral": 0.52
+        "auc": 0.46431788609748775,
+        "below_zero_contradiction": 0.2912621359223301,
+        "below_zero_entailment": 0.3711340206185567,
+        "below_zero_neutral": 0.51
       },
       "v4-xlmr-en-ensemble/fr": {
         "n": 300,
-        "auc": 0.4539085176658993,
-        "below_zero_contradiction": 0.2912621359223301,
-        "below_zero_entailment": 0.3711340206185567,
-        "below_zero_neutral": 0.52
+        "auc": 0.45781203082774496,
+        "below_zero_contradiction": 0.33980582524271846,
+        "below_zero_entailment": 0.35051546391752575,
+        "below_zero_neutral": 0.48
       },
       "v4-xlmr-enfr-ensemble/orig": {
         "n": 300,
-        "auc": 0.5048543689320388,
-        "below_zero_contradiction": 0.3786407766990291,
-        "below_zero_entailment": 0.31958762886597936,
-        "below_zero_neutral": 0.53
+        "auc": 0.5052547292563307,
+        "below_zero_contradiction": 0.3592233009708738,
+        "below_zero_entailment": 0.25773195876288657,
+        "below_zero_neutral": 0.55
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 300,
-        "auc": 0.4697227504754279,
-        "below_zero_contradiction": 0.36893203883495146,
-        "below_zero_entailment": 0.38144329896907214,
-        "below_zero_neutral": 0.59
+        "auc": 0.46161545390851766,
+        "below_zero_contradiction": 0.32038834951456313,
+        "below_zero_entailment": 0.3711340206185567,
+        "below_zero_neutral": 0.64
       },
       "v4-xlmr-fr-ensemble/orig": {
         "n": 300,
-        "auc": 0.44770293263937544,
-        "below_zero_contradiction": 0.4077669902912621,
-        "below_zero_entailment": 0.4742268041237113,
+        "auc": 0.46661995796216593,
+        "below_zero_contradiction": 0.39805825242718446,
+        "below_zero_entailment": 0.4329896907216495,
         "below_zero_neutral": 0.53
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 300,
-        "auc": 0.44960464417976176,
-        "below_zero_contradiction": 0.39805825242718446,
-        "below_zero_entailment": 0.4329896907216495,
-        "below_zero_neutral": 0.6
+        "auc": 0.46071464317886096,
+        "below_zero_contradiction": 0.3786407766990291,
+        "below_zero_entailment": 0.36082474226804123,
+        "below_zero_neutral": 0.61
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 300,
@@ -556,47 +760,89 @@
         "below_zero_entailment": 0.08791208791208792,
         "below_zero_neutral": 0.2127659574468085
       },
+      "v4-mdeberta-en-ensemble/orig": {
+        "n": 307,
+        "auc": 0.869727047146402,
+        "below_zero_contradiction": 0.8387096774193549,
+        "below_zero_entailment": 0.15384615384615385,
+        "below_zero_neutral": 0.2765957446808511
+      },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 307,
+        "auc": 0.8571428571428571,
+        "below_zero_contradiction": 0.7419354838709677,
+        "below_zero_entailment": 0.14835164835164835,
+        "below_zero_neutral": 0.26595744680851063
+      },
+      "v4-mdeberta-enfr-ensemble/orig": {
+        "n": 307,
+        "auc": 0.8603332151719248,
+        "below_zero_contradiction": 0.8064516129032258,
+        "below_zero_entailment": 0.16483516483516483,
+        "below_zero_neutral": 0.2978723404255319
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 307,
+        "auc": 0.8247075505140021,
+        "below_zero_contradiction": 0.7419354838709677,
+        "below_zero_entailment": 0.16483516483516483,
+        "below_zero_neutral": 0.3191489361702128
+      },
+      "v4-mdeberta-fr-ensemble/orig": {
+        "n": 307,
+        "auc": 0.8571428571428571,
+        "below_zero_contradiction": 0.7741935483870968,
+        "below_zero_entailment": 0.1978021978021978,
+        "below_zero_neutral": 0.2978723404255319
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 307,
+        "auc": 0.837114498404821,
+        "below_zero_contradiction": 0.7419354838709677,
+        "below_zero_entailment": 0.17032967032967034,
+        "below_zero_neutral": 0.2978723404255319
+      },
       "v4-xlmr-en-ensemble/orig": {
         "n": 307,
-        "auc": 0.8658277206664303,
+        "auc": 0.8736263736263736,
         "below_zero_contradiction": 0.7096774193548387,
-        "below_zero_entailment": 0.15934065934065933,
-        "below_zero_neutral": 0.2765957446808511
+        "below_zero_entailment": 0.13736263736263737,
+        "below_zero_neutral": 0.24468085106382978
       },
       "v4-xlmr-en-ensemble/fr": {
         "n": 307,
-        "auc": 0.8761077632045374,
+        "auc": 0.8855015951790145,
         "below_zero_contradiction": 0.6774193548387096,
-        "below_zero_entailment": 0.11538461538461539,
-        "below_zero_neutral": 0.30851063829787234
+        "below_zero_entailment": 0.10989010989010989,
+        "below_zero_neutral": 0.2765957446808511
       },
       "v4-xlmr-enfr-ensemble/orig": {
         "n": 307,
         "auc": 0.8725629209500178,
-        "below_zero_contradiction": 0.8064516129032258,
-        "below_zero_entailment": 0.14835164835164835,
-        "below_zero_neutral": 0.24468085106382978
+        "below_zero_contradiction": 0.7741935483870968,
+        "below_zero_entailment": 0.17032967032967034,
+        "below_zero_neutral": 0.23404255319148937
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 307,
-        "auc": 0.8335696561503013,
+        "auc": 0.8523573200992556,
         "below_zero_contradiction": 0.7096774193548387,
         "below_zero_entailment": 0.17032967032967034,
-        "below_zero_neutral": 0.2872340425531915
+        "below_zero_neutral": 0.2978723404255319
       },
       "v4-xlmr-fr-ensemble/orig": {
         "n": 307,
-        "auc": 0.881247784473591,
-        "below_zero_contradiction": 0.8387096774193549,
+        "auc": 0.8750443105281815,
+        "below_zero_contradiction": 0.7741935483870968,
         "below_zero_entailment": 0.15384615384615385,
-        "below_zero_neutral": 0.3191489361702128
+        "below_zero_neutral": 0.26595744680851063
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 307,
-        "auc": 0.8773484579936193,
+        "auc": 0.8672456575682382,
         "below_zero_contradiction": 0.6774193548387096,
         "below_zero_entailment": 0.15934065934065933,
-        "below_zero_neutral": 0.2978723404255319
+        "below_zero_neutral": 0.2872340425531915
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 307,
@@ -663,47 +909,89 @@
         "below_zero_entailment": 0.053293413173652694,
         "below_zero_neutral": 0.02215568862275449
       },
+      "v4-mdeberta-en-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.924889382910825,
+        "below_zero_contradiction": 0.6742514970059881,
+        "below_zero_entailment": 0.033532934131736525,
+        "below_zero_neutral": 0.03293413173652695
+      },
+      "v4-mdeberta-en-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.8653763132417799,
+        "below_zero_contradiction": 0.562874251497006,
+        "below_zero_entailment": 0.048502994011976046,
+        "below_zero_neutral": 0.03652694610778443
+      },
+      "v4-mdeberta-enfr-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.9050163146760372,
+        "below_zero_contradiction": 0.655688622754491,
+        "below_zero_entailment": 0.038922155688622756,
+        "below_zero_neutral": 0.03772455089820359
+      },
+      "v4-mdeberta-enfr-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.8542188676539137,
+        "below_zero_contradiction": 0.5826347305389221,
+        "below_zero_entailment": 0.06227544910179641,
+        "below_zero_neutral": 0.048502994011976046
+      },
+      "v4-mdeberta-fr-ensemble/orig": {
+        "n": 5010,
+        "auc": 0.9270945534081537,
+        "below_zero_contradiction": 0.6850299401197605,
+        "below_zero_entailment": 0.032335329341317366,
+        "below_zero_neutral": 0.040119760479041915
+      },
+      "v4-mdeberta-fr-ensemble/fr": {
+        "n": 5010,
+        "auc": 0.8755502169314067,
+        "below_zero_contradiction": 0.6,
+        "below_zero_entailment": 0.06467065868263473,
+        "below_zero_neutral": 0.05149700598802395
+      },
       "v4-xlmr-en-ensemble/orig": {
         "n": 5010,
-        "auc": 0.966163720463265,
-        "below_zero_contradiction": 0.8059880239520958,
-        "below_zero_entailment": 0.018562874251497007,
-        "below_zero_neutral": 0.014970059880239521
+        "auc": 0.9721445731291907,
+        "below_zero_contradiction": 0.8095808383233533,
+        "below_zero_entailment": 0.019161676646706587,
+        "below_zero_neutral": 0.015568862275449102
       },
       "v4-xlmr-en-ensemble/fr": {
         "n": 5010,
-        "auc": 0.9369597332281545,
-        "below_zero_contradiction": 0.7455089820359282,
-        "below_zero_entailment": 0.031137724550898204,
-        "below_zero_neutral": 0.011377245508982036
+        "auc": 0.9446907382839113,
+        "below_zero_contradiction": 0.7514970059880239,
+        "below_zero_entailment": 0.027544910179640718,
+        "below_zero_neutral": 0.01437125748502994
       },
       "v4-xlmr-enfr-ensemble/orig": {
         "n": 5010,
-        "auc": 0.9555502169314066,
-        "below_zero_contradiction": 0.7916167664670659,
-        "below_zero_entailment": 0.023353293413173652,
+        "auc": 0.961170712467281,
+        "below_zero_contradiction": 0.7994011976047904,
+        "below_zero_entailment": 0.023952095808383235,
         "below_zero_neutral": 0.016766467065868262
       },
       "v4-xlmr-enfr-ensemble/fr": {
         "n": 5010,
-        "auc": 0.9127559252751981,
-        "below_zero_contradiction": 0.7209580838323353,
-        "below_zero_entailment": 0.048502994011976046,
+        "auc": 0.92187062999749,
+        "below_zero_contradiction": 0.7341317365269461,
+        "below_zero_entailment": 0.04311377245508982,
         "below_zero_neutral": 0.020958083832335328
       },
       "v4-xlmr-fr-ensemble/orig": {
         "n": 5010,
-        "auc": 0.9750575495715157,
-        "below_zero_contradiction": 0.8251497005988024,
-        "below_zero_entailment": 0.022754491017964073,
-        "below_zero_neutral": 0.018562874251497007
+        "auc": 0.9764774642332102,
+        "below_zero_contradiction": 0.8365269461077844,
+        "below_zero_entailment": 0.020958083832335328,
+        "below_zero_neutral": 0.01976047904191617
       },
       "v4-xlmr-fr-ensemble/fr": {
         "n": 5010,
-        "auc": 0.9429169206497185,
-        "below_zero_contradiction": 0.7514970059880239,
-        "below_zero_entailment": 0.03473053892215569,
-        "below_zero_neutral": 0.020958083832335328
+        "auc": 0.9468668650722507,
+        "below_zero_contradiction": 0.7658682634730539,
+        "below_zero_entailment": 0.03652694610778443,
+        "below_zero_neutral": 0.02215568862275449
       },
       "offshelf-deberta-v3-large/mt": {
         "n": 5010,
@@ -768,20 +1056,35 @@
           "low": -0.07483482050994263,
           "high": -0.02499410741343518
         },
+        "v4-mdeberta-en-ensemble/fr": {
+          "gap": -0.11729427390238889,
+          "low": -0.14578100155264978,
+          "high": -0.08817292403239985
+        },
+        "v4-mdeberta-enfr-ensemble/fr": {
+          "gap": -0.1425482163234002,
+          "low": -0.17279327309800407,
+          "high": -0.11163991619432447
+        },
+        "v4-mdeberta-fr-ensemble/fr": {
+          "gap": -0.14045307443365695,
+          "low": -0.16932824513160102,
+          "high": -0.10945227004882431
+        },
         "v4-xlmr-en-ensemble/fr": {
-          "gap": -0.0862749499597808,
-          "low": -0.11113277961726242,
-          "high": -0.06115073797631744
+          "gap": -0.07902800381615138,
+          "low": -0.10384832669248177,
+          "high": -0.054452270048824324
         },
         "v4-xlmr-enfr-ensemble/fr": {
-          "gap": -0.12350113175075295,
-          "low": -0.1511682286697719,
-          "high": -0.09544605944965125
+          "gap": -0.12051181323306592,
+          "low": -0.14931309276614846,
+          "high": -0.09230923920160125
         },
         "v4-xlmr-fr-ensemble/fr": {
-          "gap": -0.0972557382569168,
-          "low": -0.12401388031501955,
-          "high": -0.07225817011803885
+          "gap": -0.10104570028247006,
+          "low": -0.1273879005555868,
+          "high": -0.07609742409787307
         },
         "offshelf-deberta-v3-large/mt": {
           "gap": 0.05756028209589015,
@@ -809,20 +1112,35 @@
           "low": -0.12827085320912135,
           "high": -0.08489655236919394
         },
+        "v4-mdeberta-en-ensemble/fr": {
+          "gap": -0.17485455599827904,
+          "low": -0.20142217109078323,
+          "high": -0.1472284265858541
+        },
+        "v4-mdeberta-enfr-ensemble/fr": {
+          "gap": -0.20010849841929035,
+          "low": -0.22859401013899028,
+          "high": -0.17128832519595186
+        },
+        "v4-mdeberta-fr-ensemble/fr": {
+          "gap": -0.1980133565295471,
+          "low": -0.22576323025983505,
+          "high": -0.16832697308116804
+        },
         "v4-xlmr-en-ensemble/fr": {
-          "gap": -0.14383523205567095,
-          "low": -0.16879894120508063,
-          "high": -0.11921385412574605
+          "gap": -0.13658828591204153,
+          "low": -0.16038404699103953,
+          "high": -0.11250687468432576
         },
         "v4-xlmr-enfr-ensemble/fr": {
-          "gap": -0.1810614138466431,
-          "low": -0.20811970368707558,
-          "high": -0.15322923097068672
+          "gap": -0.17807209532895607,
+          "low": -0.20606375217464498,
+          "high": -0.15044886544325342
         },
         "v4-xlmr-fr-ensemble/fr": {
-          "gap": -0.15481602035280695,
-          "low": -0.18001113044128925,
-          "high": -0.12953962998297697
+          "gap": -0.1586059823783602,
+          "low": -0.1841085358325383,
+          "high": -0.13298136820248055
         },
         "offshelf-mdeberta-v3-base/fr": {
           "gap": -0.058667714237611523,
