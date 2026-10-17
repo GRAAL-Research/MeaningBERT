@@ -58,7 +58,8 @@ modernbert-large|answerdotai/ModernBERT-large|4|8|80"
 #
 # The process stays runnable, the GPU reads 100 % utilisation, and the step counter never
 # advances again. Observed on bert three times out of three during the v2 campaign and
-# again on 2026-09-25, and on stsb-roberta-base across all ten of its seeds on 2026-09-26.
+# again on 2026-09-25, on stsb-roberta-base across all ten of its seeds on 2026-09-26, and on
+# xlmr-large-nli in seven of twelve v4 runs between 2026-10-11 and 2026-10-16.
 # Nobody has a root cause; what exists is a reproduction and a cost.
 #
 # The check lives HERE and not only in the planner, which is the lesson of 2026-09-30: the
@@ -68,7 +69,8 @@ modernbert-large|answerdotai/ModernBERT-large|4|8|80"
 # use, so it is the only place the rule cannot be routed around.
 WEDGING="\
 bert|GTX 1080 Ti
-stsb-roberta-base|GTX 1080 Ti"
+stsb-roberta-base|GTX 1080 Ti
+xlmr-large-nli|GTX 1080 Ti"
 
 gpu_name() {
     nvidia-smi --id="$GPU" --query-gpu=name --format=csv,noheader 2>/dev/null | head -1

@@ -180,6 +180,12 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-17 : **le recul se reproduit sur un second backbone.** `mDeBERTa-v3-base` entraîné
+  sur AUG+LEX fait 76,70 à 79,22 sur DACCORD, soit 11,62 à 14,14 points sous son propre
+  point de départ prêt à l'emploi (90,84). Le défaut vient de la recette AUG+LEX, pas du
+  backbone ni de la langue. Le classement des régimes est le même sur les deux : EN, puis
+  FR traduit, puis EN+FR. `XLM-R-large` est exclu de la GTX 1080 Ti, où il figeait 7
+  entraînements sur 12 ; `mDeBERTa` y tourne sans blocage.
 - 2026-10-15 : **critère 1a, verdict provisoire (2 à 3 graines par régime).** Sur DACCORD,
   `XLM-R-large` entraîné sur AUG+LEX fait 82,33 (EN), 81,23 (FR traduit) et 78,60 (EN+FR),
   soit 8,63 à 12,35 points sous le même modèle prêt à l'emploi (90,95), avec des intervalles

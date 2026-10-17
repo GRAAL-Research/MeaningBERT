@@ -90,6 +90,18 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
         ]
         for regime in ("en", "fr", "enfr")
     },
+    # The same grid on mDeBERTa-v3-base, the backbone that does not wedge the GTX 1080 Ti.
+    **{
+        f"v4m-{regime}": [
+            (
+                f"v4-mdeberta-{regime}-seed{seed}",
+                f"results/polarity/mdeberta-v3-base-nli-v4{regime}/seed{seed}/model",
+                ("fr", "orig"),
+            )
+            for seed in V3_SEEDS
+        ]
+        for regime in ("en", "fr", "enfr")
+    },
 }
 
 Pair = dict[str, Any]
@@ -126,6 +138,9 @@ HEAD_LABELS: Final[dict[str, str]] = {
     "v4-xlmr-en-ensemble": "XLM-R-large AUG+LEX (EN)",
     "v4-xlmr-fr-ensemble": "XLM-R-large AUG+LEX (FR traduit)",
     "v4-xlmr-enfr-ensemble": "XLM-R-large AUG+LEX (EN+FR)",
+    "v4-mdeberta-en-ensemble": "mDeBERTa-v3-base AUG+LEX (EN)",
+    "v4-mdeberta-fr-ensemble": "mDeBERTa-v3-base AUG+LEX (FR traduit)",
+    "v4-mdeberta-enfr-ensemble": "mDeBERTa-v3-base AUG+LEX (EN+FR)",
 }
 INPUT_LABELS: Final[dict[str, str]] = {"fr": "français", "mt": "traduit", "orig": "anglais d'origine"}
 CORPUS_LABELS: Final[dict[str, str]] = {
