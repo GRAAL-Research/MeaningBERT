@@ -15,7 +15,7 @@ TRAIN_HOST="${TRAIN_HOST:-dabea241@132.203.114.27}"
 REMOTE_REPO="${REMOTE_REPO:-MeaningBERT-v3}"
 OUT="$REPO/results/v4/xnli"
 SCRATCH="${SCRATCH:-$REPO/results/v4/xnli-tmp}"
-LANGS="${LANGS:-de,ar,es,zh}"
+LANGS="${LANGS:-all}"  # the 14 XNLI languages; de,ar,es,zh was the first wave
 POLL="${POLL:-900}"
 
 cd "$REPO" || exit 1
@@ -32,16 +32,19 @@ for family in offshelf-en offshelf-multi; do
         --translations "$OUT/translations" \
         || echo "[FAIL] $family"
 done
+# souris has little disk: the translations are cached in $OUT, the Opus-MT models are not
+# needed again once the English heads have read every language.
+[ -f "$OUT/scores-offshelf-en.json" ] && rm -rf "$HOME"/.cache/huggingface/hub/models--Helsinki-NLP--opus-mt-*-en
 
 # name|family|remote model folder
 candidates() {
     local seed regime
     for seed in 42 43 44; do
         echo "v3-auglex-seed$seed|v3|results/polarity/nli-deberta-v3-large-fulllex/seed$seed/model"
-        for regime in en fr enfr replay; do
+        for regime in en fr enfr none aug replay mreplay; do
             echo "v4-xlmr-$regime-seed$seed|v4-$regime|results/polarity/xlmr-large-nli-v4$regime/seed$seed/model"
         done
-        for regime in en fr enfr none aug replay; do
+        for regime in en fr enfr none aug replay mreplay; do
             echo "v4-mdeberta-$regime-seed$seed|v4m-$regime|results/polarity/mdeberta-v3-base-nli-v4$regime/seed$seed/model"
         done
     done
