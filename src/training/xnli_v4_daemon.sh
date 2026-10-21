@@ -23,6 +23,15 @@ mkdir -p "$OUT" "$SCRATCH"
 # Heads are read from $SCRATCH/results/polarity/..., where they are pulled: scoring runs from
 # $SCRATCH so the French daemon's links under $REPO/results/polarity are never touched.
 py() { (cd "$SCRATCH" && PYTHONPATH="$REPO/src" "$VENV/bin/python" "$REPO/$1" "${@:2}" < /dev/null); }
+# souris filled its disk on 2026-10-21 (Opus-MT models plus pulled heads): below this much
+# free space a pass pulls nothing and waits, rather than dying halfway through a write.
+MIN_FREE_GB="${MIN_FREE_GB:-4}"
+disk_ok() {
+    local free
+    free=$(df -BG --output=avail "$REPO" | tail -1 | tr -dc '0-9')
+    [ "$free" -ge "$MIN_FREE_GB" ] || { echo "[DISK] ${free} Go libres, moins que $MIN_FREE_GB : passage saute"; return 1; }
+}
+
 scored() { grep -lq "\"$1\"" "$OUT"/scores-*.json 2>/dev/null; }
 
 
@@ -62,6 +71,7 @@ while true; do
     while IFS='|' read -r name family folder; do
         if scored "$name"; then done_count=$((done_count + 1)); continue; fi
         cell="${folder%/model}"
+        disk_ok || break
         ssh -n -o BatchMode=yes "$TRAIN_HOST" \
             "cd $REMOTE_REPO && test -f $folder/model.safetensors -a ! -d $cell.claim" || continue
         local_dir="$SCRATCH/$folder"

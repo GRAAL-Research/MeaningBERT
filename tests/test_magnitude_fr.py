@@ -85,3 +85,9 @@ def test_markdown_ranks_by_pearson_and_marks_the_bar() -> None:
     text = markdown(result)
     assert text.index("| v4 |") < text.index(f"| {BAR} |")
     assert "+0.20" in text and "< 0.01" in text and "réf." in text
+
+
+def test_markdown_without_a_held_out_split_prints_a_dash() -> None:
+    block = {"pearson": 0.5, "pearson_low": 0.4, "pearson_high": 0.6, "spearman": 0.5, "n": 10}
+    text = markdown({"candidates": {BAR: {"all": block}}, "versus_bar": {}}, "## Titre")
+    assert text.startswith("## Titre") and f"| {BAR} | 0.50 | [0.40, 0.60] | - | 0.50 | réf. |" in text

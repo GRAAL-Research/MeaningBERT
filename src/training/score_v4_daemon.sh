@@ -29,6 +29,15 @@ XLMR_SHORT="none aug"
 cd "$REPO" || exit 1
 mkdir -p "$OUT" "$SCRATCH"
 
+# souris filled its disk on 2026-10-21 (Opus-MT models plus pulled heads): below this much
+# free space a pass pulls nothing and waits, rather than dying halfway through a write.
+MIN_FREE_GB="${MIN_FREE_GB:-4}"
+disk_ok() {
+    local free
+    free=$(df -BG --output=avail "$REPO" | tail -1 | tr -dc '0-9')
+    [ "$free" -ge "$MIN_FREE_GB" ] || { echo "[DISK] ${free} Go libres, moins que $MIN_FREE_GB : passage saute"; return 1; }
+}
+
 scored() {
     grep -lq "\"$1\"" "$OUT"/scores-*.json 2>/dev/null
 }
@@ -79,6 +88,7 @@ while true; do
             continue
         fi
         ssh -n -o BatchMode=yes "$TRAIN_HOST" "cd $REMOTE_REPO && $ready" || continue
+        disk_ok || break
 
         local_dir="$SCRATCH/$folder"
         echo "[$(date '+%F %T')] $name : rapatriement"

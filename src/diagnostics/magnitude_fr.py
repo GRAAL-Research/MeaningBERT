@@ -83,27 +83,27 @@ def compare(scores: dict[str, np.ndarray], gold: np.ndarray, reference: str = BA
     return raw
 
 
-def markdown(result: dict[str, Any]) -> str:
+def markdown(result: dict[str, Any], title: str = "## Magnitude sur FrJUDGE (Pearson avec le jugement humain)") -> str:
     """The magnitude benchmark as one table, best Pearson first."""
 
     def p_text(value: float) -> str:
         return "-" if np.isnan(value) else ("< 0.01" if value < 0.01 else f"{value:.2f}")
 
     lines = [
-        "## Magnitude sur FrJUDGE (Pearson avec le jugement humain)",
+        title,
         "",
         "| Candidat | Pearson (toutes) | IC 95 % | Pearson (test) | Spearman | Δ BERTScore | p Williams |",
         "|---|---|---|---|---|---|---|",
     ]
-    candidates = result["candidates"]
-    for name in sorted(candidates, key=lambda n: -candidates[n]["all"]["pearson"]):
-        block = candidates[name]["all"]
+    rows = result["candidates"]
+    for name in sorted(rows, key=lambda n: -rows[n]["all"]["pearson"]):
+        block = rows[name]["all"]
         versus = result["versus_bar"].get(name)
         delta = f"{versus['diff']:+.2f}" if versus else "réf."
+        held_out = f"{rows[name]['test']['pearson']:.2f}" if "test" in rows[name] else "-"
         lines.append(
             f"| {name} | {block['pearson']:.2f} | [{block['pearson_low']:.2f}, {block['pearson_high']:.2f}] "
-            f"| {candidates[name]['test']['pearson']:.2f} | {block['spearman']:.2f} | {delta} "
-            f"| {p_text(versus['p_holm']) if versus else ''} |"
+            f"| {held_out} | {block['spearman']:.2f} | {delta} | {p_text(versus['p_holm']) if versus else ''} |"
         )
     lines += ["", "p : test de Williams apparié contre BERTScore, ajusté par Holm.", ""]
     return "\n".join(lines)
@@ -175,11 +175,71 @@ def meaningbert(checkpoint: str, subfolder: str, left: list[str], right: list[st
     return model.meaning_score(model.logits(left, right))
 
 
+def candidates(
+    left_fr: list[str], right_fr: list[str], left_en: list[str], right_en: list[str], en_label: str, trained_root: str
+) -> dict[str, np.ndarray]:
+    """Every magnitude candidate on one set of French pairs and their English counterpart.
+
+    *en_label* names the English side: ``traduit`` (machine translation of the French) or
+    ``anglais d'origine`` (the English the French was translated from).
+    """
+    scores: dict[str, np.ndarray] = {BAR: bertscore(left_fr, right_fr)}
+    for name, checkpoint, subfolder in MEANINGBERT:
+        scores[f"{name} / français"] = meaningbert(checkpoint, subfolder, left_fr, right_fr)
+        scores[f"{name} / {en_label}"] = meaningbert(checkpoint, subfolder, left_en, right_en)
+    # The v4 multilingual MeaningBERT, one candidate per backbone and training corpus, its
+    # seeds averaged; read in French and, for comparison, in English.
+    for family, folders in trained_models(trained_root).items():
+        for label, left, right in (("français", left_fr, right_fr), (en_label, left_en, right_en)):
+            stacked = [meaningbert(folder, "", left, right) for folder in folders]
+            scores[f"MeaningBERT v4 {family} ({len(folders)} graines) / {label}"] = np.mean(stacked, axis=0)
+    return scores
+
+
+V2_TITLE: Final[str] = "## Magnitude sur le test v2 traduit en français (jugements humains anglais)"
+
+
+def v2_test_block(paths: str, trained_root: str) -> dict[str, Any]:
+    """The v2 ``d_full`` test, French translation against the English it comes from.
+
+    The second French set (decision of 2026-10-21): FrJUDGE is legal text only, this one is
+    general, scientific and biomedical. The scores are the English annotators' and travel
+    with the translation, which may shift a meaning they judged: a bias the report names.
+    The split is held out of every v2 and v4 training run (grouped by source sentence).
+    """
+    from datasets import load_from_disk
+
+    french_path, english_path = (os.path.expanduser(p.strip()) for p in paths.split(","))
+    french, english = load_from_disk(french_path)["test"], load_from_disk(english_path)["test"]
+    if french["label"] != english["label"]:
+        raise click.ClickException("test v2 francais et anglais non alignes")
+    scores = candidates(
+        french["original"],
+        french["simplification"],
+        english["original"],
+        english["simplification"],
+        "anglais d'origine",
+        trained_root,
+    )
+    gold = np.array(english["label"], dtype=float)
+    return {
+        "n": int(len(gold)),
+        "candidates": {name: {"all": correlation(values, gold)} for name, values in scores.items()},
+        "versus_bar": compare(scores, gold),
+    }
+
+
 @click.command()
 @click.option("--out", default="results/v4/magnitude-frjudge.json", show_default=True)
 @click.option("--translations", default="results/v4/discovery/translations-frjudge.json", show_default=True)
 @click.option("--trained-root", default="results/magnitude-v4/models", show_default=True)
-def main(out: str, translations: str, trained_root: str) -> None:
+@click.option(
+    "--v2-test",
+    default="data/v4-magnitude/d_full-fr,~/MeaningBERT/data/v2/d_full",
+    show_default=True,
+    help="Variantes v2 francaise et anglaise dont le test sert de second jeu ; vide pour s'en passer.",
+)
+def main(out: str, translations: str, trained_root: str, v2_test: str) -> None:
     """Correlation de chaque magnitude candidate avec le jugement humain sur FrJUDGE."""
     try:
         from diagnostics.discovery_fr import translate
@@ -193,19 +253,9 @@ def main(out: str, translations: str, trained_root: str) -> None:
 
     left_fr = [r["original"] for r in every]
     right_fr = [r["simplification"] for r in every]
-    left_en = [table[s] for s in left_fr]
-    right_en = [table[s] for s in right_fr]
-
-    scores: dict[str, np.ndarray] = {BAR: bertscore(left_fr, right_fr)}
-    for name, checkpoint, subfolder in MEANINGBERT:
-        scores[f"{name} / français"] = meaningbert(checkpoint, subfolder, left_fr, right_fr)
-        scores[f"{name} / traduit"] = meaningbert(checkpoint, subfolder, left_en, right_en)
-    # The v4 multilingual MeaningBERT, one candidate per backbone and training corpus, its
-    # seeds averaged; read in French and, for comparison, in translation.
-    for family, folders in trained_models(trained_root).items():
-        for label, left, right in (("français", left_fr, right_fr), ("traduit", left_en, right_en)):
-            stacked = [meaningbert(folder, "", left, right) for folder in folders]
-            scores[f"MeaningBERT v4 {family} ({len(folders)} graines) / {label}"] = np.mean(stacked, axis=0)
+    scores = candidates(
+        left_fr, right_fr, [table[s] for s in left_fr], [table[s] for s in right_fr], "traduit", trained_root
+    )
 
     gold = np.array([float(r["label"]) for r in every])
     n_train = len(rows["train"])
@@ -216,11 +266,15 @@ def main(out: str, translations: str, trained_root: str) -> None:
             "test": correlation(values[n_train:], gold[n_train:]),
         }
     result["versus_bar"] = compare(scores, gold)
+    if v2_test:
+        result["v2_test_fr"] = v2_test_block(v2_test, trained_root)
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as handle:
         json.dump(result, handle, indent=2, ensure_ascii=False)
     with open(os.path.splitext(out)[0] + ".md", "w", encoding="utf-8") as handle:
         handle.write(markdown(result))
+        if "v2_test_fr" in result:
+            handle.write("\n" + markdown(result["v2_test_fr"], V2_TITLE))
     for name, block in result["candidates"].items():
         click.echo(f"{name:40s} Pearson {block['all']['pearson']:.2f}  (test {block['test']['pearson']:.2f})")
 
