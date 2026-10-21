@@ -70,9 +70,14 @@ V3_SEEDS: Final[tuple[int, ...]] = tuple(range(42, 52))
 V3_TEMPLATE: Final[str] = "results/polarity/nli-deberta-v3-large-fulllex/seed{seed}/model"
 
 #: Weight interpolation (``training/interpolate_heads.py``): alpha is the weight of the
-#: fine-tuned v4 head trained in English, the best regime of the first wave.
-WISE_ALPHAS: Final[tuple[float, ...]] = (0.2, 0.4, 0.5, 0.6, 0.8)
-WISE_SEEDS: Final[tuple[int, ...]] = (42, 43, 44)
+#: fine-tuned v4 head, swept on the three regimes of the first wave and every seed.
+WISE_ALPHAS: Final[tuple[float, ...]] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+WISE_SEEDS: Final[tuple[int, ...]] = tuple(range(42, 52))
+WISE_REGIMES: Final[dict[str, str]] = {"en": "EN", "fr": "FR traduit", "enfr": "EN+FR"}
+
+#: Training regimes of the v4 grid (run_v4_queue.sh): the first wave (en, fr, enfr), then the
+#: second (2026-10-21): the ablation rungs (none, aug) and replay in English or multilingual.
+V4_REGIMES: Final[tuple[str, ...]] = ("en", "fr", "enfr", "none", "aug", "replay", "mreplay")
 
 #: Head families, each a list of (name, checkpoint, inputs read).
 HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
@@ -95,7 +100,7 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
             )
             for seed in V3_SEEDS
         ]
-        for regime in ("en", "fr", "enfr")
+        for regime in V4_REGIMES
     },
     # The same grid on mDeBERTa-v3-base, the backbone that does not wedge the GTX 1080 Ti,
     # plus the second wave (2026-10-21): the two ablation rungs and replay.
@@ -108,24 +113,17 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
             )
             for seed in V3_SEEDS
         ]
-        for regime in ("en", "fr", "enfr", "none", "aug", "replay")
+        for regime in V4_REGIMES
     },
-    "v4-replay": [
-        (
-            f"v4-xlmr-replay-seed{seed}",
-            f"results/polarity/xlmr-large-nli-v4replay/seed{seed}/model",
-            ("fr", "orig"),
-        )
-        for seed in V3_SEEDS
-    ],
-    # WiSE-FT between each off-the-shelf head and its v4 head trained in English.
+    # WiSE-FT between each off-the-shelf head and its v4 heads.
     **{
         f"wise-{backbone}": [
             (
-                f"v4-wise-{backbone}-en-a{alpha}-seed{seed}",
-                f"results/polarity/wise/v4-wise-{backbone}-en-a{alpha}-seed{seed}/model",
+                f"v4-wise-{backbone}-{regime}-a{alpha}-seed{seed}",
+                f"results/polarity/wise/v4-wise-{backbone}-{regime}-a{alpha}-seed{seed}/model",
                 ("fr", "orig"),
             )
+            for regime in WISE_REGIMES
             for alpha in WISE_ALPHAS
             for seed in WISE_SEEDS
         ]
@@ -174,9 +172,14 @@ HEAD_LABELS: Final[dict[str, str]] = {
     "v4-mdeberta-aug-ensemble": "mDeBERTa-v3-base AUG (EN)",
     "v4-mdeberta-replay-ensemble": "mDeBERTa-v3-base AUG+LEX + rejeu (EN)",
     "v4-xlmr-replay-ensemble": "XLM-R-large AUG+LEX + rejeu (EN)",
+    "v4-xlmr-mreplay-ensemble": "XLM-R-large AUG+LEX + rejeu multilingue",
+    "v4-mdeberta-mreplay-ensemble": "mDeBERTa-v3-base AUG+LEX + rejeu multilingue",
+    "v4-xlmr-none-ensemble": "XLM-R-large sans AUG ni LEX (EN)",
+    "v4-xlmr-aug-ensemble": "XLM-R-large AUG (EN)",
     **{
-        f"v4-wise-{key}-en-a{alpha}-ensemble": f"{name} WiSE-FT alpha {alpha}"
+        f"v4-wise-{key}-{regime}-a{alpha}-ensemble": f"{name} WiSE-FT ({label}) alpha {alpha}"
         for key, name in (("xlmr", "XLM-R-large"), ("mdeberta", "mDeBERTa-v3-base"))
+        for regime, label in WISE_REGIMES.items()
         for alpha in WISE_ALPHAS
     },
 }

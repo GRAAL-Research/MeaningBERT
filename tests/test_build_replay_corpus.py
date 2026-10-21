@@ -66,3 +66,11 @@ def test_only_train_grows() -> None:
     assert len(out["train"]) == 7
     assert len(out["dev"]) == 1 and len(out["test"]) == 1
     assert out["train"].features == split.features
+
+
+def test_translated_rows_without_pair_id_are_tagged_by_language_and_position() -> None:
+    rows = [{"premise": f"p{i}", "hypothesis": f"h{i}", "label": i % 3} for i in range(9)]
+    out = replay_rows(rows, per_class=3, seed=0, tag="mnli-fr")
+    assert {r["corpus"] for r in out} == {"mnli-fr"}
+    assert sorted(r["item_id"] for r in out) == sorted(f"mnli-fr:{i}" for i in range(9))
+    assert all(int(r["item_id"].split(":")[1]) % 3 == int(r["polarity"]) for r in out)

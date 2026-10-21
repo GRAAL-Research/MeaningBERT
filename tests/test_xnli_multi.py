@@ -10,17 +10,22 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from diagnostics.xnli_multi import aligned, columns_of, is_native, report, tables
+from diagnostics.xnli_multi import columns_of, is_native, misaligned, report, tables
 
 LABELS = np.array(["entailment"] * 3 + ["neutral"] + ["contradiction"] * 3)
 GOOD = [0.1, 0.2, 0.3, 0.5, 0.7, 0.8, 0.9]
 NOISY = [0.4, 0.6, 0.3, 0.5, 0.5, 0.7, 0.45]
 
 
-def test_languages_out_of_order_are_refused() -> None:
+def test_a_few_swapped_labels_are_dropped_a_lost_order_is_refused() -> None:
+    english = [{"label": i % 3} for i in range(300)]
+    russian = [dict(row) for row in english]
+    russian[10]["label"], russian[11]["label"] = russian[11]["label"], russian[10]["label"]
+    assert misaligned(english, russian, "ru") == {10, 11}
     with pytest.raises(ValueError):
-        aligned([{"label": 0}, {"label": 2}], [{"label": 2}, {"label": 0}], "de")
-    aligned([{"label": 0}], [{"label": 0}], "de")
+        misaligned(english, list(reversed(english)), "de")
+    with pytest.raises(ValueError):
+        misaligned(english, english[:-1], "de")
 
 
 def test_only_multilingual_heads_read_the_language_directly() -> None:

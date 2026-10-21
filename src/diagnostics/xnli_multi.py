@@ -88,23 +88,42 @@ NATIVE_PREFIXES: Final[tuple[str, ...]] = ("offshelf-mdeberta", "offshelf-xlm", 
 Item = dict[str, Any]
 
 
-def aligned(english: list[dict[str, Any]], other: list[dict[str, Any]], lang: str) -> None:
-    """Raise unless *other* holds the English items' labels in the same order."""
-    if [row["label"] for row in english] != [row["label"] for row in other]:
-        raise ValueError(f"XNLI {lang} et en ne sont pas alignes item par item")
+#: Share of items whose label may disagree with English before the pairing is refused.
+#: XNLI test in Russian swaps two labels (items 2805 and 2806); a larger share would mean the
+#: order itself is lost, not two items.
+MAX_MISALIGNED: Final[float] = 0.01
+
+
+def misaligned(english: list[dict[str, Any]], other: list[dict[str, Any]], lang: str) -> set[int]:
+    """Items of *other* whose label disagrees with the English item at the same position.
+
+    Raises:
+        ValueError: If the two splits differ in size or disagree on more than
+            :data:`MAX_MISALIGNED` of the items.
+    """
+    if len(english) != len(other):
+        raise ValueError(f"XNLI {lang} : {len(other)} items contre {len(english)} en anglais")
+    bad = {i for i, (a, b) in enumerate(zip(english, other)) if a["label"] != b["label"]}
+    if len(bad) > MAX_MISALIGNED * len(english):
+        raise ValueError(f"XNLI {lang} et en ne sont pas alignes item par item ({len(bad)} desaccords)")
+    return bad
 
 
 def load_xnli(langs: tuple[str, ...]) -> tuple[list[Item], dict[str, list[Item]]]:
-    """XNLI test in English and in each of *langs*, item by item."""
+    """XNLI test in English and in each of *langs*, item by item.
+
+    An item whose label disagrees with English in any of *langs* is dropped from every
+    language, so all of them keep exactly the same items.
+    """
     from datasets import load_dataset
 
     english = [dict(row) for row in load_dataset("facebook/xnli", "en", split="test")]
-    others: dict[str, list[Item]] = {}
-    for lang in langs:
-        rows = [dict(row) for row in load_dataset("facebook/xnli", lang, split="test")]
-        aligned(english, rows, lang)
-        others[lang] = rows
-    return english, others
+    raw = {lang: [dict(row) for row in load_dataset("facebook/xnli", lang, split="test")] for lang in langs}
+    dropped: set[int] = set()
+    for lang, rows in raw.items():
+        dropped |= misaligned(english, rows, lang)
+    keep = [i for i in range(len(english)) if i not in dropped]
+    return [english[i] for i in keep], {lang: [rows[i] for i in keep] for lang, rows in raw.items()}
 
 
 def load_translator(lang: str):
@@ -386,10 +405,10 @@ def score(heads: str, out: str, langs_text: str, only: str, translations: str) -
 @click.option("--langs", "langs_text", default=",".join(LANGS), show_default=True)
 def report_command(scores_dir: str, out: str, langs_text: str) -> None:
     """Merge the XNLI score files and write the multilingual report."""
-    from datasets import load_dataset
 
     langs = _langs(langs_text)
-    labels = np.array([LABELS[int(v)] for v in load_dataset("facebook/xnli", "en", split="test")["label"]])
+    english, _ = load_xnli(langs)
+    labels = np.array([LABELS[int(row["label"])] for row in english])
     merged: dict[str, Any] = {}
     for path in sorted(glob.glob(os.path.join(scores_dir, "scores-*.json"))):
         with open(path, encoding="utf-8") as handle:

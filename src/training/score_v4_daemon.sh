@@ -22,8 +22,9 @@ OUT="$REPO/results/v4/discovery"
 SCRATCH="${SCRATCH:-$REPO/results/v4/scoring-tmp}"
 POLL="${POLL:-600}"
 SEEDS="42 43 44 45 46 47 48 49 50 51"
-EXPECTED=88  # 30 XLM-R and 30 mDeBERTa v4 heads, 10 v3 seeds, then 15 ablation and replay
-# mDeBERTa heads and 3 replay XLM-R heads of the second wave (2026-10-21)
+# The plan of 2026-10-21: every regime on mDeBERTa, ten seeds; on XLM-R-large the ablation
+# rungs on five seeds (42 to 46), everything else on ten. Plus the ten v3 seeds.
+XLMR_SHORT="none aug"
 
 cd "$REPO" || exit 1
 mkdir -p "$OUT" "$SCRATCH"
@@ -34,25 +35,17 @@ scored() {
 
 # name|family|remote model folder|remote readiness test
 candidates() {
-    local seed regime
+    local seed regime cell
     for seed in $SEEDS; do
         echo "v3-auglex-seed$seed|v3|results/polarity/nli-deberta-v3-large-fulllex/seed$seed/model|test -f results/polarity/nli-deberta-v3-large-fulllex/seed$seed/model/model.safetensors"
-        for regime in en fr enfr; do
-            cell="results/polarity/xlmr-large-nli-v4$regime/seed$seed"
-            echo "v4-xlmr-$regime-seed$seed|v4-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
+        for regime in en fr enfr none aug replay mreplay; do
+            if [ "$seed" -le 46 ] || [[ " $XLMR_SHORT " != *" $regime "* ]]; then
+                cell="results/polarity/xlmr-large-nli-v4$regime/seed$seed"
+                echo "v4-xlmr-$regime-seed$seed|v4-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
+            fi
             cell="results/polarity/mdeberta-v3-base-nli-v4$regime/seed$seed"
             echo "v4-mdeberta-$regime-seed$seed|v4m-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
         done
-    done
-    for seed in 42 43 44 45 46; do
-        for regime in none aug replay; do
-            cell="results/polarity/mdeberta-v3-base-nli-v4$regime/seed$seed"
-            echo "v4-mdeberta-$regime-seed$seed|v4m-$regime|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
-        done
-    done
-    for seed in 42 43 44; do
-        cell="results/polarity/xlmr-large-nli-v4replay/seed$seed"
-        echo "v4-xlmr-replay-seed$seed|v4-replay|$cell/model|test -f $cell/metrics.json -a -f $cell/model/model.safetensors -a ! -d $cell.claim"
     done
 }
 
@@ -75,6 +68,8 @@ if [ ! -f "$OUT/BASELINES_XNLI" ]; then
     done
     touch "$OUT/BASELINES_XNLI"
 fi
+
+EXPECTED=$(candidates | wc -l)
 
 while true; do
     done_count=0

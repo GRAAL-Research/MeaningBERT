@@ -13,6 +13,7 @@
 #   none  datastore/polarity                no augmentation, no lexical pairs: the ablation
 #   aug   datastore/polarity-full           AUG without LEX: the other ablation rung
 #   replay datastore/polarity-full-lex-replay  AUG+LEX plus general NLI rows, against forgetting
+#   mreplay datastore/polarity-full-lex-mreplay  the same replay, MultiNLI translated to five languages
 #
 # Seed-major order is the point: seed 42 of all three regimes lands first, so the first
 # comparison exists after one pass instead of after thirty runs. An item whose corpus is
@@ -32,6 +33,7 @@ declare -A CORPUS_OF=(
     [none]="$REPO/datastore/polarity"
     [aug]="$REPO/datastore/polarity-full"
     [replay]="$REPO/datastore/polarity-full-lex-replay"
+    [mreplay]="$REPO/datastore/polarity-full-lex-mreplay"
 )
 
 IFS=';' read -ra items <<< "${QUEUE:?QUEUE est vide}"
