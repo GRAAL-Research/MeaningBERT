@@ -73,3 +73,25 @@ def welch(sample_a: list[float], sample_b: list[float]) -> dict[str, float]:
         return {"t": float("nan"), "p": float("nan")}
     result = ttest_ind(sample_a, sample_b, equal_var=False)
     return {"t": float(result.statistic), "p": float(result.pvalue)}
+
+
+def williams(r_a: float, r_b: float, r_ab: float, n: int) -> dict[str, float]:
+    """Williams' t-test of ``corr(a, y) - corr(b, y)`` when *a* and *b* score the same items.
+
+    The two correlations share the human judgement *y* and are themselves correlated through
+    ``r_ab``; Fisher's independent-samples z would ignore that and lose most of its power
+    (Williams, 1959; recommended by Steiger, 1980, and by Graham and Baldwin, 2014, for
+    comparing metrics).
+
+    Returns:
+        ``t`` with ``n - 3`` degrees of freedom and its two-sided ``p``.
+    """
+    from scipy.stats import t as student
+
+    det = 1 - r_a**2 - r_b**2 - r_ab**2 + 2 * r_a * r_b * r_ab
+    mean = (r_a + r_b) / 2
+    denominator = 2 * (n - 1) / (n - 3) * det + mean**2 * (1 - r_ab) ** 3
+    if n <= 3 or denominator <= 0:
+        return {"t": float("nan"), "p": float("nan")}
+    value = (r_a - r_b) * np.sqrt((n - 1) * (1 + r_ab)) / np.sqrt(denominator)
+    return {"t": float(value), "p": float(2 * student.sf(abs(value), n - 3))}

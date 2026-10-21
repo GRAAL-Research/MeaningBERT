@@ -138,7 +138,7 @@ def load_translator(lang: str):
     raise click.ClickException(f"aucun traducteur vers l'anglais pour {lang}")
 
 
-def translate_to_english(sentences: list[str], lang: str, cache_path: str, batch_size: int = 32) -> dict[str, str]:
+def translate_to_english(sentences: list[str], lang: str, cache_path: str, batch_size: int = 16) -> dict[str, str]:
     """*lang* to English with Opus-MT, cached so every English head reads the same text."""
     cache: dict[str, str] = {}
     if os.path.exists(cache_path):
@@ -152,13 +152,27 @@ def translate_to_english(sentences: list[str], lang: str, cache_path: str, batch
         name, tokenizer, model = load_translator(lang)
         click.echo(f"{lang} : {len(todo)} phrases avec {name}")
         model = model.to(device).eval()
-        for start in range(0, len(todo), batch_size):
-            batch = todo[start : start + batch_size]
+        # souris shares one 12 GB card between three daemons: halve the batch on
+        # out-of-memory instead of failing, and give the memory back once done.
+        done, size = 0, batch_size
+        while done < len(todo):
+            batch = todo[done : done + size]
             encoded = tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=256).to(device)
-            with torch.no_grad():
-                generated = model.generate(**encoded, num_beams=4, max_new_tokens=256)
+            try:
+                with torch.no_grad():
+                    generated = model.generate(**encoded, num_beams=4, max_new_tokens=256)
+            except torch.cuda.OutOfMemoryError:
+                del encoded
+                torch.cuda.empty_cache()
+                if size == 1:
+                    raise
+                size = max(1, size // 2)
+                continue
             cache.update(zip(batch, tokenizer.batch_decode(generated, skip_special_tokens=True)))
+            done += len(batch)
         del model
+        if device == "cuda":
+            torch.cuda.empty_cache()
         os.makedirs(os.path.dirname(cache_path) or ".", exist_ok=True)
         with open(cache_path, "w", encoding="utf-8") as handle:
             json.dump(cache, handle, ensure_ascii=False)
