@@ -51,7 +51,7 @@ BERTSCORE_LAYER: Final[int] = 17
 
 
 #: The bar every candidate magnitude is tested against.
-BAR: Final[str] = "BERTScore XLM-R-large / français"
+BAR: Final[str] = "BERTScore XLM-R-large / français"  # bar_name("français")
 
 
 def trained_models(root: str) -> dict[str, list[str]]:
@@ -175,22 +175,37 @@ def meaningbert(checkpoint: str, subfolder: str, left: list[str], right: list[st
     return model.meaning_score(model.logits(left, right))
 
 
+def bar_name(native: str) -> str:
+    """The BERTScore reference of a set read in *native*."""
+    return f"BERTScore XLM-R-large / {native}"
+
+
 def candidates(
-    left_fr: list[str], right_fr: list[str], left_en: list[str], right_en: list[str], en_label: str, trained_root: str
+    left_fr: list[str],
+    right_fr: list[str],
+    left_en: list[str] | None,
+    right_en: list[str] | None,
+    en_label: str,
+    trained_root: str,
+    native: str = "français",
 ) -> dict[str, np.ndarray]:
-    """Every magnitude candidate on one set of French pairs and their English counterpart.
+    """Every magnitude candidate on one set of pairs and, when given, their English counterpart.
 
     *en_label* names the English side: ``traduit`` (machine translation of the French) or
-    ``anglais d'origine`` (the English the French was translated from).
+    ``anglais d'origine`` (the English the French was translated from). Without one, every
+    candidate reads only the *native* text (the multilingual proxies).
     """
-    scores: dict[str, np.ndarray] = {BAR: bertscore(left_fr, right_fr)}
+    sides = [(native, left_fr, right_fr)]
+    if left_en is not None and right_en is not None:
+        sides.append((en_label, left_en, right_en))
+    scores: dict[str, np.ndarray] = {bar_name(native): bertscore(left_fr, right_fr)}
     for name, checkpoint, subfolder in MEANINGBERT:
-        scores[f"{name} / français"] = meaningbert(checkpoint, subfolder, left_fr, right_fr)
-        scores[f"{name} / {en_label}"] = meaningbert(checkpoint, subfolder, left_en, right_en)
+        for label, left, right in sides:
+            scores[f"{name} / {label}"] = meaningbert(checkpoint, subfolder, left, right)
     # The v4 multilingual MeaningBERT, one candidate per backbone and training corpus, its
-    # seeds averaged; read in French and, for comparison, in English.
+    # seeds averaged; read in the native language and, for comparison, in English.
     for family, folders in trained_models(trained_root).items():
-        for label, left, right in (("français", left_fr, right_fr), (en_label, left_en, right_en)):
+        for label, left, right in sides:
             stacked = [meaningbert(folder, "", left, right) for folder in folders]
             scores[f"MeaningBERT v4 {family} ({len(folders)} graines) / {label}"] = np.mean(stacked, axis=0)
     return scores
