@@ -180,6 +180,17 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-21 (suite) : **tout tester, sans contrainte de temps (décision de David).** On
+  ajoute le rejeu multilingue (MultiNLI traduit en FR, DE, AR, ES et ZH), dix graines
+  partout, l'ablation sur `XLM-R-large`, WiSE-FT d'alpha 0,1 à 0,9 sur les trois régimes, et
+  XNLI dans les 14 langues ; deux items russes mal alignés sortent de toutes les langues.
+  Magnitude : on entraîne la recette v2-large (`d_full`, tête `clamped`) sur `mDeBERTa-v3-base`
+  et `XLM-R-large` bruts, en anglais, en français traduit et sur les deux, cinq graines,
+  puis on compare à BERTScore XLM-R sur FrJUDGE (test de Williams, Holm). Aucun modèle
+  JUDGEBERT n'est publié, ni sur Hugging Face ni dans le dépôt GitHub. Premier signal
+  WiSE-FT (`mDeBERTa` EN, une graine) : aucun alpha ne tient les deux cibles ; alpha 0,7
+  passe le garde-fou (90,13 %) et égale la v3 sur DACCORD (86,23), à 4,72 points sous 1a.
+  Les deux serveurs relancent la campagne seuls au démarrage (`resume_v4.sh`, cron).
 - 2026-10-21 : **seconde vague, trois pistes en parallèle (décision de David).** Les têtes v4
   tiennent les garde-fous (co-hyponymes au-dessus de zéro : 85,34 à 94,40 %, contre 27,51 %
   pour `XLM-R-large` prêt à l'emploi), mais elles perdent 7,80 à 13,41 points sur DACCORD

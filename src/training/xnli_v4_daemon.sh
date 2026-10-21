@@ -25,16 +25,19 @@ mkdir -p "$OUT" "$SCRATCH"
 py() { (cd "$SCRATCH" && PYTHONPATH="$REPO/src" "$VENV/bin/python" "$REPO/$1" "${@:2}" < /dev/null); }
 scored() { grep -lq "\"$1\"" "$OUT"/scores-*.json 2>/dev/null; }
 
-for family in offshelf-en offshelf-multi; do
-    [ -f "$OUT/scores-$family.json" ] && continue
-    echo "[$(date '+%F %T')] $family"
-    py src/diagnostics/xnli_multi.py score --heads "$family" --langs "$LANGS" --out "$OUT/scores-$family.json" \
-        --translations "$OUT/translations" \
-        || echo "[FAIL] $family"
-done
-# souris has little disk: the translations are cached in $OUT, the Opus-MT models are not
-# needed again once the English heads have read every language.
-[ -f "$OUT/scores-offshelf-en.json" ] && rm -rf "$HOME"/.cache/huggingface/hub/models--Helsinki-NLP--opus-mt-*-en
+
+baselines() {
+    local family
+    for family in offshelf-en offshelf-multi; do
+        [ -f "$OUT/scores-$family.json" ] && continue
+        echo "[$(date '+%F %T')] $family"
+        py src/diagnostics/xnli_multi.py score --heads "$family" --langs "$LANGS" --out "$OUT/scores-$family.json" \
+            --translations "$OUT/translations" || echo "[FAIL] $family"
+    done
+    # souris has little disk: the translations are cached in $OUT, the Opus-MT models are
+    # not needed again once the English heads have read every language.
+    [ -f "$OUT/scores-offshelf-en.json" ] && rm -rf "$HOME"/.cache/huggingface/hub/models--Helsinki-NLP--opus-mt-*-en
+}
 
 # name|family|remote model folder
 candidates() {
@@ -52,6 +55,9 @@ candidates() {
 total=$(candidates | wc -l)
 
 while true; do
+    # Retried every pass: a baseline that failed (out of memory on the shared card) is
+    # what every bar of the report rests on.
+    baselines
     done_count=0
     while IFS='|' read -r name family folder; do
         if scored "$name"; then done_count=$((done_count + 1)); continue; fi
