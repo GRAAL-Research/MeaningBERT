@@ -180,6 +180,12 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-21 (fin) : **magnitude au-delà du français, proxies ouverts seulement (décision
+  de David).** Aucun corpus public ne note la préservation du sens en plusieurs langues.
+  On ajoute STS22 (dix langues, similarité de 1 à 4) et les jugements binaires de contenu
+  de TextDetox (neuf langues, groupées par écriture), sans demande d'accès ni annotation.
+  Ce sont des proxies, nommés comme tels dans le rapport ; XFORMAL et SimpEvalDE restent
+  hors champ.
 - 2026-10-21 (suite) : **tout tester, sans contrainte de temps (décision de David).** On
   ajoute le rejeu multilingue (MultiNLI traduit en FR, DE, AR, ES et ZH), dix graines
   partout, l'ablation sur `XLM-R-large`, WiSE-FT d'alpha 0,1 à 0,9 sur les trois régimes, et
