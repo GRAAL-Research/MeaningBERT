@@ -43,8 +43,10 @@ import numpy as np
 
 try:  # PYTHONPATH=src.
     from diagnostics.cross_task import auc
+    from diagnostics.significance import delong, holm, mcnemar, welch
 except ImportError:  # pragma: no cover - script run from inside ``src/diagnostics``.
     from cross_task import auc  # type: ignore
+    from significance import delong, holm, mcnemar, welch  # type: ignore
 
 #: Hugging Face repositories of the French corpora (Skandalis et al., 2024).
 CORPORA: Final[dict[str, tuple[str, str]]] = {
@@ -66,6 +68,11 @@ TRANSLATOR: Final[str] = "Helsinki-NLP/opus-mt-fr-en"
 
 V3_SEEDS: Final[tuple[int, ...]] = tuple(range(42, 52))
 V3_TEMPLATE: Final[str] = "results/polarity/nli-deberta-v3-large-fulllex/seed{seed}/model"
+
+#: Weight interpolation (``training/interpolate_heads.py``): alpha is the weight of the
+#: fine-tuned v4 head trained in English, the best regime of the first wave.
+WISE_ALPHAS: Final[tuple[float, ...]] = (0.2, 0.4, 0.5, 0.6, 0.8)
+WISE_SEEDS: Final[tuple[int, ...]] = (42, 43, 44)
 
 #: Head families, each a list of (name, checkpoint, inputs read).
 HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
@@ -90,7 +97,8 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
         ]
         for regime in ("en", "fr", "enfr")
     },
-    # The same grid on mDeBERTa-v3-base, the backbone that does not wedge the GTX 1080 Ti.
+    # The same grid on mDeBERTa-v3-base, the backbone that does not wedge the GTX 1080 Ti,
+    # plus the second wave (2026-10-21): the two ablation rungs and replay.
     **{
         f"v4m-{regime}": [
             (
@@ -100,7 +108,28 @@ HEADS: Final[dict[str, list[tuple[str, str, tuple[str, ...]]]]] = {
             )
             for seed in V3_SEEDS
         ]
-        for regime in ("en", "fr", "enfr")
+        for regime in ("en", "fr", "enfr", "none", "aug", "replay")
+    },
+    "v4-replay": [
+        (
+            f"v4-xlmr-replay-seed{seed}",
+            f"results/polarity/xlmr-large-nli-v4replay/seed{seed}/model",
+            ("fr", "orig"),
+        )
+        for seed in V3_SEEDS
+    ],
+    # WiSE-FT between each off-the-shelf head and its v4 head trained in English.
+    **{
+        f"wise-{backbone}": [
+            (
+                f"v4-wise-{backbone}-en-a{alpha}-seed{seed}",
+                f"results/polarity/wise/v4-wise-{backbone}-en-a{alpha}-seed{seed}/model",
+                ("fr", "orig"),
+            )
+            for alpha in WISE_ALPHAS
+            for seed in WISE_SEEDS
+        ]
+        for backbone in ("xlmr", "mdeberta")
     },
 }
 
@@ -141,6 +170,15 @@ HEAD_LABELS: Final[dict[str, str]] = {
     "v4-mdeberta-en-ensemble": "mDeBERTa-v3-base AUG+LEX (EN)",
     "v4-mdeberta-fr-ensemble": "mDeBERTa-v3-base AUG+LEX (FR traduit)",
     "v4-mdeberta-enfr-ensemble": "mDeBERTa-v3-base AUG+LEX (EN+FR)",
+    "v4-mdeberta-none-ensemble": "mDeBERTa-v3-base sans AUG ni LEX (EN)",
+    "v4-mdeberta-aug-ensemble": "mDeBERTa-v3-base AUG (EN)",
+    "v4-mdeberta-replay-ensemble": "mDeBERTa-v3-base AUG+LEX + rejeu (EN)",
+    "v4-xlmr-replay-ensemble": "XLM-R-large AUG+LEX + rejeu (EN)",
+    **{
+        f"v4-wise-{key}-en-a{alpha}-ensemble": f"{name} WiSE-FT alpha {alpha}"
+        for key, name in (("xlmr", "XLM-R-large"), ("mdeberta", "mDeBERTa-v3-base"))
+        for alpha in WISE_ALPHAS
+    },
 }
 INPUT_LABELS: Final[dict[str, str]] = {"fr": "français", "mt": "traduit", "orig": "anglais d'origine"}
 CORPUS_LABELS: Final[dict[str, str]] = {
@@ -534,7 +572,148 @@ def report(pairs: list[Pair], scores: dict[str, dict[str, Any]]) -> dict[str, An
             },
         }
     out["criterion_1"] = criterion
+    out["significance"] = significance(pairs, columns, criterion, daccord_auc, families, full)
     return out
+
+
+#: Two points of AUC: the parity margin of criterion 2.
+PARITY_MARGIN: Final[float] = 0.02
+#: Guard rails of the v4 framing, as shares of Breaking-fr pairs kept above zero.
+GUARD_RAILS: Final[dict[str, float]] = {"co-hyponymes": 0.90, "synonymes": 0.95}
+
+
+def significance(
+    pairs: list[Pair],
+    columns: dict[str, np.ndarray],
+    criterion: dict[str, Any],
+    daccord_auc: dict[str, float],
+    families: dict[str, list[str]],
+    full: Any,
+) -> dict[str, Any]:
+    """Every claim of the report as a test, against 1a, 1b and the v3.
+
+    * DACCORD: paired DeLong z-test of each column against the three references, with a
+      Holm adjustment over the whole table, and McNemar on the sign of the score (below
+      zero for a contradiction, above for a compatible pair), against the v3.
+    * Seeds: Welch t-test of each trained family's per-seed DACCORD AUC against the v3's,
+      the test of the recipe rather than of one ensemble.
+    * Guard rails: one-sided binomial test of the share kept above zero against its target,
+      and McNemar against the v3 on the same Breaking-fr pairs.
+    * Parity (criterion 2): the English-minus-French AUC gap of one head on the same items,
+      its DeLong standard error, and the one-sided p of ``gap < 2 points``.
+    """
+    from scipy.stats import binomtest, norm
+
+    corpora = np.array([pair["corpus"] for pair in pairs])
+    labels = np.array([pair["label"] for pair in pairs])
+    categories = np.array([pair["category"] for pair in pairs])
+    keep = corpora == DECIDING
+    pos, neg = keep & (labels == "compatible"), keep & (labels == "contradiction")
+
+    references = {key: block["reference"] for key, block in criterion.items()}
+    v3_columns = [c for c in daccord_auc if c.startswith("v3-auglex-ensemble/")]
+    if v3_columns:
+        references["v3"] = max(v3_columns, key=lambda c: daccord_auc[c])
+
+    tests: dict[str, dict[str, Any]] = {}
+    raw: dict[str, float] = {}
+    for column in daccord_auc:
+        tests[column] = {}
+        for key, reference in references.items():
+            if column == reference:
+                continue
+            result = delong(
+                _agreement(columns[column][pos]),
+                _agreement(columns[column][neg]),
+                _agreement(columns[reference][pos]),
+                _agreement(columns[reference][neg]),
+            )
+            tests[column][key] = result
+            raw[f"{column}|{key}"] = result["p"]
+        if "v3" in references and column != references["v3"]:
+            sign = {
+                name: np.where(labels[keep] == "contradiction", values[keep] > 0.5, values[keep] <= 0.5)
+                for name, values in (("a", columns[column]), ("b", columns[references["v3"]]))
+            }
+            tests[column]["mcnemar_sign_v3"] = mcnemar(sign["a"], sign["b"])
+    for joined, adjusted in holm(raw).items():
+        column, key = joined.split("|")
+        tests[column][key]["p_holm"] = adjusted
+
+    seed_auc: dict[str, list[float]] = {}
+    for family, names in families.items():
+        kind = "mt" if family == "v3-auglex" else "fr"
+        for name in names:
+            values = full(name, kind)
+            if values is not None and not np.isnan(values[keep]).any():
+                seed_auc.setdefault(family, []).append(auc(_agreement(values[pos]), _agreement(values[neg])))
+    seeds = {
+        family: {
+            "n": len(values),
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values, ddof=1)) if len(values) > 1 else float("nan"),
+            "vs_v3": welch(values, seed_auc["v3-auglex"]) if family != "v3-auglex" and "v3-auglex" in seed_auc else {},
+        }
+        for family, values in seed_auc.items()
+    }
+
+    breaking = corpora == "breaking_fr"
+    guard: dict[str, dict[str, Any]] = {}
+    # The v4 heads read French, so their guard rails are compared with the v3 reading French.
+    v3_reference = "v3-auglex-ensemble/fr"
+    for column, values in columns.items():
+        if np.isnan(values[breaking]).all():
+            continue
+        guard[column] = {}
+        for family, target in GUARD_RAILS.items():
+            cats, gold = FAMILIES[family]
+            items = breaking & np.isin(categories, cats) & (labels == gold) & ~np.isnan(values)
+            if not items.any():
+                continue
+            above = values[items] <= 0.5
+            entry: dict[str, Any] = {
+                "n": int(items.sum()),
+                "above_zero": float(above.mean()),
+                "target": target,
+                "p_above_target": float(
+                    binomtest(int(above.sum()), int(items.sum()), target, alternative="greater").pvalue
+                ),
+            }
+            if v3_reference in columns and column != v3_reference and not np.isnan(columns[v3_reference][items]).any():
+                entry["mcnemar_v3"] = mcnemar(above, columns[v3_reference][items] <= 0.5)
+            guard[column][family] = entry
+
+    parity: dict[str, dict[str, Any]] = {}
+    for corpus in ("xnli_fr", "sick_fr"):
+        positive = "entailment"
+        for column in columns:
+            if not column.endswith("/fr"):
+                continue
+            english = column[: -len("/fr")] + "/orig"
+            if english not in columns:
+                continue
+            items = (corpora == corpus) & ~np.isnan(columns[column]) & ~np.isnan(columns[english])
+            p_items, n_items = items & (labels == positive), items & (labels == "contradiction")
+            if not p_items.any() or not n_items.any():
+                continue
+            result = delong(
+                _agreement(columns[english][p_items]),
+                _agreement(columns[english][n_items]),
+                _agreement(columns[column][p_items]),
+                _agreement(columns[column][n_items]),
+            )
+            gap, se = result["diff"], result["se"]
+            parity.setdefault(column[: -len("/fr")], {})[corpus] = {
+                "auc_en": result["auc_a"],
+                "auc_fr": result["auc_b"],
+                "gap": gap,
+                "low": gap - 1.96 * se,
+                "high": gap + 1.96 * se,
+                "p_gap_below_margin": (
+                    float(norm.cdf((gap - PARITY_MARGIN) / se)) if se > 0 else float(gap < PARITY_MARGIN)
+                ),
+            }
+    return {"references": references, "daccord": tests, "seeds": seeds, "guard_rails": guard, "parity": parity}
 
 
 def readable(column: str) -> tuple[str, str]:
@@ -600,7 +779,103 @@ def tables(result: dict[str, Any]) -> str:
         "contradiction, la v3 est conçue pour les garder au-dessus de zéro.",
         "",
     ]
+    if "significance" in result:
+        lines += significance_tables(result["significance"], daccord)
     return "\n".join(lines)
+
+
+def _p(value: Optional[float]) -> str:
+    """A p-value in two decimals, or ``< 0.01``."""
+    if value is None or np.isnan(value):
+        return "-"
+    return "< 0.01" if value < 0.01 else f"{value:.2f}"
+
+
+def _signed(value: float) -> str:
+    return f"{100 * value:+.2f}"
+
+
+def significance_tables(sig: dict[str, Any], daccord: dict[str, Any]) -> list[str]:
+    """The tests behind each claim, as four Markdown tables."""
+    references = sig["references"]
+    keys = [k for k in ("1a", "1b", "v3") if k in references]
+    lines = [
+        "## Significativité sur DACCORD",
+        "",
+        "| Modèle | Entrée | AUC | " + " | ".join(f"Δ {k} | p {k}" for k in keys) + " | McNemar signe vs v3 |",
+        "|---|---|---|" + "---|---|" * len(keys) + "---|",
+    ]
+    for column in sorted(sig["daccord"], key=lambda c: -daccord[c]["auc"]):
+        model, kind = readable(column)
+        tests = sig["daccord"][column]
+        cells = []
+        for key in keys:
+            test = tests.get(key)
+            cells += [_signed(test["diff"]), _p(test.get("p_holm"))] if test else ["réf.", ""]
+        sign = tests.get("mcnemar_sign_v3")
+        lines.append(
+            f"| {model} | {kind} | {_pct(daccord[column]['auc'])} | "
+            + " | ".join(cells)
+            + f" | {_p(sign['p']) if sign else '-'} |"
+        )
+    lines += [
+        "",
+        "Δ : écart d'AUC en points contre la référence. p : test z de DeLong apparié, ajusté par Holm "
+        "sur tout le tableau. McNemar : bon signe du score (sous zéro pour une contradiction), apparié.",
+        "",
+        "## Graines, DACCORD (Welch contre v3)",
+        "",
+        "| Famille | Graines | AUC moyenne | Écart-type | Δ v3 | t | p |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    v3_mean = sig["seeds"].get("v3-auglex", {}).get("mean", float("nan"))
+    for family, block in sorted(sig["seeds"].items(), key=lambda item: -item[1]["mean"]):
+        label = HEAD_LABELS.get(f"{family}-ensemble", family)
+        test = block["vs_v3"]
+        t = f"{test['t']:.2f}" if test and not np.isnan(test["t"]) else "-"
+        delta = _signed(block["mean"] - v3_mean) if test else "réf."
+        lines.append(
+            f"| `{label}` | {block['n']} | {_pct(block['mean'])} | {_pct(block['std'])} | {delta} | {t} "
+            f"| {_p(test.get('p')) if test else ''} |"
+        )
+    lines += [
+        "",
+        "## Garde-fous, Breaking-fr",
+        "",
+        "| Modèle | Entrée | "
+        + " | ".join(f"{f} > 0 | p ≥ {100 * t:.0f} % | McNemar vs v3" for f, t in GUARD_RAILS.items())
+        + " |",
+        "|---|---|" + "---|---|---|" * len(GUARD_RAILS),
+    ]
+    for column in sorted(sig["guard_rails"], key=readable):
+        model, kind = readable(column)
+        cells = []
+        for family in GUARD_RAILS:
+            entry = sig["guard_rails"][column].get(family)
+            if not entry:
+                cells += ["-", "-", "-"]
+                continue
+            versus = entry.get("mcnemar_v3")
+            cells += [_pct(entry["above_zero"]), _p(entry["p_above_target"]), _p(versus["p"]) if versus else "-"]
+        lines.append(f"| {model} | {kind} | " + " | ".join(cells) + " |")
+    lines += [
+        "",
+        "p ≥ cible : test binomial unilatéral, petit quand la part au-dessus de zéro dépasse la cible.",
+        "",
+        "## Parité anglais / français (critère 2)",
+        "",
+        "| Modèle | Corpus | AUC EN | AUC FR | Écart | IC 95 % | p (écart < 2) |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for head in sorted(sig["parity"], key=lambda h: HEAD_LABELS.get(h, h)):
+        for corpus, block in sig["parity"][head].items():
+            lines.append(
+                f"| `{HEAD_LABELS.get(head, head)}` | {CORPUS_LABELS[corpus]} | {_pct(block['auc_en'])} "
+                f"| {_pct(block['auc_fr'])} | {_pct(block['gap'])} | [{_pct(block['low'])}, {_pct(block['high'])}] "
+                f"| {_p(block['p_gap_below_margin'])} |"
+            )
+    lines += ["", "p petit : l'écart est significativement sous la marge de 2 points.", ""]
+    return lines
 
 
 # --------------------------------------------------------------------------- CLI

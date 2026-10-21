@@ -180,6 +180,20 @@ Séquence ensuite : étape 2 (FR + DE + AR, avec FrJUDGE, DEplain et SAMER), pui
 
 ## Journal
 
+- 2026-10-21 : **seconde vague, trois pistes en parallèle (décision de David).** Les têtes v4
+  tiennent les garde-fous (co-hyponymes au-dessus de zéro : 85,34 à 94,40 %, contre 27,51 %
+  pour `XLM-R-large` prêt à l'emploi), mais elles perdent 7,80 à 13,41 points sur DACCORD
+  (DeLong apparié, p < 0,01 après Holm, sur les six configurations). Le but est d'obtenir les
+  deux à la fois : DACCORD à 90,95 ou plus et co-hyponymes à 90 % ou plus. Trois pistes :
+  (1) WiSE-FT, une interpolation des poids entre la tête prête à l'emploi et la tête v4 EN
+  (alpha de 0,2 à 0,8, trois graines), sans entraînement, sur souris ; (2) le rejeu,
+  AUG+LEX plus 90 000 paires MultiNLI équilibrées, sur `mDeBERTa` (1080 Ti) et `XLM-R-large`
+  (P5000, après la grille) ; (3) l'ablation sans AUG ni LEX, puis AUG seul, sur `mDeBERTa`,
+  pour situer la perte. Le rapport porte désormais des tests : DeLong contre 1a, 1b et v3,
+  Welch sur les graines, binomial et McNemar sur les garde-fous, et la parité EN/FR testée
+  contre la marge de 2 points. Autres langues : XNLI test en DE, AR, ES et ZH (on vise
+  ensuite les 14 langues), en zéro-shot, avec translate-test par Opus-MT, sans annotation.
+  Renard et souris ont redémarré le 2026-10-20 vers 6 h 30 ; les grilles ont été relancées.
 - 2026-10-17 : **le recul se reproduit sur un second backbone.** `mDeBERTa-v3-base` entraîné
   sur AUG+LEX fait 76,70 à 79,22 sur DACCORD, soit 11,62 à 14,14 points sous son propre
   point de départ prêt à l'emploi (90,84). Le défaut vient de la recette AUG+LEX, pas du

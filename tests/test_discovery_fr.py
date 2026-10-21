@@ -15,11 +15,15 @@ import pytest
 from diagnostics.discovery_fr import (
     bootstrap_auc_gap,
     contradiction_index,
+    delong,
+    holm,
     inputs_for,
+    mcnemar,
     normalize,
     report,
     slice_report,
     tables,
+    welch,
 )
 
 
@@ -232,3 +236,105 @@ def test_xnli_rows_pair_french_with_its_english_item() -> None:
     ]
     pair = normalize("xnli_fr", rows)[0]
     assert (pair["label"], pair["en_a"], pair["fr_b"]) == ("contradiction", "It rains.", "Il fait sec.")
+
+
+def test_delong_matches_auc_and_is_null_for_identical_heads() -> None:
+    rng = np.random.default_rng(1)
+    pos, neg = rng.normal(1.0, 1.0, 300), rng.normal(0.0, 1.0, 300)
+    same = delong(pos, neg, pos, neg)
+    assert same["diff"] == 0.0 and same["p"] == 1.0
+    # Ties count one half, as the plain AUC does.
+    tied = delong(np.array([1.0, 0.5]), np.array([0.5, 0.0]), np.array([1.0, 0.5]), np.array([0.5, 0.0]))
+    assert tied["auc_a"] == 0.875
+
+
+def test_delong_detects_a_better_head_and_not_noise() -> None:
+    rng = np.random.default_rng(2)
+    pos, neg = rng.normal(1.0, 1.0, 400), rng.normal(0.0, 1.0, 400)
+    better = delong(pos + 1.0, neg, pos, neg)
+    assert better["diff"] > 0 and better["z"] > 3 and better["p"] < 0.001
+    # Paired noise of a size the AUC barely moves on is not significant.
+    jitter = delong(pos + rng.normal(0, 0.01, 400), neg, pos, neg)
+    assert jitter["p"] > 0.05
+
+
+def test_delong_standard_error_agrees_with_the_bootstrap() -> None:
+    rng = np.random.default_rng(3)
+    pos, neg = rng.normal(1.0, 1.0, 500), rng.normal(0.0, 1.0, 500)
+    other = pos + rng.normal(0, 0.8, 500)
+    test = delong(other, neg, pos, neg)
+    boot = bootstrap_auc_gap(other, neg, pos, neg, rounds=1000)
+    assert abs(test["se"] - (boot["high"] - boot["low"]) / (2 * 1.96)) < 0.3 * test["se"]
+
+
+def test_mcnemar_counts_only_discordant_items() -> None:
+    a = np.array([True, True, True, False, True, True])
+    b = np.array([True, False, False, False, True, False])
+    out = mcnemar(a, b)
+    assert (out["only_a"], out["only_b"]) == (3, 0)
+    assert out["p"] == 0.25  # exact two-sided binomial, 3 of 3
+    assert mcnemar(a, a)["p"] == 1.0
+
+
+def test_holm_is_monotone_and_capped() -> None:
+    adjusted = holm({"a": 0.01, "b": 0.04, "c": 0.03, "d": 0.5})
+    assert adjusted["a"] == 0.04
+    assert adjusted["c"] == pytest.approx(0.09)
+    assert adjusted["b"] == pytest.approx(0.09)  # 2 x 0.04 = 0.08, raised to keep the order
+    assert adjusted["d"] == 0.5
+
+
+def test_welch_needs_two_seeds_per_side() -> None:
+    assert np.isnan(welch([0.8], [0.9, 0.91])["p"])
+    assert welch([0.80, 0.81, 0.79], [0.90, 0.91, 0.89])["p"] < 0.01
+
+
+def _pairs_with_guard_rails() -> list[dict]:
+    daccord = [
+        {"corpus": "daccord", "label": lab, "category": "", "en_a": "", "en_b": ""}
+        for lab in ["compatible"] * 3 + ["contradiction"] * 3
+    ]
+    breaking = [
+        {"corpus": "breaking_fr", "label": "contradiction", "category": "colors", "en_a": "x", "en_b": "y"}
+        for _ in range(4)
+    ]
+    xnli = [
+        {"corpus": "xnli_fr", "label": lab, "category": "", "en_a": "x", "en_b": "y"}
+        for lab in ["entailment"] * 3 + ["contradiction"] * 3
+    ]
+    return daccord + breaking + xnli
+
+
+def test_significance_compares_with_1a_1b_v3_and_writes_its_tables() -> None:
+    pairs = _pairs_with_guard_rails()
+    every = list(range(len(pairs)))
+    good = [0.1, 0.2, 0.3, 0.7, 0.8, 0.9] + [0.2] * 4 + [0.1, 0.2, 0.3, 0.7, 0.8, 0.9]
+    noisy = [0.4, 0.6, 0.3, 0.5, 0.7, 0.45] + [0.9] * 4 + [0.4, 0.6, 0.3, 0.5, 0.7, 0.45]
+    scores = {
+        "v3-auglex-seed42": {"mt": good, "mt_index": every, "fr": good, "fr_index": every},
+        "v3-auglex-seed43": {"mt": good, "mt_index": every, "fr": good, "fr_index": every},
+        "offshelf-xlm-roberta-large": {"fr": noisy, "fr_index": every, "orig": good[6:], "orig_index": every[6:]},
+        "v4-xlmr-en-seed42": {"fr": noisy, "fr_index": every},
+        "v4-xlmr-en-seed43": {"fr": good, "fr_index": every},
+    }
+    out = report(pairs, scores)
+    sig = out["significance"]
+    assert sig["references"] == {
+        "1a": "offshelf-xlm-roberta-large/fr",
+        "1b": "v3-auglex-ensemble/mt",
+        "v3": "v3-auglex-ensemble/mt",
+    }
+    versus = sig["daccord"]["offshelf-xlm-roberta-large/fr"]
+    assert "1a" not in versus and versus["v3"]["diff"] < 0 and "p_holm" in versus["v3"]
+    assert versus["mcnemar_sign_v3"]["only_b"] >= 1
+    # Guard rail: every colour contradiction of the off-the-shelf head falls below zero,
+    # none is kept above it, so the binomial cannot clear 90 %.
+    rail = sig["guard_rails"]["offshelf-xlm-roberta-large/fr"]["co-hyponymes"]
+    assert rail["above_zero"] == 0.0 and rail["p_above_target"] == 1.0
+    assert rail["mcnemar_v3"]["only_b"] == 4
+    assert sig["seeds"]["v4-xlmr-en"]["n"] == 2 and "p" in sig["seeds"]["v4-xlmr-en"]["vs_v3"]
+    parity = sig["parity"]["offshelf-xlm-roberta-large"]["xnli_fr"]
+    assert parity["auc_en"] == 1.0 and parity["gap"] > 0
+    text = tables(out)
+    assert "## Significativité sur DACCORD" in text and "## Parité anglais / français" in text
+    assert "| `XLM-R-large NLI` | XNLI-fr | 100.00 |" in text
