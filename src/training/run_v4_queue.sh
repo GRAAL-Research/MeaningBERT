@@ -10,6 +10,9 @@
 #                                           French it is also the zero-shot regime
 #   fr    datastore/polarity-full-lex-fr    the same corpus machine-translated to French
 #   enfr  datastore/polarity-full-lex-enfr  both, the multilingual regime
+#   none  datastore/polarity                no augmentation, no lexical pairs: the ablation
+#   aug   datastore/polarity-full           AUG without LEX: the other ablation rung
+#   replay datastore/polarity-full-lex-replay  AUG+LEX plus general NLI rows, against forgetting
 #
 # Seed-major order is the point: seed 42 of all three regimes lands first, so the first
 # comparison exists after one pass instead of after thirty runs. An item whose corpus is
@@ -26,6 +29,9 @@ declare -A CORPUS_OF=(
     [en]="$REPO/datastore/polarity-full-lex"
     [fr]="$REPO/datastore/polarity-full-lex-fr"
     [enfr]="$REPO/datastore/polarity-full-lex-enfr"
+    [none]="$REPO/datastore/polarity"
+    [aug]="$REPO/datastore/polarity-full"
+    [replay]="$REPO/datastore/polarity-full-lex-replay"
 )
 
 IFS=';' read -ra items <<< "${QUEUE:?QUEUE est vide}"
