@@ -30,6 +30,15 @@ cd "$REPO" || exit 1
 mkdir -p "$OUT" "$SCRATCH"
 py() { PYTHONPATH=src "$VENV/bin/python" "$@" < /dev/null; }
 
+# souris filled its disk on 2026-10-21 (Opus-MT models plus pulled heads): below this much
+# free space a pass pulls nothing and waits, rather than dying halfway through a write.
+MIN_FREE_GB="${MIN_FREE_GB:-4}"
+disk_ok() {
+    local free
+    free=$(df -BG --output=avail "$REPO" | tail -1 | tr -dc '0-9')
+    [ "$free" -ge "$MIN_FREE_GB" ] || { echo "[DISK] ${free} Go libres, moins que $MIN_FREE_GB : passage saute"; return 1; }
+}
+
 # One pass per hour until every mix is scored: seeds still training on renard join later.
 total=$(( $(echo "$BACKBONES" | wc -l) * $(echo $REGIMES | wc -w) * $(echo $SEEDS | wc -w) * $(echo $ALPHAS | wc -w) ))
 while [ "$(ls "$OUT"/scores-v4-wise-*.json 2>/dev/null | wc -l)" -lt "$total" ]; do
@@ -44,6 +53,7 @@ while IFS='|' read -r key base prefix; do
         for alpha in $ALPHAS; do
             name="v4-wise-$key-$regime-a$alpha-seed$seed"
             grep -lq "\"$name\"" "$OUT"/scores-*.json 2>/dev/null && continue
+            disk_ok || break
             if [ ! -f "$tuned/model.safetensors" ]; then
                 echo "[$(date '+%F %T')] $key seed $seed : rapatriement"
                 mkdir -p "$tuned"
