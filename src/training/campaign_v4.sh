@@ -48,6 +48,9 @@ case "$CARD" in
             [ "$seed" -ge 47 ] && q="$q;replay|$arch|$seed;none|$arch|$seed;aug|$arch|$seed"
         done
         polarity renard-g0-vague2b "$q"
+        # The card is free once mDeBERTa is done (XLM-R wedges it): ten magnitude seeds, as
+        # everywhere else (decision of 2026-10-26).
+        magnitude renard-g0-magnitude mdeberta 47 51
         ;;
     gpu1)
         export GPU=1
